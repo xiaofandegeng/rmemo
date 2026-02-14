@@ -44,9 +44,11 @@ jobs:
         run: |
           npm version "${{ inputs.version }}" -m "chore(release): %s"
 
-      - name: Push commit and tags
+      - name: Sanity check npm identity
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          git push origin HEAD:main --follow-tags
+          npm whoami
 
       - name: Publish to npm
         env:
@@ -55,3 +57,6 @@ jobs:
         run: |
           npm publish --tag "${{ inputs.dist_tag }}"
 
+      - name: Push commit and tags
+        run: |
+          git push origin HEAD:main --follow-tags
