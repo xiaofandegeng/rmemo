@@ -16,6 +16,9 @@ node /path/to/rmemo/bin/rmemo.js --root . start
 1. 粘贴 `.repo-memory/context.md`
 2. 可选：再粘贴 `rmemo start` 输出的 Status（当前 Next/Blockers/结构提示）
 
+小提示：
+- `--mode brief` 下的 Status 会给 Next/Blockers 编号，对应 `rmemo todo done|unblock <n>` 的序号。
+
 ### 开发过程中
 
 记录关键决策（短、明确、可执行）：
@@ -62,4 +65,3 @@ node /path/to/rmemo/bin/rmemo.js --root . hook install
 - `rules.md` 尽量控制在 10-20 条强约束。
 - 把模块边界写清楚，例如“禁止跨模块 import”。
 - AI 迷路时，重新生成并粘贴一次：`rmemo context`。
-

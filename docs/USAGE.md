@@ -16,6 +16,9 @@ What to paste to AI:
 1. Paste `.repo-memory/context.md`
 2. Optionally paste the `rmemo start` output (Status)
 
+Tip:
+- The `Status` output numbers Next/Blockers items in `--mode brief`, which matches `rmemo todo done|unblock <n>`.
+
 ### During the day
 
 Log important decisions (keep it short and factual):
@@ -62,4 +65,3 @@ node /path/to/rmemo/bin/rmemo.js --root . hook install
 - Keep `rules.md` short and strict: 10-20 bullets.
 - Put module boundaries in rules: "Do not import X from Y".
 - When AI gets confused, regenerate context: `rmemo context` and paste again.
-

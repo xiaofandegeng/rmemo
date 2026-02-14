@@ -98,13 +98,17 @@ export async function cmdStatus({ flags }) {
   parts.push(`Generated: ${new Date().toISOString()}\n`);
 
   if (todos) {
+    const renderList = (items, { empty, none } = {}) => {
+      if (!items.length) return `- ${empty || none || "(empty)"}\n`;
+      if (mode === "brief") return items.map((x, i) => `${i + 1}. ${x}`).join("\n") + "\n";
+      return items.map((x) => `- ${x}`).join("\n") + "\n";
+    };
+
     parts.push(`## Next\n`);
-    if (todos.next.length) parts.push(todos.next.map((x) => `- ${x}`).join("\n") + "\n");
-    else parts.push(`- (empty)\n`);
+    parts.push(renderList(todos.next, { empty: "(empty)" }));
 
     parts.push(`## Blockers\n`);
-    if (todos.blockers.length) parts.push(todos.blockers.map((x) => `- ${x}`).join("\n") + "\n");
-    else parts.push(`- (none)\n`);
+    parts.push(renderList(todos.blockers, { none: "(none)" }));
   }
 
   if (manifest) {
