@@ -188,6 +188,9 @@ rmemo ws ls
 rmemo ws start 1
 rmemo ws handoff apps/admin-web
 rmemo ws pr apps/admin-web --base origin/main
+rmemo ws batch handoff
+rmemo ws batch pr --base origin/main
+rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 
 ## Enforcing Rules (CI / Hooks)

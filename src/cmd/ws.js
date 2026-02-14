@@ -1,4 +1,5 @@
 import path from "node:path";
+import fs from "node:fs/promises";
 import { resolveRoot } from "../lib/paths.js";
 import { scanRepo } from "../core/scan.js";
 import { cmdStart } from "./start.js";
@@ -6,15 +7,30 @@ import { cmdStatus } from "./status.js";
 import { cmdHandoff } from "./handoff.js";
 import { cmdPr } from "./pr.js";
 import { cmdSync } from "./sync.js";
+import { ensureRepoMemory } from "../core/memory.js";
+import { wsSummaryPath } from "../lib/paths.js";
+import { generateHandoff } from "../core/handoff.js";
+import { generatePr } from "../core/pr.js";
+import { syncAiInstructions } from "../core/sync.js";
+import { refreshRepoMemory } from "../core/watch.js";
 
 function isNumberLike(s) {
   return /^[0-9]+$/.test(String(s || ""));
+}
+
+function splitList(raw) {
+  if (!raw) return [];
+  return String(raw)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function wsHelp() {
   return [
     "Usage:",
     "  rmemo ws ls",
+    "  rmemo ws batch <start|status|handoff|pr|sync> [--only <dirs>] [--format <md|json>]",
     "  rmemo ws start <n|dir>",
     "  rmemo ws status <n|dir>",
     "  rmemo ws handoff <n|dir>",
@@ -23,7 +39,8 @@ function wsHelp() {
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
-    "- <n> refers to the index printed by `rmemo ws ls`."
+    "- <n> refers to the index printed by `rmemo ws ls`.",
+    "- For batch: `--only` is a comma-separated list of subproject dirs (e.g. apps/admin-web,apps/miniapp)."
   ].join("\n");
 }
 
@@ -60,11 +77,92 @@ function pickWorkspace(manifest, pick) {
   return sps.find((x) => x.dir === p) || null;
 }
 
+async function writeWsSummary(root, text) {
+  await ensureRepoMemory(root);
+  const p = wsSummaryPath(root);
+  await fs.writeFile(p, text, "utf8");
+  return p;
+}
+
+function renderBatchMd({ root, cmd, results }) {
+  const lines = [];
+  lines.push("# Workspace Batch\n");
+  lines.push(`Root: ${root}\n`);
+  lines.push(`Generated: ${new Date().toISOString()}\n`);
+  lines.push(`Command: ${cmd}\n`);
+  lines.push("");
+  for (const r of results) {
+    const status = r.ok ? "OK" : "ERR";
+    const out = [r.outMd, r.outJson].filter(Boolean).map((x) => `\`${x}\``).join(" ");
+    lines.push(`- ${status} ${r.dir}${out ? ` -> ${out}` : ""}${r.error ? ` (${r.error})` : ""}`);
+  }
+  lines.push("");
+  return lines.join("\n").trimEnd() + "\n";
+}
+
+function renderBatchJson({ root, cmd, results }) {
+  return JSON.stringify({ schema: 1, root, generatedAt: new Date().toISOString(), cmd, results }, null, 2) + "\n";
+}
+
+async function runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd, base, format, maxChanges, onlyDirs }) {
+  const { manifest } = await scanRepo(root, { maxFiles, preferGit });
+  const spsAll = Array.isArray(manifest?.subprojects) ? manifest.subprojects : [];
+  const sps = onlyDirs && onlyDirs.length ? spsAll.filter((x) => onlyDirs.includes(x.dir)) : spsAll;
+
+  if (!sps.length) {
+    const msg = "No subprojects detected.";
+    if (format === "json") return { output: renderBatchJson({ root, cmd, results: [] }), summaryPath: null, empty: true, message: msg };
+    const md = `# Workspace Batch\n\n${msg}\n`;
+    return { output: md, summaryPath: null, empty: true, message: msg };
+  }
+
+  const results = [];
+  for (const sp of sps) {
+    const wsRoot = path.resolve(root, sp.dir);
+    try {
+      if (cmd === "handoff") {
+        // eslint-disable-next-line no-await-in-loop
+        const r = await generateHandoff(wsRoot, { preferGit, maxFiles, snipLines, recentDays, since: "", staged: false, maxChanges, format });
+        results.push({ dir: sp.dir, ok: true, outMd: r.out, outJson: r.outJson || null });
+      } else if (cmd === "pr") {
+        // eslint-disable-next-line no-await-in-loop
+        const r = await generatePr(wsRoot, { preferGit, maxFiles, snipLines, recentDays, base, staged: false, refresh: true, maxChanges, format });
+        results.push({ dir: sp.dir, ok: true, outMd: r.out, outJson: r.outJson || null });
+      } else if (cmd === "sync") {
+        // eslint-disable-next-line no-await-in-loop
+        await syncAiInstructions({ root: wsRoot });
+        results.push({ dir: sp.dir, ok: true, outMd: null, outJson: null });
+      } else if (cmd === "start") {
+        // eslint-disable-next-line no-await-in-loop
+        await refreshRepoMemory(wsRoot, { preferGit, maxFiles, snipLines, recentDays, sync: true });
+        results.push({ dir: sp.dir, ok: true, outMd: null, outJson: null });
+      } else if (cmd === "status") {
+        // No file output; treat as ok and let user run per-workspace if needed.
+        results.push({ dir: sp.dir, ok: true, outMd: null, outJson: null, note: "use ws status <n|dir> for output" });
+      } else {
+        results.push({ dir: sp.dir, ok: false, error: `unsupported batch cmd: ${cmd}` });
+      }
+    } catch (err) {
+      results.push({ dir: sp.dir, ok: false, error: err?.message || String(err), outMd: null, outJson: null });
+    }
+  }
+
+  const output = format === "json" ? renderBatchJson({ root, cmd, results }) : renderBatchMd({ root, cmd, results });
+  const summaryPath = await writeWsSummary(root, format === "json" ? renderBatchMd({ root, cmd, results }) : output);
+  return { output, summaryPath, results };
+}
+
 export async function cmdWs({ rest, flags }) {
   const sub = rest[0];
   const root = resolveRoot(flags);
   const preferGit = flags["no-git"] ? false : true;
   const maxFiles = Number(flags["max-files"] || 4000);
+  const snipLines = Number(flags["snip-lines"] || 120);
+  const recentDays = Number(flags["recent-days"] || 3);
+  const format = String(flags.format || "md").toLowerCase();
+  const maxChanges = Number(flags["max-changes"] || 200);
+  const onlyDirs = splitList(flags.only || "");
+  const base = flags.base ? String(flags.base) : "";
 
   if (!sub || sub === "help") {
     process.stdout.write(wsHelp() + "\n");
@@ -76,6 +174,19 @@ export async function cmdWs({ rest, flags }) {
 
   if (sub === "ls") {
     process.stdout.write(renderWsList(manifest));
+    return;
+  }
+
+  if (sub === "batch") {
+    const cmd = String(rest[1] || "").trim();
+    if (!cmd) {
+      process.stderr.write("Missing batch command.\n\n");
+      process.stderr.write(wsHelp() + "\n");
+      process.exitCode = 2;
+      return;
+    }
+    const r = await runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd, base, format, maxChanges, onlyDirs });
+    process.stdout.write(r.output);
     return;
   }
 
@@ -113,4 +224,3 @@ export async function cmdWs({ rest, flags }) {
       process.exitCode = 2;
   }
 }
-

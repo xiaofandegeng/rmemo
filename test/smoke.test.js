@@ -796,6 +796,39 @@ test("rmemo ws ls lists detected subprojects", async () => {
   assert.ok(r.out.includes("apps/miniapp"));
 });
 
+test("rmemo ws batch handoff generates handoff for all subprojects", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-ws-batch-"));
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "root", private: true, workspaces: ["apps/*"] }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "pnpm-workspace.yaml"), "packages:\n  - 'apps/*'\n", "utf8");
+
+  await fs.mkdir(path.join(tmp, "apps", "admin-web"), { recursive: true });
+  await fs.writeFile(
+    path.join(tmp, "apps", "admin-web", "package.json"),
+    JSON.stringify({ name: "admin-web", dependencies: { vue: "^3.0.0" } }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.mkdir(path.join(tmp, "apps", "miniapp"), { recursive: true });
+  await fs.writeFile(path.join(tmp, "apps", "miniapp", "project.config.json"), "{\n}\n", "utf8");
+
+  const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--format", "json", "ws", "batch", "handoff"]);
+  assert.equal(r.code, 0, r.err || r.out);
+  const j = JSON.parse(r.out);
+  assert.equal(j.schema, 1);
+  assert.equal(j.cmd, "handoff");
+  assert.ok(Array.isArray(j.results));
+  assert.equal(j.results.length, 2);
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "ws.md")), true, "should write monorepo ws summary");
+  assert.ok(await exists(path.join(tmp, "apps", "admin-web", ".repo-memory", "handoff.md")), true);
+  assert.ok(await exists(path.join(tmp, "apps", "miniapp", ".repo-memory", "handoff.md")), true);
+});
+
 test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-handoff-json-"));

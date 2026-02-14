@@ -111,6 +111,7 @@ Options:
   --interval <ms>            For watch: poll interval (default: 2000)
   --once                     For watch: run at most one refresh tick and exit (test/script friendly)
   --no-sync                  For watch: do not run rmemo sync on refresh
+  --only <list>              For ws batch: comma-separated subproject dirs to include
   --no-git                   Don't use git for scanning (fallback to filesystem walk)
 `;
   process.stdout.write(help.trimStart());

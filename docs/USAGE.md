@@ -152,6 +152,14 @@ node /path/to/rmemo/bin/rmemo.js --root . ws start 1
 node /path/to/rmemo/bin/rmemo.js --root . ws handoff apps/admin-web
 ```
 
+Batch mode:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . ws batch handoff
+node /path/to/rmemo/bin/rmemo.js --root . ws batch pr --base origin/main
+node /path/to/rmemo/bin/rmemo.js --root . ws batch handoff --only apps/admin-web,apps/miniapp
+```
+
 ## Tips
 
 - Keep `rules.md` short and strict: 10-20 bullets.

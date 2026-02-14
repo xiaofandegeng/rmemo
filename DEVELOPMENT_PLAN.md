@@ -156,3 +156,12 @@ Goals:
 Done:
 - Scope `git ls-files` to `--root` subdir when `--root` is inside a git repo
 - Add `rmemo ws` (workspace helper) to list/detect subprojects and run commands inside them
+
+## v1.4 (Workspace Batch) (In Progress)
+
+Goals:
+- Batch-generate handoff/pr/sync/start across all detected subprojects.
+- Write a monorepo-level summary file for quick navigation.
+
+Done:
+- Add `rmemo ws batch ...` and write `.repo-memory/ws.md` at repo root

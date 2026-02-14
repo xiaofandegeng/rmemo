@@ -152,6 +152,14 @@ node /path/to/rmemo/bin/rmemo.js --root . ws start 1
 node /path/to/rmemo/bin/rmemo.js --root . ws handoff apps/admin-web
 ```
 
+批量模式：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . ws batch handoff
+node /path/to/rmemo/bin/rmemo.js --root . ws batch pr --base origin/main
+node /path/to/rmemo/bin/rmemo.js --root . ws batch handoff --only apps/admin-web,apps/miniapp
+```
+
 ## 小建议
 
 - `rules.md` 尽量控制在 10-20 条强约束。

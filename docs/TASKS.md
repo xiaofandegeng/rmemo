@@ -40,3 +40,6 @@ This file is a lightweight "what are we doing next" board.
 10. Monorepo workspaces
    - `rmemo ws ls/start/status/handoff/pr/sync`
    - ensure git scanning is scoped to `--root` subdir
+11. Workspace batch
+   - `rmemo ws batch handoff/pr/sync/start`
+   - write a monorepo-level summary under `.repo-memory/ws.md`
