@@ -288,7 +288,15 @@ test("rmemo todo add/block/ls updates todos file", async () => {
     assert.equal(r.code, 0, r.err || r.out);
   }
   {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "add", "Do C"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
     const r = await runNode([rmemoBin, "--root", tmp, "todo", "block", "Blocked on B"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "block", "Blocked on D"]);
     assert.equal(r.code, 0, r.err || r.out);
   }
   {
@@ -296,7 +304,27 @@ test("rmemo todo add/block/ls updates todos file", async () => {
     assert.equal(r.code, 0, r.err || r.out);
     assert.ok(r.out.includes("## Next"));
     assert.ok(r.out.includes("Do A"));
+    assert.ok(r.out.includes("Do C"));
     assert.ok(r.out.includes("## Blockers"));
     assert.ok(r.out.includes("Blocked on B"));
+    assert.ok(r.out.includes("Blocked on D"));
+  }
+
+  // Remove items by index
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "done", "1"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "unblock", "2"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "ls"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(!r.out.includes("Do A"), "removed next item should be gone");
+    assert.ok(r.out.includes("Do C"), "remaining next item should exist");
+    assert.ok(r.out.includes("Blocked on B"), "remaining blocker should exist");
+    assert.ok(!r.out.includes("Blocked on D"), "removed blocker should be gone");
   }
 });

@@ -121,6 +121,8 @@ Todo helpers:
 rmemo todo add "Implement user search"
 rmemo todo block "Backend API missing"
 rmemo todo ls
+rmemo todo done 1
+rmemo todo unblock 1
 ```
 
 ## Roadmap (short)

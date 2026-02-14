@@ -127,6 +127,8 @@ rmemo done --next "明天第一步做什么" --blocker "当前阻塞是什么" "
 rmemo todo add "实现用户搜索"
 rmemo todo block "后端接口还没出"
 rmemo todo ls
+rmemo todo done 1
+rmemo todo unblock 1
 ```
 
 ## Roadmap（简版）
@@ -134,4 +136,3 @@ rmemo todo ls
 - v0.2：增强通用扫描（monorepo/子项目/API 契约/文档根目录）
 - v0.3：规则能力增强 + 更好的 `check` 输出 + hooks/CI 体验打磨
 - v0.4：VS Code 扩展（快速 log/start/done）
-

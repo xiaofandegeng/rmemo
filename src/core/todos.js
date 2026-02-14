@@ -38,6 +38,15 @@ function ensureSection(md, title) {
   return trimmed + `\n\n## ${title}\n`;
 }
 
+function findSectionRange(lines, title) {
+  const headerRe = new RegExp(`^##\\s+${title}\\s*$`, "i");
+  const start = lines.findIndex((l) => headerRe.test(l.trim()));
+  if (start === -1) return null;
+  let end = start + 1;
+  while (end < lines.length && !/^##\s+/.test(lines[end])) end++;
+  return { start, end };
+}
+
 function insertBulletIntoSection(md, title, bulletText) {
   let s = String(md || "");
   s = ensureSection(s, title);
@@ -46,12 +55,50 @@ function insertBulletIntoSection(md, title, bulletText) {
   const idx = lines.findIndex((l) => headerRe.test(l.trim()));
   if (idx === -1) return s.trimEnd() + `\n- ${bulletText}\n`;
 
+  // Drop default template placeholder bullets once real items are being added.
+  const range = findSectionRange(lines, title);
+  if (range) {
+    const placeholder =
+      title.toLowerCase() === "next"
+        ? /^\s*-\s+\(Write the next concrete step\)\s*$/
+        : title.toLowerCase() === "blockers"
+          ? /^\s*-\s+\(If any\)\s*$/
+          : null;
+    if (placeholder) {
+      for (let i = range.start + 1; i < range.end; i++) {
+        if (placeholder.test(lines[i])) {
+          lines.splice(i, 1);
+          break;
+        }
+      }
+    }
+  }
+
   // Insert after header + blank lines, but before next section header.
   let insertAt = idx + 1;
   while (insertAt < lines.length && lines[insertAt].trim() === "") insertAt++;
   while (insertAt < lines.length && !/^##\s+/.test(lines[insertAt])) insertAt++;
 
   lines.splice(insertAt, 0, `- ${bulletText}`);
+  return lines.join("\n").trimEnd() + "\n";
+}
+
+function removeNthBulletFromSection(md, title, n1) {
+  const n = Number(n1);
+  if (!Number.isInteger(n) || n <= 0) throw new Error(`Index must be a positive integer (got: ${n1})`);
+
+  const lines = String(md || "").split("\n");
+  const range = findSectionRange(lines, title);
+  if (!range) throw new Error(`Missing section: ## ${title}`);
+
+  const bulletIdxs = [];
+  for (let i = range.start + 1; i < range.end; i++) {
+    if (/^\s*-\s+/.test(lines[i])) bulletIdxs.push(i);
+  }
+  if (n > bulletIdxs.length) throw new Error(`No such item: ${title} #${n} (total: ${bulletIdxs.length})`);
+
+  const rmAt = bulletIdxs[n - 1];
+  lines.splice(rmAt, 1);
   return lines.join("\n").trimEnd() + "\n";
 }
 
@@ -79,3 +126,18 @@ export async function addTodoBlocker(root, text) {
   return p;
 }
 
+export async function removeTodoNextByIndex(root, index1) {
+  const p = await ensureTodosFile(root);
+  const s = await fs.readFile(p, "utf8");
+  const updated = removeNthBulletFromSection(s, "Next", index1);
+  await fs.writeFile(p, updated, "utf8");
+  return p;
+}
+
+export async function removeTodoBlockerByIndex(root, index1) {
+  const p = await ensureTodosFile(root);
+  const s = await fs.readFile(p, "utf8");
+  const updated = removeNthBulletFromSection(s, "Blockers", index1);
+  await fs.writeFile(p, updated, "utf8");
+  return p;
+}

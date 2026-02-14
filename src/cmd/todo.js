@@ -1,7 +1,14 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { resolveRoot } from "../lib/paths.js";
-import { ensureTodosFile, parseTodos, addTodoNext, addTodoBlocker } from "../core/todos.js";
+import {
+  ensureTodosFile,
+  parseTodos,
+  addTodoNext,
+  addTodoBlocker,
+  removeTodoNextByIndex,
+  removeTodoBlockerByIndex
+} from "../core/todos.js";
 import { todosPath } from "../lib/paths.js";
 
 export async function cmdTodo({ rest, flags }) {
@@ -14,6 +21,8 @@ export async function cmdTodo({ rest, flags }) {
         "Usage:",
         "  rmemo todo add <text>",
         "  rmemo todo block <text>",
+        "  rmemo todo done <n>",
+        "  rmemo todo unblock <n>",
         "  rmemo todo ls",
         ""
       ].join("\n") + "\n"
@@ -41,20 +50,36 @@ export async function cmdTodo({ rest, flags }) {
     await ensureTodosFile(root);
     const md = await fs.readFile(todosPath(root), "utf8");
     const t = parseTodos(md);
+    const numbered = (arr) => arr.map((x, i) => `${i + 1}. ${x}`);
     const out = [
       "# Todos",
       "",
       "## Next",
-      ...(t.next.length ? t.next.map((x) => `- ${x}`) : ["- (empty)"]),
+      ...(t.next.length ? numbered(t.next) : ["- (empty)"]),
       "",
       "## Blockers",
-      ...(t.blockers.length ? t.blockers.map((x) => `- ${x}`) : ["- (none)"]),
+      ...(t.blockers.length ? numbered(t.blockers) : ["- (none)"]),
       ""
     ].join("\n");
     process.stdout.write(out);
     return;
   }
 
+  if (sub === "done") {
+    const n = rest[1];
+    if (!n) throw new Error("Missing index. Usage: rmemo todo done <n>");
+    const p = await removeTodoNextByIndex(root, n);
+    process.stdout.write(`Updated todos: ${path.relative(process.cwd(), p)}\n`);
+    return;
+  }
+
+  if (sub === "unblock") {
+    const n = rest[1];
+    if (!n) throw new Error("Missing index. Usage: rmemo todo unblock <n>");
+    const p = await removeTodoBlockerByIndex(root, n);
+    process.stdout.write(`Updated todos: ${path.relative(process.cwd(), p)}\n`);
+    return;
+  }
+
   throw new Error(`Unknown subcommand: todo ${sub}`);
 }
-

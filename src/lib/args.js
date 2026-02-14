@@ -58,6 +58,8 @@ Usage:
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
   rmemo todo add <text>      Add a todo item under "## Next"
   rmemo todo block <text>    Add a blocker under "## Blockers"
+  rmemo todo done <n>        Remove the nth item from "## Next"
+  rmemo todo unblock <n>     Remove the nth item from "## Blockers"
   rmemo todo ls              Print parsed todos (Next/Blockers)
   rmemo context              Generate .repo-memory/context.md
   rmemo print                Print context.md to stdout (generate first if missing)
