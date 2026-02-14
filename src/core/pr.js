@@ -1,12 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileExists, readText, writeJson, writeText } from "../lib/io.js";
-import { contextPath, indexPath, journalDir, manifestPath, prPath, rulesPath, todosPath } from "../lib/paths.js";
+import { contextPath, indexPath, journalDir, manifestPath, prJsonPath, prPath, rulesPath, todosPath } from "../lib/paths.js";
 import { ensureRepoMemory } from "./memory.js";
 import { scanRepo } from "./scan.js";
 import { generateContext } from "./context.js";
 import { parseTodos } from "./todos.js";
-import { getGitSummary, gitOk, mergeBase, resolveDefaultBaseRef } from "./git_summary.js";
+import { getGitRangeData, getGitSummary, gitOk, mergeBase, resolveDefaultBaseRef } from "./git_summary.js";
 
 function clampLines(s, maxLines) {
   const lines = String(s || "").split("\n");
@@ -126,6 +126,56 @@ async function buildPrMarkdown(root, { snipLines, recentDays, baseRef, baseSha, 
   return ensureTrailingNewline(parts.join("").trimEnd());
 }
 
+async function buildPrJson(root, { snipLines, recentDays, baseRef, baseSha, staged, maxChanges } = {}) {
+  const generatedAt = new Date().toISOString();
+
+  const [rules, todosMd, manifestText] = await Promise.all([
+    readMaybe(rulesPath(root), 512_000),
+    readMaybe(todosPath(root), 512_000),
+    readMaybe(manifestPath(root), 2_000_000)
+  ]);
+
+  let manifest = null;
+  if (manifestText) {
+    try {
+      manifest = JSON.parse(manifestText);
+    } catch {
+      manifest = { parseError: true };
+    }
+  }
+
+  const todos = todosMd ? parseTodos(todosMd) : { next: [], blockers: [] };
+
+  const journalFiles = await listRecentJournalFiles(root, recentDays);
+  const journal = [];
+  for (const fn of journalFiles) {
+    // eslint-disable-next-line no-await-in-loop
+    const t = await readMaybe(path.join(journalDir(root), fn), 512_000);
+    if (!t) continue;
+    journal.push({ file: fn, text: clampLines(t.trimEnd(), Math.min(snipLines, 120)) });
+  }
+
+  const git = await getGitRangeData(root, {
+    sinceRef: baseSha,
+    staged,
+    maxCommits: maxChanges,
+    maxFiles: maxChanges
+  });
+
+  return {
+    schema: 1,
+    generatedAt,
+    root,
+    title: manifest?.title || null,
+    range: { baseRef, baseSha, head: git?.head || null },
+    changes: { commits: git?.commits || [], files: git?.files || [] },
+    status: { next: todos.next, blockers: todos.blockers },
+    rulesExcerpt: rules ? clampLines(rules, Math.min(snipLines, 120)) : null,
+    recentJournal: journal,
+    git
+  };
+}
+
 export async function generatePr(root, opts) {
   const {
     preferGit = true,
@@ -134,7 +184,9 @@ export async function generatePr(root, opts) {
     recentDays = 2,
     base = "",
     staged = false,
-    refresh = true
+    refresh = true,
+    maxChanges = 200,
+    format = "md"
   } = opts || {};
 
   await ensureRepoMemory(root);
@@ -164,6 +216,14 @@ export async function generatePr(root, opts) {
   const md = await buildPrMarkdown(root, { snipLines, recentDays, baseRef, baseSha, staged });
   const out = prPath(root);
   await writeText(out, md);
-  return { schema: 1, generatedAt: new Date().toISOString(), root, out, baseRef, baseSha, markdown: md };
-}
 
+  let json = null;
+  let outJson = null;
+  if (format === "json") {
+    json = await buildPrJson(root, { snipLines, recentDays, baseRef, baseSha, staged, maxChanges });
+    outJson = prJsonPath(root);
+    await writeText(outJson, JSON.stringify(json, null, 2) + "\n");
+  }
+
+  return { schema: 1, generatedAt: new Date().toISOString(), root, out, outJson, baseRef, baseSha, markdown: md, json };
+}

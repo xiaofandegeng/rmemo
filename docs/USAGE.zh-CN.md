@@ -109,6 +109,12 @@ node /path/to/rmemo/bin/rmemo.js --root . handoff
 
 它会先更新 scan/context，然后把 handoff markdown 打印到 stdout，并写入 `.repo-memory/handoff.md`。
 
+机器可读输出：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . --format json handoff
+```
+
 ## PR 摘要（可直接粘贴）
 
 生成一段 PR 描述内容：

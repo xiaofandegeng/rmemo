@@ -4,6 +4,7 @@ import { fileExists, readText, writeJson, writeText } from "../lib/io.js";
 import {
   contextPath,
   handoffPath,
+  handoffJsonPath,
   indexPath,
   journalDir,
   manifestPath,
@@ -14,7 +15,7 @@ import { parseTodos } from "./todos.js";
 import { scanRepo } from "./scan.js";
 import { ensureRepoMemory } from "./memory.js";
 import { generateContext } from "./context.js";
-import { getGitSummary } from "./git_summary.js";
+import { getGitRangeData, getGitSummary } from "./git_summary.js";
 
 function clampLines(s, maxLines) {
   const lines = String(s || "").split("\n");
@@ -168,6 +169,75 @@ async function buildHandoffMarkdown(root, { snipLines, recentDays, since, staged
   return ensureTrailingNewline(parts.join("").trimEnd());
 }
 
+async function buildHandoffJson(root, { snipLines, recentDays, since, staged, maxChanges } = {}) {
+  const generatedAt = new Date().toISOString();
+
+  const [rules, todosMd, manifestText, ctxExists] = await Promise.all([
+    readMaybe(rulesPath(root), 512_000),
+    readMaybe(todosPath(root), 512_000),
+    readMaybe(manifestPath(root), 2_000_000),
+    fileExists(contextPath(root))
+  ]);
+
+  let manifest = null;
+  if (manifestText) {
+    try {
+      manifest = JSON.parse(manifestText);
+    } catch {
+      manifest = { parseError: true };
+    }
+  }
+
+  const todos = todosMd ? parseTodos(todosMd) : { next: [], blockers: [] };
+  const journalFiles = await listRecentJournalFiles(root, recentDays);
+  const journal = [];
+  for (const fn of journalFiles) {
+    // eslint-disable-next-line no-await-in-loop
+    const t = await readMaybe(path.join(journalDir(root), fn), 512_000);
+    if (!t) continue;
+    journal.push({ file: fn, text: clampLines(t.trimEnd(), Math.min(snipLines, 160)) });
+  }
+
+  const instructionCandidates = detectInstructionFiles(root);
+  const existingInstructionFiles = [];
+  for (const c of instructionCandidates) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await fileExists(c.abs)) existingInstructionFiles.push(c.rel);
+  }
+
+  const git = await getGitRangeData(root, {
+    sinceRef: since || "",
+    staged,
+    maxCommits: maxChanges,
+    maxFiles: maxChanges
+  });
+
+  return {
+    schema: 1,
+    generatedAt,
+    root,
+    title: manifest?.title || null,
+    instructionFiles: existingInstructionFiles,
+    contextPack: { path: ".repo-memory/context.md", exists: !!ctxExists },
+    status: {
+      next: todos.next,
+      blockers: todos.blockers
+    },
+    structureHints: manifest
+      ? {
+          repoHints: manifest.repoHints || [],
+          lockfiles: manifest.lockfiles || [],
+          frameworks: manifest.packageJson?.frameworks || [],
+          packageManager: manifest.packageJson?.packageManager || null,
+          topDirs: manifest.topDirs || []
+        }
+      : null,
+    rulesExcerpt: rules ? clampLines(rules, Math.min(snipLines, 120)) : null,
+    recentJournal: journal,
+    git
+  };
+}
+
 export async function generateHandoff(root, opts) {
   const {
     preferGit = true,
@@ -175,7 +245,9 @@ export async function generateHandoff(root, opts) {
     snipLines = 120,
     recentDays = 3,
     since = "",
-    staged = false
+    staged = false,
+    maxChanges = 200,
+    format = "md"
   } = opts || {};
 
   await ensureRepoMemory(root);
@@ -190,5 +262,14 @@ export async function generateHandoff(root, opts) {
   const md = await buildHandoffMarkdown(root, { snipLines, recentDays, since, staged });
   const out = handoffPath(root);
   await writeText(out, md);
-  return { schema: 1, generatedAt: new Date().toISOString(), root, out, markdown: md };
+
+  let json = null;
+  let outJson = null;
+  if (format === "json") {
+    json = await buildHandoffJson(root, { snipLines, recentDays, since, staged, maxChanges });
+    outJson = handoffJsonPath(root);
+    await writeText(outJson, JSON.stringify(json, null, 2) + "\n");
+  }
+
+  return { schema: 1, generatedAt: new Date().toISOString(), root, out, outJson, markdown: md, json };
 }

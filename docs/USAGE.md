@@ -109,6 +109,12 @@ node /path/to/rmemo/bin/rmemo.js --root . handoff
 
 It updates scan/context first, then prints the handoff markdown and writes `.repo-memory/handoff.md`.
 
+Machine-readable:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . --format json handoff
+```
+
 ## PR Summary (Paste-Ready)
 
 Generate a PR description snippet:

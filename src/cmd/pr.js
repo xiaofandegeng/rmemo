@@ -12,17 +12,12 @@ export async function cmdPr({ flags }) {
   const staged = !!flags.staged;
   const refresh = flags["no-refresh"] ? false : true;
   const format = String(flags.format || "md").toLowerCase();
+  const maxChanges = Number(flags["max-changes"] || 200);
 
   try {
-    const r = await generatePr(root, { preferGit, maxFiles, snipLines, recentDays, base, staged, refresh });
+    const r = await generatePr(root, { preferGit, maxFiles, snipLines, recentDays, base, staged, refresh, maxChanges, format });
     if (format === "json") {
-      process.stdout.write(
-        JSON.stringify(
-          { schema: r.schema, generatedAt: r.generatedAt, root: r.root, out: r.out, baseRef: r.baseRef, baseSha: r.baseSha },
-          null,
-          2
-        ) + "\n"
-      );
+      process.stdout.write(JSON.stringify(r.json, null, 2) + "\n");
       return;
     }
     process.stdout.write(r.markdown);

@@ -93,3 +93,81 @@ export async function getGitSummary(root, { since = "", staged = false } = {}) {
   return { head, status, diffNames, range, rangeLog, rangeNames };
 }
 
+function parseOnelineLog(text, { max = 30 } = {}) {
+  const lines = String(text || "")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, max);
+  return lines.map((line) => {
+    const sp = line.indexOf(" ");
+    if (sp === -1) return { sha: line, subject: "" };
+    return { sha: line.slice(0, sp), subject: line.slice(sp + 1) };
+  });
+}
+
+function parseNameStatus(text, { max = 200, stable = true } = {}) {
+  const rows = String(text || "")
+    .split("\n")
+    .map((x) => x.trimEnd())
+    .filter(Boolean)
+    .map((line) => {
+      const [status, ...rest] = line.split(/\s+/);
+      const file = rest.join(" ").trim();
+      return { status, file };
+    })
+    .filter((r) => r.status && r.file)
+    .slice(0, max);
+
+  if (!stable) return rows;
+  return rows.slice().sort((a, b) => a.file.localeCompare(b.file));
+}
+
+export async function getGitRangeData(root, { sinceRef = "", staged = false, maxCommits = 30, maxFiles = 200 } = {}) {
+  if (!(await gitOk(root))) return null;
+
+  const out = {
+    schema: 1,
+    head: null,
+    sinceRef: sinceRef || "",
+    range: null,
+    commits: [],
+    files: [],
+    workingTree: { status: "", diff: [] }
+  };
+
+  try {
+    out.head = (await gitCmd(root, ["rev-parse", "HEAD"])).trim();
+  } catch {
+    out.head = null;
+  }
+
+  out.workingTree.status = (await gitCmd(root, ["status", "--porcelain=v1"])).trimEnd();
+  try {
+    const ns = staged
+      ? await gitCmd(root, ["diff", "--cached", "--name-status"])
+      : await gitCmd(root, ["diff", "--name-status"]);
+    out.workingTree.diff = parseNameStatus(ns, { max: maxFiles, stable: true });
+  } catch {
+    out.workingTree.diff = [];
+  }
+
+  if (!sinceRef) return out;
+
+  out.range = `${sinceRef}..HEAD`;
+  try {
+    const log = await gitCmd(root, ["log", "--oneline", "--no-decorate", `--max-count=${maxCommits}`, out.range]);
+    out.commits = parseOnelineLog(log, { max: maxCommits });
+  } catch {
+    out.commits = [];
+  }
+
+  try {
+    const ns = await gitCmd(root, ["diff", "--name-status", out.range]);
+    out.files = parseNameStatus(ns, { max: maxFiles, stable: true });
+  } catch {
+    out.files = [];
+  }
+
+  return out;
+}

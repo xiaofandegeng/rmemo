@@ -158,6 +158,7 @@ rmemo handoff
 rmemo handoff --recent-days 5
 rmemo handoff --since v0.0.3
 rmemo handoff --staged
+rmemo handoff --format json
 ```
 
 ## PR 摘要

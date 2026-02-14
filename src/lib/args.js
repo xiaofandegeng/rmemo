@@ -106,6 +106,7 @@ Options:
   --since <ref>              For handoff: show git summary since <ref>..HEAD
   --base <ref>               For pr: base branch/ref (default: origin default branch, else main/master)
   --no-refresh               For pr: do not refresh scan/context before generating output
+  --max-changes <n>          For handoff/pr: max commits/files to include (default: 200)
   --interval <ms>            For watch: poll interval (default: 2000)
   --once                     For watch: run at most one refresh tick and exit (test/script friendly)
   --no-sync                  For watch: do not run rmemo sync on refresh

@@ -48,3 +48,11 @@ export function handoffPath(root) {
 export function prPath(root) {
   return path.join(memDir(root), "pr.md");
 }
+
+export function handoffJsonPath(root) {
+  return path.join(memDir(root), "handoff.json");
+}
+
+export function prJsonPath(root) {
+  return path.join(memDir(root), "pr.json");
+}

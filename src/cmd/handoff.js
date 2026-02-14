@@ -9,10 +9,15 @@ export async function cmdHandoff({ flags }) {
   const recentDays = Number(flags["recent-days"] || 3);
   const since = flags.since ? String(flags.since) : "";
   const staged = !!flags.staged;
+  const maxChanges = Number(flags["max-changes"] || 200);
+  const format = String(flags.format || "md").toLowerCase();
 
-  const r = await generateHandoff(root, { preferGit, maxFiles, snipLines, recentDays, since, staged });
+  const r = await generateHandoff(root, { preferGit, maxFiles, snipLines, recentDays, since, staged, maxChanges, format });
 
-  // Paste-ready output (also written to `.repo-memory/handoff.md`).
+  if (format === "json") {
+    process.stdout.write(JSON.stringify(r.json, null, 2) + "\n");
+    return;
+  }
+
   process.stdout.write(r.markdown);
 }
-

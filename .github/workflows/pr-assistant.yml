@@ -36,6 +36,8 @@ jobs:
           echo "Base ref: $base"
           node bin/rmemo.js --base "$base" pr
           node bin/rmemo.js --since "$base" handoff
+          node bin/rmemo.js --base "$base" --format json pr >/dev/null
+          node bin/rmemo.js --since "$base" --format json handoff >/dev/null
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -45,6 +47,8 @@ jobs:
             .repo-memory/context.md
             .repo-memory/handoff.md
             .repo-memory/pr.md
+            .repo-memory/handoff.json
+            .repo-memory/pr.json
 
       - name: Comment on PR (rmemo)
         uses: actions/github-script@v7

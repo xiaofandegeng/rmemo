@@ -719,8 +719,8 @@ test("rmemo pr generates PR summary markdown and writes .repo-memory/pr.md", asy
     assert.equal(r.code, 0, r.err || r.out);
     const j = JSON.parse(r.out);
     assert.equal(j.schema, 1);
-    assert.ok(j.baseRef);
-    assert.ok(j.baseSha);
+    assert.ok(j.range.baseRef);
+    assert.ok(j.range.baseSha);
   }
 });
 
@@ -733,4 +733,33 @@ test("rmemo watch --once refreshes context (and does not hang)", async () => {
   const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--once", "watch"]);
   assert.equal(r.code, 0, r.err || r.out);
   assert.ok(await exists(path.join(tmp, ".repo-memory", "context.md")), true);
+});
+
+test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-handoff-json-"));
+
+  // init a git repo
+  {
+    const r = await runCmd("git", ["init"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r1 = await runCmd("git", ["config", "user.name", "rmemo-test"], { cwd: tmp });
+    assert.equal(r1.code, 0, r1.err || r1.out);
+    const r2 = await runCmd("git", ["config", "user.email", "rmemo-test@example.com"], { cwd: tmp });
+    assert.equal(r2.code, 0, r2.err || r2.out);
+  }
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  await runCmd("git", ["add", "-A"], { cwd: tmp });
+  await runCmd("git", ["commit", "-m", "init"], { cwd: tmp });
+
+  const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "--since", "HEAD", "handoff"]);
+  assert.equal(r.code, 0, r.err || r.out);
+  const j = JSON.parse(r.out);
+  assert.equal(j.schema, 1);
+  assert.ok(j.git);
+  assert.ok(Array.isArray(j.git.commits));
+  assert.ok(Array.isArray(j.git.files));
+  assert.equal(await exists(path.join(tmp, ".repo-memory", "handoff.json")), true);
 });
