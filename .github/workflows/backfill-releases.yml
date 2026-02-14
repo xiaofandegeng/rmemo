@@ -18,6 +18,11 @@ on:
         required: true
         default: true
         type: boolean
+      update_existing:
+        description: "Update existing releases that have empty body (or always update if true)"
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -32,6 +37,7 @@ jobs:
           TAG_PREFIX: ${{ inputs.tag_prefix }}
           LIMIT: ${{ inputs.limit }}
           PRERELEASE_FOR_PRE_TAGS: ${{ inputs.create_prerelease_for_pre_tags }}
+          UPDATE_EXISTING: ${{ inputs.update_existing }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -41,6 +47,7 @@ jobs:
             const tagPrefix = String(process.env.TAG_PREFIX || "v");
             const limit = Math.max(1, Math.min(500, Number(process.env.LIMIT || "100")));
             const prereleaseForPreTags = String(process.env.PRERELEASE_FOR_PRE_TAGS || "true") === "true";
+            const updateExisting = String(process.env.UPDATE_EXISTING || "true") === "true";
 
             core.info(`Scanning tags: prefix='${tagPrefix}', limit=${limit}`);
 
@@ -65,32 +72,107 @@ jobs:
             core.info(`Candidate tags: ${selected.length}`);
 
             let created = 0;
+            let updated = 0;
             let skipped = 0;
             const errors = [];
 
-            for (const tag of selected) {
+            async function buildBody(tag, prevTag) {
+              // Prefer CHANGELOG section if present at that tag.
+              let changelog = "";
               try {
-                await github.rest.repos.getReleaseByTag({ owner, repo, tag });
-                skipped++;
-                continue;
+                const resp = await github.rest.repos.getContent({ owner, repo, path: "CHANGELOG.md", ref: tag });
+                if (resp?.data?.content) {
+                  changelog = Buffer.from(resp.data.content, "base64").toString("utf8");
+                }
+              } catch {
+                changelog = "";
+              }
+
+              function extractSection(md, version) {
+                const h1 = new RegExp(`^##\\s+${version.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\s*$`, "m");
+                const m = md.match(h1);
+                if (!m) return "";
+                const start = m.index + m[0].length;
+                const rest = md.slice(start);
+                const next = rest.search(/^##\s+/m);
+                const body = (next === -1 ? rest : rest.slice(0, next)).trim();
+                return body;
+              }
+
+              const version = tag.startsWith("v") ? tag.slice(1) : tag;
+              let section = "";
+              if (changelog) {
+                section = extractSection(changelog, version) || extractSection(changelog, tag) || "";
+              }
+
+              if (section) {
+                return `# ${tag}\n\n${section}\n`;
+              }
+
+              // Fallback: compare commits and list commit subjects.
+              if (!prevTag) return `# ${tag}\n\nInitial release.\n`;
+              try {
+                const cmp = await github.rest.repos.compareCommits({ owner, repo, base: prevTag, head: tag });
+                const commits = Array.isArray(cmp.data.commits) ? cmp.data.commits : [];
+                const lines = commits.slice(0, 50).map((c) => {
+                  const msg = String(c?.commit?.message || "").split("\n")[0].trim();
+                  const sha = String(c?.sha || "").slice(0, 7);
+                  return `- ${msg} (${sha})`;
+                });
+                const more = commits.length > 50 ? `\n...and ${commits.length - 50} more commits.\n` : "\n";
+                return `# ${tag}\n\n## Changes (${prevTag}..${tag})\n\n${lines.join("\n")}${more}`;
+              } catch {
+                return `# ${tag}\n\n(Unable to generate notes)\n`;
+              }
+            }
+
+            for (let i = 0; i < selected.length; i++) {
+              const tag = selected[i];
+              const prevTag = selected[i + 1] || "";
+
+              let existing = null;
+              try {
+                existing = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
               } catch (e) {
                 // 404 => no release, create one. Anything else => fail.
                 if (e?.status !== 404) throw e;
               }
 
               const prerelease = prereleaseForPreTags ? tag.includes("-") : false;
-              core.info(`Creating release for ${tag} (prerelease=${prerelease})`);
+              const body = await buildBody(tag, prevTag);
 
               try {
-                await github.rest.repos.createRelease({
-                  owner,
-                  repo,
-                  tag_name: tag,
-                  name: tag,
-                  generate_release_notes: true,
-                  prerelease
-                });
-                created++;
+                if (!existing) {
+                  core.info(`Creating release for ${tag} (prerelease=${prerelease})`);
+                  await github.rest.repos.createRelease({
+                    owner,
+                    repo,
+                    tag_name: tag,
+                    name: tag,
+                    body,
+                    prerelease
+                  });
+                  created++;
+                } else {
+                  const hasBody = typeof existing.data?.body === "string" && existing.data.body.trim().length > 0;
+                  if (!updateExisting && hasBody) {
+                    skipped++;
+                    continue;
+                  }
+                  if (hasBody && !updateExisting) {
+                    skipped++;
+                    continue;
+                  }
+                  core.info(`Updating release for ${tag}`);
+                  await github.rest.repos.updateRelease({
+                    owner,
+                    repo,
+                    release_id: existing.data.id,
+                    body,
+                    prerelease
+                  });
+                  updated++;
+                }
               } catch (e) {
                 errors.push({ tag, message: e?.message || String(e) });
               }
@@ -100,14 +182,14 @@ jobs:
               .addHeading("Backfill Result")
               .addTable([
                 [{ data: "Created", header: true }, String(created)],
+                [{ data: "Updated", header: true }, String(updated)],
                 [{ data: "Skipped (already exists)", header: true }, String(skipped)],
                 [{ data: "Errors", header: true }, String(errors.length)]
               ])
-              .addCodeBlock(JSON.stringify({ created, skipped, errors }, null, 2), "json");
+              .addCodeBlock(JSON.stringify({ created, updated, skipped, errors }, null, 2), "json");
 
             await core.summary.write();
 
             if (errors.length) {
               core.setFailed(`Failed to create ${errors.length} releases.`);
             }
-

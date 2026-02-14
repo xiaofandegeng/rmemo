@@ -46,3 +46,7 @@ If you already have tags but your Releases page is empty, use:
 This workflow:
 - scans tags with a prefix (default: `v`)
 - creates GitHub Releases only when missing (safe to re-run)
+
+Notes:
+- If a release body is empty, re-run the workflow with `update_existing=true` to populate notes.
+- The workflow prefers `CHANGELOG.md` sections when present; otherwise it falls back to a commit list between tags.

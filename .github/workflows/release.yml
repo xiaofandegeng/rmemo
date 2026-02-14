@@ -61,10 +61,28 @@ jobs:
         run: |
           git push origin HEAD:main --follow-tags
 
+      - name: Generate release notes (git log)
+        run: |
+          TAG="v${{ inputs.version }}"
+          PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          echo "# ${TAG}" > release-notes.md
+          echo "" >> release-notes.md
+          if [ -n "$PREV" ]; then
+            echo "## Changes (${PREV}..${TAG})" >> release-notes.md
+            echo "" >> release-notes.md
+            git log --pretty=format:"- %s (%h)" "${PREV}..${TAG}" >> release-notes.md
+            echo "" >> release-notes.md
+          else
+            echo "## Changes" >> release-notes.md
+            echo "" >> release-notes.md
+            git log --pretty=format:"- %s (%h)" "${TAG}" >> release-notes.md
+            echo "" >> release-notes.md
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
           name: v${{ inputs.version }}
-          generate_release_notes: true
+          body_path: release-notes.md
           prerelease: ${{ inputs.dist_tag == 'next' }}

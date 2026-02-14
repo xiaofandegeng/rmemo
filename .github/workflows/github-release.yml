@@ -37,6 +37,24 @@ jobs:
         with:
           node-version: 22
 
+      - name: Generate release notes (git log)
+        run: |
+          TAG="${{ steps.vars.outputs.tag }}"
+          PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          echo "# ${TAG}" > release-notes.md
+          echo "" >> release-notes.md
+          if [ -n "$PREV" ]; then
+            echo "## Changes (${PREV}..${TAG})" >> release-notes.md
+            echo "" >> release-notes.md
+            git log --pretty=format:"- %s (%h)" "${PREV}..${TAG}" >> release-notes.md
+            echo "" >> release-notes.md
+          else
+            echo "## Changes" >> release-notes.md
+            echo "" >> release-notes.md
+            git log --pretty=format:"- %s (%h)" "${TAG}" >> release-notes.md
+            echo "" >> release-notes.md
+          fi
+
       - name: Build npm tarball (for release assets)
         run: npm_config_cache=.npm-cache npm pack
 
@@ -45,5 +63,5 @@ jobs:
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: ${{ steps.vars.outputs.tag }}
-          generate_release_notes: true
+          body_path: release-notes.md
           files: "*.tgz"
