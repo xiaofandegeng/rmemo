@@ -183,3 +183,11 @@ node /path/to/rmemo/bin/rmemo.js profile ls
 node /path/to/rmemo/bin/rmemo.js --root . init --auto
 node /path/to/rmemo/bin/rmemo.js --root . profile apply web-admin-vue
 ```
+
+## MCP Server
+
+If your AI tool supports MCP, you can run a local stdio server:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . mcp
+```

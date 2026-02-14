@@ -60,6 +60,29 @@ function startNodeLongRunning(args, { cwd } = {}) {
   return { p, getOut: () => out, getErr: () => err };
 }
 
+function startNodeStdio(args, { cwd } = {}) {
+  const p = spawn(process.execPath, args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
+  let out = "";
+  let err = "";
+  p.stdout.on("data", (d) => (out += d.toString("utf8")));
+  p.stderr.on("data", (d) => (err += d.toString("utf8")));
+  return {
+    p,
+    writeLine: (obj) => p.stdin.write(JSON.stringify(obj) + "\n", "utf8"),
+    getOut: () => out,
+    getErr: () => err,
+    closeIn: () => p.stdin.end()
+  };
+}
+
+function parseJsonLines(s) {
+  return String(s || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => JSON.parse(l));
+}
+
 async function waitFor(patternFn, { timeoutMs = 5000, intervalMs = 50 } = {}) {
   const start = Date.now();
   // eslint-disable-next-line no-constant-condition
@@ -1054,4 +1077,69 @@ test("rmemo serve exposes repo memory over local HTTP (token auth)", async (t) =
   }
 
   await waitFor(() => (srv.p.exitCode !== null ? true : false), { timeoutMs: 5000 });
+});
+
+test("rmemo mcp serves tools over stdio (status + search)", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-mcp-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  await fs.mkdir(path.join(tmp, "src"), { recursive: true });
+  await fs.writeFile(path.join(tmp, "src", "index.js"), "console.log('hi')\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const mcp = startNodeStdio([rmemoBin, "--root", tmp, "mcp"]);
+
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "0" } }
+  });
+  mcp.writeLine({ jsonrpc: "2.0", method: "notifications/initialized", params: {} });
+  mcp.writeLine({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 3,
+    method: "tools/call",
+    params: { name: "rmemo_status", arguments: { root: tmp, mode: "brief", recentDays: 7 } }
+  });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 4,
+    method: "tools/call",
+    params: { name: "rmemo_search", arguments: { root: tmp, q: "Rules", scope: "context" } }
+  });
+
+  await waitFor(() => {
+    const lines = parseJsonLines(mcp.getOut());
+    return lines.some((x) => x.id === 4) ? true : false;
+  });
+
+  const lines = parseJsonLines(mcp.getOut());
+  const init = lines.find((x) => x.id === 1);
+  assert.equal(init.result.serverInfo.name, "rmemo");
+
+  const list = lines.find((x) => x.id === 2);
+  assert.ok(Array.isArray(list.result.tools));
+  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_status"));
+
+  const status = lines.find((x) => x.id === 3);
+  assert.ok(status.result.content[0].text.includes("\"schema\": 1"));
+
+  const search = lines.find((x) => x.id === 4);
+  const searchJson = JSON.parse(search.result.content[0].text);
+  assert.equal(searchJson.schema, 1);
+  assert.ok(Array.isArray(searchJson.hits));
+
+  mcp.closeIn();
+  try {
+    mcp.p.kill("SIGTERM");
+  } catch {
+    // ignore
+  }
 });

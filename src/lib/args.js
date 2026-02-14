@@ -78,6 +78,7 @@ Usage:
   rmemo profile              Profiles: apply team defaults (rules + config) for common repo types
   rmemo session              Sessions: start -> note -> end for AI-ready handoff snapshots
   rmemo serve                Repo memory HTTP API (local-first, read-only by default)
+  rmemo mcp                  MCP server over stdio (tools: status/context/handoff/pr/rules/todos/search)
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos

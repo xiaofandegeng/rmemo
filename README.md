@@ -95,6 +95,7 @@ rmemo template ls
 rmemo template apply <id>
 rmemo session
 rmemo serve
+rmemo mcp
 ```
 
 ## Sync AI Tool Instructions
@@ -205,6 +206,16 @@ Then fetch:
 - `GET /context`
 - `GET /rules`
 - `GET /todos?format=json`
+
+## MCP Server (stdio)
+
+If your AI tool supports MCP, you can run:
+
+```bash
+rmemo mcp --root .
+```
+
+It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`.
 
 ## Monorepo Workspaces
 

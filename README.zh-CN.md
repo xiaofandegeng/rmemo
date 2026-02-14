@@ -95,6 +95,7 @@ rmemo pr
   rmemo todo ls
   rmemo session
   rmemo serve
+  rmemo mcp
   rmemo context
   rmemo print
   rmemo template ls
@@ -209,6 +210,16 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /context`
 - `GET /rules`
 - `GET /todos?format=json`
+
+## MCP Server（stdio）
+
+如果你的 AI 工具支持 MCP，可以运行：
+
+```bash
+rmemo mcp --root .
+```
+
+它会暴露一组 tools（示例）：`rmemo_status`、`rmemo_context`、`rmemo_handoff`、`rmemo_pr`、`rmemo_rules`、`rmemo_todos`、`rmemo_search`。
 
 ## Monorepo 工作区（子项目）
 

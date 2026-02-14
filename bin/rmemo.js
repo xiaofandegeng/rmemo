@@ -20,6 +20,7 @@ import { cmdWs } from "../src/cmd/ws.js";
 import { cmdProfile } from "../src/cmd/profile.js";
 import { cmdSession } from "../src/cmd/session.js";
 import { cmdServe } from "../src/cmd/serve.js";
+import { cmdMcp } from "../src/cmd/mcp.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -90,6 +91,9 @@ try {
       break;
     case "serve":
       await cmdServe({ flags });
+      break;
+    case "mcp":
+      await cmdMcp({ flags });
       break;
     case "help":
     case undefined:
