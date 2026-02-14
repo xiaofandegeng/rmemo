@@ -366,6 +366,9 @@ test("rmemo start runs scan+context and prints status", async () => {
   assert.ok(r.out.includes("# Status"), "start should print status");
   assert.ok(await exists(path.join(tmp, ".repo-memory", "manifest.json")), true);
   assert.ok(await exists(path.join(tmp, ".repo-memory", "context.md")), true);
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "rules.md")), true);
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "rules.json")), true);
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "todos.md")), true);
 });
 
 test("rmemo done appends journal and can update todos (args and stdin)", async () => {

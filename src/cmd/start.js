@@ -6,11 +6,16 @@ import { writeJson } from "../lib/io.js";
 import { scanRepo } from "../core/scan.js";
 import { generateContext } from "../core/context.js";
 import { cmdStatus } from "./status.js";
+import { ensureRepoMemory } from "../core/memory.js";
 
 export async function cmdStart({ flags }) {
   const root = resolveRoot(flags);
   const preferGit = flags["no-git"] ? false : true;
   const maxFiles = Number(flags["max-files"] || 4000);
+  const tpl = flags.template ? String(flags.template).trim() : "";
+
+  // Ensure `.repo-memory/*` exists before generating context/status.
+  await ensureRepoMemory(root, { template: tpl, force: !!flags.force });
 
   // 1) Scan and persist
   const { manifest, index } = await scanRepo(root, { maxFiles, preferGit });
