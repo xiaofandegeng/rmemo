@@ -55,24 +55,32 @@ Done:
 - Unify journal format for `log/done`
 - Add todo lifecycle: `rmemo todo done|unblock` (remove by index)
 
-## v0.5 (Polish + Adoption) (In Progress)
+## v0.5 (Polish + Adoption) (Shipped)
 
 Goals:
 - Make it easy for others to adopt.
 
-Tasks:
+Done:
 - Add packaging metadata:
   - repository/homepage/bugs fields
   - `files` allowlist for npm
   - `npm pack --dry-run` in CI
-- Prepare npm publishing (name might be taken; decide final package name)
+- Prepare npm publishing:
+  - scoped package: `@xiaofandegeng/rmemo`
+  - release workflows: dry-run + publish
 - Add docs:
-  - "How I use this with Cursor/Claude/ChatGPT"
-  - Examples of rules.md templates for web + miniapp projects
-- Add `CHANGELOG.md` + `CONTRIBUTING.md`
-- Update docs to include npm install usage (scoped package)
+  - "How I use this with Cursor/Claude/ChatGPT" (docs/USAGE.*)
+  - Built-in templates + how to apply (web admin / miniapp)
+- Add `CHANGELOG.md` + `CONTRIBUTING.md` + `RELEASING.md`
+- Update docs to include npm install usage
 
 ## v0.6 (Optional)
 
+Done:
 - `rmemo scan --format md|json` to print scan results to stdout
-- `rmemo check` output improvements (grouping + fix hints)
+- `rmemo check` output improvements (grouping + hints)
+- `rmemo check --format json`
+
+Remaining ideas:
+- `rmemo scan --format md` optionally include a short "subprojects summary" table
+- `rmemo check` output: optional `--max-violations <n>` and show stable ordering
