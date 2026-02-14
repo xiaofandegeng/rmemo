@@ -82,6 +82,14 @@ rmemo print
   "schema": 1,
   "requiredPaths": ["README.md"],
   "forbiddenPaths": [".env", ".env.*"],
+  "forbiddenContent": [
+    {
+      "include": ["**/*"],
+      "exclude": ["**/*.png", "**/*.jpg", "**/*.zip"],
+      "match": "BEGIN PRIVATE KEY",
+      "message": "禁止提交私钥内容。"
+    }
+  ],
   "namingRules": [
     {
       "include": ["src/pages/**"],

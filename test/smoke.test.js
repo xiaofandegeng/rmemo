@@ -102,6 +102,7 @@ test("rmemo check enforces forbidden/required/naming rules", async () => {
   await fs.mkdir(path.join(tmp, "src", "pages"), { recursive: true });
   await fs.writeFile(path.join(tmp, "src", "pages", "BadName.vue"), "<template />\n", "utf8");
   await fs.writeFile(path.join(tmp, ".env"), "SECRET=1\n", "utf8");
+  await fs.writeFile(path.join(tmp, "secrets.txt"), "-----BEGIN PRIVATE KEY-----\n", "utf8");
 
   // init will create rules.json; overwrite to include our checks.
   {
@@ -114,6 +115,13 @@ test("rmemo check enforces forbidden/required/naming rules", async () => {
     schema: 1,
     requiredPaths: ["README.md"],
     forbiddenPaths: [".env", ".env.*"],
+    forbiddenContent: [
+      {
+        include: ["**/*.txt"],
+        match: "BEGIN PRIVATE KEY",
+        message: "Do not commit private keys."
+      }
+    ],
     namingRules: [
       {
         include: ["src/pages/**"],
@@ -134,6 +142,7 @@ test("rmemo check enforces forbidden/required/naming rules", async () => {
   // Fix violations
   await fs.writeFile(path.join(tmp, "README.md"), "# ok\n", "utf8");
   await fs.unlink(path.join(tmp, ".env"));
+  await fs.writeFile(path.join(tmp, "secrets.txt"), "ok\n", "utf8");
   await fs.rename(path.join(tmp, "src", "pages", "BadName.vue"), path.join(tmp, "src", "pages", "bad-name.vue"));
 
   {

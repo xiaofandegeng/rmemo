@@ -78,6 +78,14 @@ Example:
   "schema": 1,
   "requiredPaths": ["README.md"],
   "forbiddenPaths": [".env", ".env.*"],
+  "forbiddenContent": [
+    {
+      "include": ["**/*"],
+      "exclude": ["**/*.png", "**/*.jpg", "**/*.zip"],
+      "match": "BEGIN PRIVATE KEY",
+      "message": "Do not commit private keys."
+    }
+  ],
   "namingRules": [
     {
       "include": ["src/pages/**"],

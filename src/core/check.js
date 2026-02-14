@@ -9,6 +9,27 @@ function toPosix(p) {
   return p.split(path.sep).join("/");
 }
 
+function isProbablyBinary(buf) {
+  // NUL byte is a strong indicator.
+  for (let i = 0; i < buf.length; i++) {
+    if (buf[i] === 0) return true;
+  }
+  return false;
+}
+
+async function readFileHeadBytes(absPath, maxBytes) {
+  const fh = await fs.open(absPath, "r");
+  try {
+    const st = await fh.stat();
+    const n = Math.max(0, Math.min(Number(maxBytes) || 0, st.size));
+    const buf = Buffer.allocUnsafe(n);
+    const { bytesRead } = await fh.read(buf, 0, n, 0);
+    return bytesRead === n ? buf : buf.subarray(0, bytesRead);
+  } finally {
+    await fh.close();
+  }
+}
+
 function globToRegExp(glob) {
   // Minimal, but good enough:
   // - ** matches across segments
@@ -38,6 +59,24 @@ function compilePattern(pat) {
     }
   }
   return globToRegExp(s);
+}
+
+function escapeRegExpLiteral(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function compileContentMatcher(match) {
+  const s = String(match ?? "");
+  if (!s) return null;
+  if (s.startsWith("re:")) return new RegExp(s.slice(3));
+  if (s.startsWith("/") && s.lastIndexOf("/") > 0) {
+    const last = s.lastIndexOf("/");
+    const body = s.slice(1, last);
+    const flags = s.slice(last + 1);
+    return new RegExp(body, flags);
+  }
+  // Default: treat as literal substring.
+  return new RegExp(escapeRegExpLiteral(s), "g");
 }
 
 function matchAny(str, patterns) {
@@ -75,6 +114,7 @@ function validateRulesShape(rules) {
   if (rules.schema !== 1) return "rules.json schema must be 1";
   if (rules.forbiddenPaths && !Array.isArray(rules.forbiddenPaths)) return "forbiddenPaths must be an array";
   if (rules.requiredPaths && !Array.isArray(rules.requiredPaths)) return "requiredPaths must be an array";
+  if (rules.forbiddenContent && !Array.isArray(rules.forbiddenContent)) return "forbiddenContent must be an array";
   if (rules.namingRules && !Array.isArray(rules.namingRules)) return "namingRules must be an array";
   return null;
 }
@@ -164,6 +204,84 @@ export async function runCheck(root, { maxFiles = 4000, preferGit = true } = {})
             file: f,
             rule: { include, exclude, target, match },
             message: rule.message || `Naming rule violated for ${f} (target: ${target}, match: ${match})`
+          });
+        }
+      }
+    }
+  }
+
+  // forbiddenContent
+  if (rules.forbiddenContent?.length) {
+    const SKIP_EXT = new Set([
+      "png",
+      "jpg",
+      "jpeg",
+      "gif",
+      "webp",
+      "ico",
+      "svg",
+      "pdf",
+      "zip",
+      "gz",
+      "tgz",
+      "bz2",
+      "7z",
+      "rar",
+      "dmg",
+      "exe",
+      "bin",
+      "woff",
+      "woff2",
+      "ttf",
+      "otf",
+      "mp3",
+      "mp4",
+      "mov",
+      "avi"
+    ]);
+
+    for (const rule of rules.forbiddenContent) {
+      if (!rule || typeof rule !== "object") {
+        errors.push("forbiddenContent entries must be objects");
+        continue;
+      }
+      const include = Array.isArray(rule.include) ? rule.include.map(toPosix) : rule.include ? [toPosix(rule.include)] : ["**/*"];
+      const exclude = Array.isArray(rule.exclude) ? rule.exclude.map(toPosix) : rule.exclude ? [toPosix(rule.exclude)] : [];
+      const maxBytes = rule.maxBytes ? Number(rule.maxBytes) : 1_000_000;
+      const match = rule.match ? String(rule.match) : "";
+      const message = rule.message ? String(rule.message) : null;
+
+      const re = compileContentMatcher(match);
+      if (!re) {
+        errors.push("forbiddenContent entries must have match");
+        continue;
+      }
+
+      for (const f of files) {
+        if (!matchAny(f, include)) continue;
+        if (exclude.length && matchAny(f, exclude)) continue;
+
+        const ext = path.posix.extname(f).slice(1).toLowerCase();
+        if (ext && SKIP_EXT.has(ext)) continue;
+
+        let buf = null;
+        try {
+          buf = await readFileHeadBytes(path.join(root, f), maxBytes);
+        } catch {
+          continue;
+        }
+        if (!buf || buf.byteLength === 0) continue;
+        if (isProbablyBinary(buf.subarray(0, Math.min(buf.byteLength, 4096)))) continue;
+
+        const text = buf.toString("utf8");
+        re.lastIndex = 0;
+        if (re.test(text)) {
+          // Don't print the matched content, only the file and rule.
+          violations.push({
+            type: "forbidden-content",
+            file: f,
+            rule: { include, exclude, match },
+            message: message || `Forbidden content matched in ${f} (match: ${match})`
           });
         }
       }

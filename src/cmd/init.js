@@ -41,6 +41,13 @@ const DEFAULT_RULES_JSON = {
     ".env",
     ".env.*"
   ],
+  // Content scans are optional and disabled by default.
+  // Use this to prevent committing secrets (keys/tokens) by matching patterns in file contents.
+  // Example:
+  // forbiddenContent: [
+  //   { include: ["**/*"], exclude: ["**/*.png"], match: "BEGIN PRIVATE KEY", message: "Do not commit private keys." }
+  // ]
+  forbiddenContent: [],
   namingRules: [
     // Example:
     // {
