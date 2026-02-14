@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - Add profiles (`rmemo profile`) and `rmemo init --auto` (detect + apply recommended profile).
 - Add `rmemo profile check/upgrade` for profile drift reporting and safe re-apply with backups.
 - Add `rmemo session` (start/note/end) to store sequential handoff snapshots in `.repo-memory/sessions/`.
+- Add `rmemo serve` to expose repo memory over local HTTP (read-only by default, supports token auth).
 
 ## 0.0.3
 

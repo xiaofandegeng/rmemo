@@ -90,10 +90,11 @@ rmemo done
 rmemo handoff
 rmemo pr
   rmemo watch
-  rmemo ws
-  rmemo template ls
-  rmemo template apply <id>
-  rmemo session
+rmemo ws
+rmemo template ls
+rmemo template apply <id>
+rmemo session
+rmemo serve
 ```
 
 ## Sync AI Tool Instructions
@@ -190,6 +191,20 @@ rmemo session note "Found root cause: token refresh race"
 rmemo session end
 rmemo session ls
 ```
+
+## Repo Memory HTTP API (Local)
+
+If your AI tool can fetch URLs, you can expose repo memory over local HTTP:
+
+```bash
+rmemo serve --root . --token devtoken --port 7357
+```
+
+Then fetch:
+- `GET /status?format=json`
+- `GET /context`
+- `GET /rules`
+- `GET /todos?format=json`
 
 ## Monorepo Workspaces
 

@@ -94,6 +94,7 @@ rmemo pr
   rmemo todo block <text>
   rmemo todo ls
   rmemo session
+  rmemo serve
   rmemo context
   rmemo print
   rmemo template ls
@@ -194,6 +195,20 @@ rmemo session note "定位到原因：token refresh 竞态"
 rmemo session end
 rmemo session ls
 ```
+
+## Repo Memory HTTP API（本地）
+
+如果你的 AI 工具支持拉取 URL，可以用本地 HTTP 暴露仓库记忆（默认只读）：
+
+```bash
+rmemo serve --root . --token devtoken --port 7357
+```
+
+常用接口：
+- `GET /status?format=json`
+- `GET /context`
+- `GET /rules`
+- `GET /todos?format=json`
 
 ## Monorepo 工作区（子项目）
 

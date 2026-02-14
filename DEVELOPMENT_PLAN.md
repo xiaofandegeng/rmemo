@@ -193,15 +193,31 @@ Done:
   - `notes.md` (human notes)
   - `handoff.md` + `context.md` snapshots (generated at end)
 
-## v1.7 (Repo Memory API) (Planned)
+## v1.7 (Repo Memory API) (Shipped)
 
 Goals:
 - Let AI tools fetch repo memory without copy/paste.
 - Keep it local-first and safe (no outbound network, read-only by default).
 
+Done:
+- Add `rmemo serve` (local HTTP API; read-only by default)
+- Endpoints:
+  - `GET /status` (json|md)
+  - `GET /context`
+  - `GET /manifest` + `GET /index`
+  - `GET /rules` + `GET /rules.json`
+  - `GET /todos` (md|json)
+  - `GET /handoff` + `GET /pr` (serve existing files; optional refresh)
+  - `GET /journal` + `GET /journal/YYYY-MM-DD.md`
+  - `GET /search?q=...` (search rules/todos/context/manifest/journal)
+- Token auth support: `--token` / `RMEMO_TOKEN`
+
+## v1.8 (MCP Server) (Planned)
+
+Goals:
+- Provide the same capabilities over stdio for AI tools that support MCP.
+
 Proposed:
-- Add `rmemo serve` (local HTTP) or `rmemo mcp` (stdio tool server)
-- Provide endpoints/tools:
-  - get status/context/handoff/pr/rules/todos
-  - search journal/todos/rules by keyword
-- Add auth token support for local server mode
+- `rmemo mcp` exposing tools:
+  - status/context/handoff/pr/rules/todos
+  - search

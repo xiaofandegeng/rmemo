@@ -51,6 +51,27 @@ async function exists(p) {
   }
 }
 
+function startNodeLongRunning(args, { cwd } = {}) {
+  const p = spawn(process.execPath, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+  let out = "";
+  let err = "";
+  p.stdout.on("data", (d) => (out += d.toString("utf8")));
+  p.stderr.on("data", (d) => (err += d.toString("utf8")));
+  return { p, getOut: () => out, getErr: () => err };
+}
+
+async function waitFor(patternFn, { timeoutMs = 5000, intervalMs = 50 } = {}) {
+  const start = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const v = patternFn();
+    if (v) return v;
+    if (Date.now() - start > timeoutMs) throw new Error("timeout waiting for condition");
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
 test("rmemo init/log/context works on a generic repo (no git)", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-smoke-"));
@@ -960,4 +981,77 @@ test("rmemo handoff --format json writes handoff.json and includes structured gi
   assert.ok(Array.isArray(j.git.commits));
   assert.ok(Array.isArray(j.git.files));
   assert.equal(await exists(path.join(tmp, ".repo-memory", "handoff.json")), true);
+});
+
+test("rmemo serve exposes repo memory over local HTTP (token auth)", async (t) => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  await fs.mkdir(path.join(tmp, "src"), { recursive: true });
+  await fs.writeFile(path.join(tmp, "src", "index.js"), "console.log('hi')\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const token = "t";
+  const srv = startNodeLongRunning([rmemoBin, "--root", tmp, "--no-git", "--token", token, "--port", "0", "--allow-shutdown", "serve"]);
+
+  let baseUrl = "";
+  try {
+    baseUrl = await waitFor(() => {
+      const m = srv.getOut().match(/Listening:\s+(http:\/\/[^\s]+)\s*/);
+      return m ? m[1] : "";
+    });
+  } catch (e) {
+    const blob = [String(e?.message || ""), srv.getOut(), srv.getErr()].join("\n");
+    // Some sandboxes disallow listening sockets (EPERM). Skip in that case.
+    if (blob.includes("listen EPERM") || blob.includes("EACCES") || blob.includes("EPERM")) {
+      try {
+        srv.p.kill("SIGKILL");
+      } catch {
+        // ignore
+      }
+      t.skip("Environment disallows listening sockets (EPERM).");
+      return;
+    }
+    throw e;
+  }
+
+  {
+    const r = await fetch(baseUrl + "/health");
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.equal(j.ok, true);
+  }
+
+  // token required for non-health endpoints
+  {
+    const r = await fetch(baseUrl + "/context");
+    assert.equal(r.status, 401);
+  }
+
+  {
+    const r = await fetch(baseUrl + "/context", { headers: { Authorization: `Bearer ${token}` } });
+    assert.equal(r.status, 200);
+    const t = await r.text();
+    assert.ok(t.includes("# Repo Context Pack"));
+  }
+
+  {
+    const r = await fetch(baseUrl + "/status?format=json&mode=brief", { headers: { "x-rmemo-token": token } });
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.equal(j.schema, 1);
+    assert.ok(j.todos);
+  }
+
+  {
+    const r = await fetch(baseUrl + "/shutdown", { method: "POST", headers: { "x-rmemo-token": token } });
+    assert.equal(r.status, 200);
+  }
+
+  await waitFor(() => (srv.p.exitCode !== null ? true : false), { timeoutMs: 5000 });
 });
