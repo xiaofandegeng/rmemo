@@ -19,4 +19,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: Run tests
         run: node --test
-
+      - name: Run rmemo self-check
+        run: |
+          node bin/rmemo.js init
+          node bin/rmemo.js check
