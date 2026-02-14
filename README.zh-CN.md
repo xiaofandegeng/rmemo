@@ -149,6 +149,15 @@ rmemo todo done 1
 rmemo todo unblock 1
 ```
 
+## 扫描结果输出（可选）
+
+把 scan 结果打印到 stdout：
+
+```bash
+rmemo scan --format json
+rmemo scan --format md
+```
+
 ## Roadmap（简版）
 
 - v0.2：增强通用扫描（monorepo/子项目/API 契约/文档根目录）

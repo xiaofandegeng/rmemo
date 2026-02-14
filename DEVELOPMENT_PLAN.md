@@ -70,6 +70,7 @@ Tasks:
   - "How I use this with Cursor/Claude/ChatGPT"
   - Examples of rules.md templates for web + miniapp projects
 - Add `CHANGELOG.md` + `CONTRIBUTING.md`
+- Update docs to include npm install usage (scoped package)
 
 ## v0.6 (Optional)
 

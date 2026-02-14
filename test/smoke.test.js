@@ -288,6 +288,28 @@ test("scan detects monorepo signals and subprojects", async () => {
   assert.ok(manifest.subprojects.some((p) => p.dir === "apps/miniapp"), "should detect apps/miniapp subproject");
 });
 
+test("scan supports --format json and md", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-scanfmt-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  await fs.writeFile(path.join(tmp, "openapi.yaml"), "openapi: 3.0.0\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--format", "json", "scan"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const m = JSON.parse(r.out);
+    assert.equal(m.schema, 1);
+    assert.ok(Array.isArray(m.keyFiles));
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--format", "md", "scan"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("# Scan Summary"));
+    assert.ok(r.out.includes("API Contracts") || r.out.includes("Key Files"));
+  }
+});
+
 test("rmemo start runs scan+context and prints status", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-start-"));

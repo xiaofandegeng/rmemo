@@ -19,16 +19,21 @@ When you resume work the next day, AI tools often:
 
 ## Install
 
-For now, run it directly with Node:
+Install globally:
 
 ```bash
-node bin/rmemo.js init
-node bin/rmemo.js log "Finished user list page; next: add search filters"
-node bin/rmemo.js context
-node bin/rmemo.js print
+npm i -g /rmemo
 ```
 
-Later you can publish to npm and install globally.
+Then run in any repo:
+
+```bash
+rmemo --root . init
+rmemo --root . start
+rmemo --root . done "Today: ..."
+```
+
+If you prefer not installing globally, you can run it with Node from this repo too.
 
 ## Use On Any Repo
 
@@ -39,6 +44,15 @@ node /path/to/rmemo/bin/rmemo.js init
 node /path/to/rmemo/bin/rmemo.js log "Did X; next: Y"
 node /path/to/rmemo/bin/rmemo.js context
 node /path/to/rmemo/bin/rmemo.js print
+```
+
+If installed globally:
+
+```bash
+rmemo --root . init
+rmemo --root . start
+rmemo --root . status --mode brief
+rmemo --root . check --staged
 ```
 
 Or without changing directories:
@@ -141,6 +155,15 @@ rmemo todo block "Backend API missing"
 rmemo todo ls
 rmemo todo done 1
 rmemo todo unblock 1
+```
+
+## Scan Output (Optional)
+
+Print scan results to stdout:
+
+```bash
+rmemo scan --format json
+rmemo scan --format md
 ```
 
 ## Roadmap (short)
