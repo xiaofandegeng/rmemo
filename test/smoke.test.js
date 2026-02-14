@@ -244,6 +244,13 @@ test("rmemo check --staged validates staged changes only", async () => {
     const r = await runCmd("git", ["init"], { cwd: tmp });
     assert.equal(r.code, 0, r.err || r.out);
   }
+  // Ensure commits work on CI runners without preconfigured git identity.
+  {
+    const r1 = await runCmd("git", ["config", "user.name", "rmemo-test"], { cwd: tmp });
+    assert.equal(r1.code, 0, r1.err || r1.out);
+    const r2 = await runCmd("git", ["config", "user.email", "rmemo-test@example.com"], { cwd: tmp });
+    assert.equal(r2.code, 0, r2.err || r2.out);
+  }
 
   // init rmemo memory and commit it (so requiredPaths can be checked against repo files)
   {
@@ -267,8 +274,14 @@ test("rmemo check --staged validates staged changes only", async () => {
   );
 
   // Commit baseline
-  await runCmd("git", ["add", "-A"], { cwd: tmp });
-  await runCmd("git", ["commit", "-m", "init"], { cwd: tmp });
+  {
+    const r = await runCmd("git", ["add", "-A"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runCmd("git", ["commit", "-m", "init"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
 
   // Create a secret file but do not stage it yet
   await fs.writeFile(path.join(tmp, "secret.txt"), "BEGIN PRIVATE KEY\n", "utf8");
@@ -658,15 +671,34 @@ test("rmemo pr generates PR summary markdown and writes .repo-memory/pr.md", asy
     const r = await runCmd("git", ["init"], { cwd: tmp });
     assert.equal(r.code, 0, r.err || r.out);
   }
+  // Ensure commits work on CI runners without preconfigured git identity.
+  {
+    const r1 = await runCmd("git", ["config", "user.name", "rmemo-test"], { cwd: tmp });
+    assert.equal(r1.code, 0, r1.err || r1.out);
+    const r2 = await runCmd("git", ["config", "user.email", "rmemo-test@example.com"], { cwd: tmp });
+    assert.equal(r2.code, 0, r2.err || r2.out);
+  }
 
   await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
-  await runCmd("git", ["add", "-A"], { cwd: tmp });
-  await runCmd("git", ["commit", "-m", "init"], { cwd: tmp });
+  {
+    const r = await runCmd("git", ["add", "-A"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runCmd("git", ["commit", "-m", "init"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
 
   // second commit
   await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n\nmore\n", "utf8");
-  await runCmd("git", ["add", "-A"], { cwd: tmp });
-  await runCmd("git", ["commit", "-m", "feat: update readme"], { cwd: tmp });
+  {
+    const r = await runCmd("git", ["add", "-A"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runCmd("git", ["commit", "-m", "feat: update readme"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
 
   // base is previous commit
   {
