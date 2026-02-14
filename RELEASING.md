@@ -58,6 +58,10 @@ How it works:
 
 Note:
 - Release Please works best with Conventional Commits (e.g. `feat: ...`, `fix: ...`).
+- One-time repo setting required:
+  - Settings -> Actions -> General -> Workflow permissions:
+    - Read and write permissions
+    - Allow GitHub Actions to create and approve pull requests
 
 ## GitHub Releases (Automation)
 
