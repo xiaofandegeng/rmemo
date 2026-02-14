@@ -165,3 +165,13 @@ node /path/to/rmemo/bin/rmemo.js --root . ws batch handoff --only apps/admin-web
 - Keep `rules.md` short and strict: 10-20 bullets.
 - Put module boundaries in rules: "Do not import X from Y".
 - When AI gets confused, regenerate context: `rmemo context` and paste again.
+
+## Profiles (Recommended)
+
+Profiles are "templates + defaults" for common repo types.
+
+```bash
+node /path/to/rmemo/bin/rmemo.js profile ls
+node /path/to/rmemo/bin/rmemo.js --root . init --auto
+node /path/to/rmemo/bin/rmemo.js --root . profile apply web-admin-vue
+```

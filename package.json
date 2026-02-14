@@ -27,6 +27,7 @@
     "src/",
     "test/",
     "templates/",
+    "profiles/",
     "README.md",
     "README.zh-CN.md",
     "LICENSE",

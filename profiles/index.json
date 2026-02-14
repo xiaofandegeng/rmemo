@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "profiles": [
+    {
+      "id": "generic",
+      "title": "Generic Repo",
+      "description": "Minimal defaults for any repo type. Use when unsure.",
+      "templateId": "",
+      "defaults": {
+        "sync": { "enabled": true, "targets": ["agents", "copilot", "cursor"] },
+        "profile": { "id": "generic" }
+      }
+    },
+    {
+      "id": "web-admin-vue",
+      "title": "Web Admin (Vue)",
+      "description": "Vue-based admin web apps (common folder boundaries + conventions).",
+      "templateId": "web-admin-vue",
+      "defaults": {
+        "sync": { "enabled": true, "targets": ["cursor", "copilot", "agents"] },
+        "profile": { "id": "web-admin-vue" }
+      }
+    },
+    {
+      "id": "miniapp",
+      "title": "Mini App",
+      "description": "Mini app / small-program repos (project.config.json, app.json, etc.).",
+      "templateId": "miniapp",
+      "defaults": {
+        "sync": { "enabled": true, "targets": ["cursor", "copilot", "agents"] },
+        "profile": { "id": "miniapp" }
+      }
+    }
+  ]
+}
+

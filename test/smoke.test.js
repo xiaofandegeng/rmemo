@@ -829,6 +829,85 @@ test("rmemo ws batch handoff generates handoff for all subprojects", async () =>
   assert.ok(await exists(path.join(tmp, "apps", "miniapp", ".repo-memory", "handoff.md")), true);
 });
 
+test("rmemo profile ls/describe/apply works", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-profile-"));
+
+  {
+    const r = await runNode([rmemoBin, "profile", "ls"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("web-admin-vue"));
+  }
+
+  {
+    const r = await runNode([rmemoBin, "profile", "describe", "miniapp"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("# Profile: miniapp"));
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "profile", "apply", "miniapp"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const rulesMd = await fs.readFile(path.join(tmp, ".repo-memory", "rules.md"), "utf8");
+  assert.ok(rulesMd.includes("Mini App"));
+
+  const cfg = JSON.parse(await fs.readFile(path.join(tmp, ".repo-memory", "config.json"), "utf8"));
+  assert.equal(cfg.schema, 1);
+  assert.equal(cfg.profile.id, "miniapp");
+
+  // profile check should be clean
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--format", "json", "profile", "check"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.ok, true);
+  }
+
+  // introduce drift and verify check reports it
+  await fs.appendFile(path.join(tmp, ".repo-memory", "rules.md"), "\nDrift\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--format", "json", "profile", "check"]);
+    assert.equal(r.code, 1, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.ok, false);
+    assert.ok(j.files.some((f) => String(f.path).endsWith("/.repo-memory/rules.md") && f.status === "different"));
+  }
+
+  // upgrade should overwrite and create backups
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "profile", "upgrade", "miniapp"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const ents = await fs.readdir(path.join(tmp, ".repo-memory"));
+    assert.ok(ents.some((n) => n.startsWith("rules.md.bak.")), "should create rules.md.bak.*");
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--format", "json", "profile", "check"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.ok, true);
+  }
+});
+
+test("rmemo init --auto recommends and applies a profile", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-init-auto-"));
+
+  // miniapp signal
+  await fs.mkdir(path.join(tmp, "src"), { recursive: true });
+  await fs.writeFile(path.join(tmp, "project.config.json"), "{\n}\n", "utf8");
+
+  const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--auto", "init"]);
+  assert.equal(r.code, 0, r.err || r.out);
+  assert.ok(r.out.includes("Auto profile: miniapp"));
+
+  const cfg = JSON.parse(await fs.readFile(path.join(tmp, ".repo-memory", "config.json"), "utf8"));
+  assert.equal(cfg.profile.id, "miniapp");
+});
+
 test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-handoff-json-"));

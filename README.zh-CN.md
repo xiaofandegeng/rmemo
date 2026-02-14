@@ -29,7 +29,7 @@ npm i -g @xiaofandegeng/rmemo
 然后在任意仓库中使用：
 
 ```bash
-rmemo --root . init
+rmemo --root . init --auto
 rmemo --root . init --template web-admin-vue
 rmemo --root . start
 rmemo --root . done "今天：..."
@@ -297,6 +297,17 @@ rmemo scan --format md
 rmemo template ls
 rmemo template apply web-admin-vue
 rmemo template apply miniapp
+```
+
+## Profiles（推荐）
+
+Profile 是 “模板 + 默认配置”（规则/待办 + config），用于快速适配常见项目类型。
+
+```bash
+rmemo profile ls
+rmemo profile describe web-admin-vue
+rmemo --root . profile apply web-admin-vue
+rmemo --root . init --auto
 ```
 
 ## Roadmap（简版）

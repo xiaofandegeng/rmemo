@@ -29,7 +29,7 @@ npm i -g @xiaofandegeng/rmemo
 Then run in any repo:
 
 ```bash
-rmemo --root . init
+rmemo --root . init --auto
 rmemo --root . init --template web-admin-vue
 rmemo --root . start
 rmemo --root . done "Today: ..."
@@ -291,6 +291,17 @@ Built-in templates can bootstrap `.repo-memory/` rules/todos:
 rmemo template ls
 rmemo template apply web-admin-vue
 rmemo template apply miniapp
+```
+
+## Profiles (Recommended)
+
+Profiles are "templates + defaults" (rules/todos + config) for common repo types.
+
+```bash
+rmemo profile ls
+rmemo profile describe web-admin-vue
+rmemo --root . profile apply web-admin-vue
+rmemo --root . init --auto
 ```
 
 ## Roadmap (short)

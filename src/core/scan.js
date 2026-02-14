@@ -165,6 +165,7 @@ function pickKeyFiles(files) {
     "README.zh.md",
     "CONTRIBUTING.md",
     "LICENSE",
+    "project.config.json",
     "openapi.yaml",
     "openapi.yml",
     "swagger.yaml",

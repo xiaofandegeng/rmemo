@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - Add `--format json` for `handoff` and `pr`, with `--max-changes` and `.repo-memory/*.json` outputs.
 - Add monorepo workspace helper `rmemo ws` and scope git scanning to `--root` subdir.
 - Add `rmemo ws batch` to run handoff/pr/sync/start across subprojects and write `.repo-memory/ws.md`.
+- Add profiles (`rmemo profile`) and `rmemo init --auto` (detect + apply recommended profile).
 
 ## 0.0.3
 

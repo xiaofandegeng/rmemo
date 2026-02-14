@@ -28,7 +28,8 @@ export function parseArgs(argv) {
           k === "no-hooks" ||
           k === "uninstall" ||
           k === "remove-config" ||
-          k === "once"
+          k === "once" ||
+          k === "auto"
         ) {
           flags[k] = true;
           continue;
@@ -71,6 +72,7 @@ Usage:
   rmemo pr                   Generate a PR-ready markdown summary (commits/files + brief status)
   rmemo watch                Watch repo changes and auto-refresh context/sync (long-running)
   rmemo ws                   Monorepo helper: list and run commands in detected subprojects
+  rmemo profile              Profiles: apply team defaults (rules + config) for common repo types
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
@@ -89,6 +91,8 @@ Options:
   --format <md|json>         Output format for status/scan/check/setup --check (default: md)
   --mode <brief|full>        Output detail level for status/start (default: full)
   --template <id>            For init: apply a built-in template (see: rmemo template ls)
+  --profile <id>             For init: apply a profile (see: rmemo profile ls)
+  --auto                     For init: detect and apply a recommended profile
   --targets <list>           For sync: comma-separated targets (agents,copilot,cursor,cline,claude)
   --check                    For sync: exit non-zero if generated files are out of date
   --dry-run                  For sync: show what would be written without changing files

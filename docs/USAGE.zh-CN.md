@@ -165,3 +165,13 @@ node /path/to/rmemo/bin/rmemo.js --root . ws batch handoff --only apps/admin-web
 - `rules.md` 尽量控制在 10-20 条强约束。
 - 把模块边界写清楚，例如“禁止跨模块 import”。
 - AI 迷路时，重新生成并粘贴一次：`rmemo context`。
+
+## Profiles（推荐）
+
+Profile 是“模板 + 默认配置”，适配常见项目类型。
+
+```bash
+node /path/to/rmemo/bin/rmemo.js profile ls
+node /path/to/rmemo/bin/rmemo.js --root . init --auto
+node /path/to/rmemo/bin/rmemo.js --root . profile apply web-admin-vue
+```
