@@ -62,7 +62,6 @@ Note:
 ## GitHub Releases (Automation)
 
 This repo also includes a workflow `GitHub Release` that:
-- runs on tag pushes (`v*`) and creates a GitHub Release automatically
 - can be run manually to backfill releases for existing tags
 
 Backfill example:

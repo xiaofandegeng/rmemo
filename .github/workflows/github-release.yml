@@ -1,14 +1,11 @@
 name: GitHub Release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       tag:
         description: "Tag to release (e.g. v0.1.0). Leave empty to use the pushed tag."
-        required: false
+        required: true
         type: string
 
 permissions:
