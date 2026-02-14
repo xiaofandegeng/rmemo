@@ -4,6 +4,7 @@ import { cmdScan } from "../src/cmd/scan.js";
 import { cmdLog } from "../src/cmd/log.js";
 import { cmdContext } from "../src/cmd/context.js";
 import { cmdPrint } from "../src/cmd/print.js";
+import { cmdStatus } from "../src/cmd/status.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -27,6 +28,9 @@ try {
     case "print":
       await cmdPrint({ flags });
       break;
+    case "status":
+      await cmdStatus({ flags });
+      break;
     case "help":
     case undefined:
       printHelp();
@@ -37,4 +41,3 @@ try {
 } catch (err) {
   exitWithError(err?.stack || err?.message || String(err));
 }
-

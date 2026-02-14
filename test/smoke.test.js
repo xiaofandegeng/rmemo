@@ -52,6 +52,11 @@ test("rmemo init/log/context works on a generic repo (no git)", async () => {
     const r = await runNode([rmemoBin, "--root", tmp, "context"]);
     assert.equal(r.code, 0, r.err || r.out);
   }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "md", "status"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("# Status"), "status should output markdown");
+  }
 
   assert.equal(await exists(path.join(tmp, ".repo-memory", "manifest.json")), true);
   assert.equal(await exists(path.join(tmp, ".repo-memory", "index.json")), true);
@@ -63,4 +68,3 @@ test("rmemo init/log/context works on a generic repo (no git)", async () => {
   const ents = await fs.readdir(journalDir);
   assert.ok(ents.some((n) => n.endsWith(".md")), "journal file should exist");
 });
-

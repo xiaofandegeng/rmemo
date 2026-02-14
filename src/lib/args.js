@@ -51,11 +51,13 @@ Usage:
   rmemo init                 Initialize .repo-memory/ and run a scan
   rmemo scan                 Scan repo and update manifest/index
   rmemo log <text>           Append a note to today's journal
+  rmemo status               Print a paste-ready status summary (rules/todos/journal)
   rmemo context              Generate .repo-memory/context.md
   rmemo print                Print context.md to stdout (generate first if missing)
 
 Options:
   --root <path>              Repo root (default: cwd)
+  --format <md|json>         Output format for status (default: md)
   --max-files <n>            Max files to analyze (default: 4000)
   --snip-lines <n>           Max lines per snippet (default: 120)
   --recent-days <n>          Include recent journal entries (default: 7)
