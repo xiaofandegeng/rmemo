@@ -136,7 +136,8 @@ test("rmemo check enforces forbidden/required/naming rules", async () => {
   {
     const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "check"]);
     assert.equal(r.code, 1, "check should fail with violations");
-    assert.ok(r.err.includes("VIOLATION:"), "stderr should include violations");
+    assert.ok(r.err.includes("FAIL:"), "stderr should include fail summary");
+    assert.ok(r.err.includes("== forbidden"), "stderr should group violations");
   }
 
   // Fix violations
