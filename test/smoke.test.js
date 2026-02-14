@@ -78,9 +78,10 @@ test("rmemo init/log/context works on a generic repo (no git)", async () => {
     assert.equal(r.code, 0, r.err || r.out);
   }
   {
-    const r = await runNode([rmemoBin, "--root", tmp, "--format", "md", "status"]);
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "md", "--mode", "brief", "status"]);
     assert.equal(r.code, 0, r.err || r.out);
     assert.ok(r.out.includes("# Status"), "status should output markdown");
+    assert.ok(!r.out.includes("Rules (Excerpt)"), "brief status should not include rules excerpt");
   }
 
   assert.equal(await exists(path.join(tmp, ".repo-memory", "manifest.json")), true);

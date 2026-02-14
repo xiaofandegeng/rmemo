@@ -25,7 +25,7 @@ export async function cmdStart({ flags }) {
 
   // 3) Print status (md) to stdout (paste-ready)
   process.stdout.write("\n");
-  await cmdStatus({ flags: { ...flags, format: "md" } });
+  await cmdStatus({ flags: { ...flags, format: "md", mode: flags.mode || "brief" } });
 
   const ctxRel = path.relative(process.cwd(), contextPath(root));
   process.stdout.write(
@@ -39,4 +39,3 @@ export async function cmdStart({ flags }) {
     ].join("\n")
   );
 }
-

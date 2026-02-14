@@ -38,6 +38,7 @@ async function listRecentJournalFiles(root, recentDays) {
 export async function cmdStatus({ flags }) {
   const root = resolveRoot(flags);
   const format = String(flags.format || "md").toLowerCase();
+  const mode = String(flags.mode || "full").toLowerCase();
   const snipLines = Number(flags["snip-lines"] || 120);
   const recentDays = Number(flags["recent-days"] || 7);
 
@@ -75,6 +76,7 @@ export async function cmdStatus({ flags }) {
       schema: 1,
       generatedAt: new Date().toISOString(),
       root,
+      mode,
       title: manifest?.title || null,
       manifest,
       rules: rules ? clampLines(rules, snipLines) : null,
@@ -105,11 +107,6 @@ export async function cmdStatus({ flags }) {
     else parts.push(`- (none)\n`);
   }
 
-  if (rules) {
-    parts.push(`## Rules (Excerpt)\n`);
-    parts.push(clampLines(rules, Math.min(snipLines, 80)) + "\n");
-  }
-
   if (manifest) {
     parts.push(`## Structure Hints\n`);
     if (Array.isArray(manifest.repoHints) && manifest.repoHints.length) parts.push(`- repoHints: ${manifest.repoHints.join(", ")}\n`);
@@ -122,11 +119,18 @@ export async function cmdStatus({ flags }) {
     }
   }
 
-  if (journal.length) {
-    parts.push(`## Recent Journal\n`);
-    for (const j of journal) {
-      parts.push(`### ${j.file}\n`);
-      parts.push(clampLines(j.text, Math.min(snipLines, 120)) + "\n");
+  if (mode !== "brief") {
+    if (rules) {
+      parts.push(`## Rules (Excerpt)\n`);
+      parts.push(clampLines(rules, Math.min(snipLines, 80)) + "\n");
+    }
+
+    if (journal.length) {
+      parts.push(`## Recent Journal\n`);
+      for (const j of journal) {
+        parts.push(`### ${j.file}\n`);
+        parts.push(clampLines(j.text, Math.min(snipLines, 120)) + "\n");
+      }
     }
   }
 
