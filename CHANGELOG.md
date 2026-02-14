@@ -18,6 +18,13 @@ All notable changes to this project will be documented in this file.
 - Add `rmemo session` (start/note/end) to store sequential handoff snapshots in `.repo-memory/sessions/`.
 - Add `rmemo serve` to expose repo memory over local HTTP (read-only by default, supports token auth).
 
+## [0.3.0](https://github.com/xiaofandegeng/rmemo/compare/v0.2.0...v0.3.0) (2026-02-14)
+
+
+### Features
+
+* add MCP stdio server ([b58c263](https://github.com/xiaofandegeng/rmemo/commit/b58c2634d623513a8054d217161e0ee0da974f94))
+
 ## [0.2.0](https://github.com/xiaofandegeng/rmemo/compare/v0.1.0...v0.2.0) (2026-02-14)
 
 
