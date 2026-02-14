@@ -58,6 +58,36 @@ rmemo scan
 rmemo log <text>
 rmemo context
 rmemo print
+rmemo status
+rmemo check
+```
+
+## Enforcing Rules (CI / Hooks)
+
+`rmemo` supports executable repo rules in `.repo-memory/rules.json`.
+
+Example:
+
+```json
+{
+  "schema": 1,
+  "requiredPaths": ["README.md"],
+  "forbiddenPaths": [".env", ".env.*"],
+  "namingRules": [
+    {
+      "include": ["src/pages/**"],
+      "target": "basename",
+      "match": "^[a-z0-9-]+\\.vue$",
+      "message": "Page filenames must be kebab-case."
+    }
+  ]
+}
+```
+
+Run:
+
+```bash
+rmemo check
 ```
 
 ## Roadmap (short)

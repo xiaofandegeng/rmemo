@@ -68,3 +68,51 @@ test("rmemo init/log/context works on a generic repo (no git)", async () => {
   const ents = await fs.readdir(journalDir);
   assert.ok(ents.some((n) => n.endsWith(".md")), "journal file should exist");
 });
+
+test("rmemo check enforces forbidden/required/naming rules", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-check-"));
+
+  await fs.mkdir(path.join(tmp, "src", "pages"), { recursive: true });
+  await fs.writeFile(path.join(tmp, "src", "pages", "BadName.vue"), "<template />\n", "utf8");
+  await fs.writeFile(path.join(tmp, ".env"), "SECRET=1\n", "utf8");
+
+  // init will create rules.json; overwrite to include our checks.
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const rulesPath = path.join(tmp, ".repo-memory", "rules.json");
+  const rules = {
+    schema: 1,
+    requiredPaths: ["README.md"],
+    forbiddenPaths: [".env", ".env.*"],
+    namingRules: [
+      {
+        include: ["src/pages/**"],
+        target: "basename",
+        match: "^[a-z0-9-]+\\.vue$",
+        message: "Page filenames must be kebab-case."
+      }
+    ]
+  };
+  await fs.writeFile(rulesPath, JSON.stringify(rules, null, 2) + "\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "check"]);
+    assert.equal(r.code, 1, "check should fail with violations");
+    assert.ok(r.err.includes("VIOLATION:"), "stderr should include violations");
+  }
+
+  // Fix violations
+  await fs.writeFile(path.join(tmp, "README.md"), "# ok\n", "utf8");
+  await fs.unlink(path.join(tmp, ".env"));
+  await fs.rename(path.join(tmp, "src", "pages", "BadName.vue"), path.join(tmp, "src", "pages", "bad-name.vue"));
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "check"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("OK:"), "stdout should confirm OK");
+  }
+});

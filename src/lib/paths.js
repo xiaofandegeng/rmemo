@@ -25,6 +25,10 @@ export function rulesPath(root) {
   return path.join(memDir(root), "rules.md");
 }
 
+export function rulesJsonPath(root) {
+  return path.join(memDir(root), "rules.json");
+}
+
 export function contextPath(root) {
   return path.join(memDir(root), "context.md");
 }
@@ -32,4 +36,3 @@ export function contextPath(root) {
 export function todosPath(root) {
   return path.join(memDir(root), "todos.md");
 }
-

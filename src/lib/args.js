@@ -52,6 +52,7 @@ Usage:
   rmemo scan                 Scan repo and update manifest/index
   rmemo log <text>           Append a note to today's journal
   rmemo status               Print a paste-ready status summary (rules/todos/journal)
+  rmemo check                Enforce .repo-memory/rules.json (for CI / hooks)
   rmemo context              Generate .repo-memory/context.md
   rmemo print                Print context.md to stdout (generate first if missing)
 
