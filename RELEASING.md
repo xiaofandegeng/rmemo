@@ -30,7 +30,9 @@ What it does:
 
 ## Fully Automatic Release (Recommended)
 
-If you want "no GitHub clicking", use tag-based publishing:
+If you want "no GitHub clicking", you have 2 options:
+
+### Option A: Tag-based publishing (one local command)
 
 1. Update version locally (creates a git commit + tag):
 
@@ -43,6 +45,19 @@ git push origin main --follow-tags
 - run tests
 - publish to npm (requires `NPM_TOKEN`)
 - create a GitHub Release with notes + `.tgz` asset
+
+### Option B: Release Please (auto version PR on merge to main)
+
+If you want releases to be proposed automatically when you push commits to `main`, use `Release Please`.
+
+How it works:
+1. You push normal commits to `main`
+2. GitHub Actions creates/updates a "release PR" automatically
+3. Merge the release PR, then it will create the tag + GitHub Release
+4. The `Publish (tag)` workflow publishes to npm and uploads assets
+
+Note:
+- Release Please works best with Conventional Commits (e.g. `feat: ...`, `fix: ...`).
 
 ## GitHub Releases (Automation)
 

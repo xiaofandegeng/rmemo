@@ -41,13 +41,40 @@ jobs:
       - name: Run tests
         run: node --test
 
-      - name: Generate release notes (git log)
+      - name: Generate release notes (CHANGELOG.md or git log)
         run: |
           TAG="${{ steps.vars.outputs.tag }}"
+          VERSION="${{ steps.vars.outputs.version }}"
+          # Prefer CHANGELOG.md section for this version if present.
+          if [ -f CHANGELOG.md ]; then
+            BODY="$(python3 - <<'PY'
+import re,sys
+tag=sys.argv[1]
+ver=sys.argv[2]
+try:
+  s=open("CHANGELOG.md","r",encoding="utf-8").read()
+except Exception:
+  sys.exit(1)
+def extract(header):
+  m=re.search(rf"^##\\s+{re.escape(header)}\\s*$", s, flags=re.M)
+  if not m: return ""
+  rest=s[m.end():]
+  n=re.search(r"^##\\s+", rest, flags=re.M)
+  body=(rest if not n else rest[:n.start()]).strip()
+  return body
+body=extract(ver) or extract(tag)
+print(body)
+PY
+" "$TAG" "$VERSION" 2>/dev/null || true)"
+          fi
+
           PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
           echo "# ${TAG}" > release-notes.md
           echo "" >> release-notes.md
-          if [ -n "$PREV" ]; then
+          if [ -n "${BODY:-}" ]; then
+            echo "${BODY}" >> release-notes.md
+            echo "" >> release-notes.md
+          elif [ -n "$PREV" ]; then
             echo "## Changes (${PREV}..${TAG})" >> release-notes.md
             echo "" >> release-notes.md
             git log --pretty=format:"- %s (%h)" "${PREV}..${TAG}" >> release-notes.md
@@ -76,12 +103,37 @@ jobs:
           npm whoami
           npm publish --tag "${{ steps.vars.outputs.dist_tag }}"
 
-      - name: Create GitHub Release
+      - name: Check if GitHub Release exists
+        id: gh
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const tag = "${{ steps.vars.outputs.tag }}";
+            try {
+              const r = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+              core.setOutput("exists", "true");
+              core.setOutput("id", String(r.data.id));
+            } catch (e) {
+              if (e?.status === 404) {
+                core.setOutput("exists", "false");
+              } else {
+                throw e;
+              }
+            }
+
+      - name: Create GitHub Release (only if missing)
+        if: steps.gh.outputs.exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: ${{ steps.vars.outputs.tag }}
           body_path: release-notes.md
           prerelease: ${{ steps.vars.outputs.dist_tag == 'next' }}
-          files: "*.tgz"
 
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          files: "*.tgz"
