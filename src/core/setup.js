@@ -9,6 +9,10 @@ import { getDefaultSyncTargets } from "./sync.js";
 
 const execFileAsync = promisify(execFile);
 
+function normalizeNewlines(s) {
+  return String(s || "").replace(/\r\n/g, "\n");
+}
+
 function nowStamp() {
   const d = new Date();
   const y = d.getFullYear();
@@ -79,6 +83,23 @@ function isManagedHook(existing, hookName) {
   return String(existing || "").includes(`rmemo hook:${hookName}`);
 }
 
+async function checkHook({ repoRoot, hookName, rmemoBinAbs }) {
+  const hookPath = path.join(repoRoot, ".git", "hooks", hookName);
+  const expected = renderHookScript({ hookName, rmemoBinAbs });
+  if (!(await fileExists(hookPath))) {
+    return { hook: hookName, path: hookPath, ok: false, status: "MISSING" };
+  }
+  const existing = await readText(hookPath, 256_000);
+  const ours = isManagedHook(existing, hookName);
+  if (!ours) {
+    return { hook: hookName, path: hookPath, ok: false, status: "EXTERNAL" };
+  }
+  if (normalizeNewlines(existing) !== normalizeNewlines(expected)) {
+    return { hook: hookName, path: hookPath, ok: false, status: "DIFF" };
+  }
+  return { hook: hookName, path: hookPath, ok: true, status: "OK" };
+}
+
 async function installHook({ repoRoot, hookName, rmemoBinAbs, force }) {
   const hooksDir = path.join(repoRoot, ".git", "hooks");
   await fs.mkdir(hooksDir, { recursive: true });
@@ -132,6 +153,102 @@ async function ensureConfig(rootAbs, { targets, force }) {
   return { path: p, changed: true };
 }
 
+async function checkConfig(rootAbs, { targets }) {
+  const p = configPath(rootAbs);
+  if (!(await fileExists(p))) return { path: p, ok: false, status: "MISSING" };
+  try {
+    const cfg = await readJson(p);
+    const enabled = cfg?.sync?.enabled !== false;
+    if (!enabled) return { path: p, ok: false, status: "DISABLED" };
+    const arr = cfg?.sync?.targets;
+    if (!Array.isArray(arr) || !arr.length) return { path: p, ok: false, status: "INVALID" };
+    if (targets && targets.length) {
+      const wanted = targets.map((t) => String(t).toLowerCase());
+      const have = arr.map((t) => String(t).toLowerCase());
+      const same = wanted.length === have.length && wanted.every((x, i) => x === have[i]);
+      if (!same) return { path: p, ok: false, status: "DIFF" };
+    }
+    return { path: p, ok: true, status: "OK" };
+  } catch {
+    return { path: p, ok: false, status: "INVALID" };
+  }
+}
+
+export async function checkSetup({ root, targets, hooks } = {}) {
+  const rootAbs = path.resolve(root || process.cwd());
+  let repoRoot;
+  try {
+    repoRoot = await gitTopLevel(rootAbs);
+  } catch {
+    const err = new Error(`Not a git repo (or git not available) under: ${rootAbs}`);
+    err.code = "RMEMO_NOT_GIT";
+    throw err;
+  }
+
+  const rmemoBinAbs = path.resolve(process.argv[1]);
+  const hookList = hooks || [];
+  const hookResults = [];
+  for (const h of hookList) {
+    // eslint-disable-next-line no-await-in-loop
+    hookResults.push(await checkHook({ repoRoot, hookName: h, rmemoBinAbs }));
+  }
+
+  const cfg = await checkConfig(repoRoot, { targets });
+  const ok = cfg.ok && hookResults.every((h) => h.ok);
+  return { repoRoot, config: cfg, hooks: hookResults, ok };
+}
+
+async function uninstallHook({ repoRoot, hookName }) {
+  const hookPath = path.join(repoRoot, ".git", "hooks", hookName);
+  if (!(await fileExists(hookPath))) {
+    return { hook: hookName, path: hookPath, removed: false, skipped: false, status: "MISSING" };
+  }
+  const existing = await readText(hookPath, 256_000);
+  const ours = isManagedHook(existing, hookName);
+  if (!ours) {
+    return { hook: hookName, path: hookPath, removed: false, skipped: true, status: "EXTERNAL" };
+  }
+  const bak = `${hookPath}.bak.uninstalled.${nowStamp()}`;
+  await fs.copyFile(hookPath, bak);
+  await fs.unlink(hookPath);
+  return { hook: hookName, path: hookPath, removed: true, skipped: false, status: "REMOVED", backup: bak };
+}
+
+export async function uninstallSetup({ root, hooks, removeConfig = false } = {}) {
+  const rootAbs = path.resolve(root || process.cwd());
+  let repoRoot;
+  try {
+    repoRoot = await gitTopLevel(rootAbs);
+  } catch {
+    const err = new Error(`Not a git repo (or git not available) under: ${rootAbs}`);
+    err.code = "RMEMO_NOT_GIT";
+    throw err;
+  }
+
+  const hookList = hooks || [];
+  const hookResults = [];
+  for (const h of hookList) {
+    // eslint-disable-next-line no-await-in-loop
+    hookResults.push(await uninstallHook({ repoRoot, hookName: h }));
+  }
+
+  let cfg = { path: configPath(repoRoot), removed: false, skipped: false, status: "KEEP" };
+  if (removeConfig) {
+    const p = configPath(repoRoot);
+    if (!(await fileExists(p))) {
+      cfg = { path: p, removed: false, skipped: false, status: "MISSING" };
+    } else {
+      const bak = `${p}.bak.uninstalled.${nowStamp()}`;
+      await fs.copyFile(p, bak);
+      await fs.unlink(p);
+      cfg = { path: p, removed: true, skipped: false, status: "REMOVED", backup: bak };
+    }
+  }
+
+  const ok = hookResults.every((h) => h.status === "MISSING" || h.status === "REMOVED") && (!removeConfig || cfg.status !== "KEEP");
+  return { repoRoot, config: cfg, hooks: hookResults, ok };
+}
+
 export async function setupRepo({ root, targets, hooks, force = false } = {}) {
   const rootAbs = path.resolve(root || process.cwd());
 
@@ -179,3 +296,42 @@ export function formatSetupSummary({ repoRoot, config, hooks }) {
   return lines.join("\n").trimEnd() + "\n";
 }
 
+export function formatSetupCheckSummary({ repoRoot, config, hooks, ok }) {
+  const lines = [];
+  lines.push(`# Setup Check`);
+  lines.push(`Root: ${repoRoot}`);
+  lines.push("");
+  lines.push(`Config: ${config.status} ${config.path}`);
+  lines.push("");
+  lines.push(`Hooks:`);
+  if (!hooks.length) {
+    lines.push(`- (none requested)`);
+  } else {
+    for (const h of hooks) lines.push(`- ${h.status} ${h.hook} ${h.path}`);
+  }
+  lines.push("");
+  lines.push(ok ? "OK: setup is correct" : "FAIL: setup missing or out of date");
+  return lines.join("\n").trimEnd() + "\n";
+}
+
+export function formatSetupUninstallSummary({ repoRoot, config, hooks, ok }) {
+  const lines = [];
+  lines.push(`# Setup Uninstall`);
+  lines.push(`Root: ${repoRoot}`);
+  lines.push("");
+  lines.push(`Config: ${config.status} ${config.path}${config.backup ? ` (backup: ${config.backup})` : ""}`);
+  lines.push("");
+  lines.push(`Hooks:`);
+  if (!hooks.length) {
+    lines.push(`- (none requested)`);
+  } else {
+    for (const h of hooks) {
+      lines.push(
+        `- ${h.status} ${h.hook} ${h.path}${h.backup ? ` (backup: ${h.backup})` : ""}${h.skipped ? " (skipped)" : ""}`
+      );
+    }
+  }
+  lines.push("");
+  lines.push(ok ? "OK: uninstall complete" : "WARN: some items were not removed");
+  return lines.join("\n").trimEnd() + "\n";
+}

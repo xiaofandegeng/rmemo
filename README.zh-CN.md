@@ -132,6 +132,19 @@ rmemo setup
 rmemo setup --no-hooks
 ```
 
+审计检查（适合 CI）：
+
+```bash
+rmemo setup --check
+```
+
+卸载（安全：只移除 rmemo 管理的 hooks）：
+
+```bash
+rmemo setup --uninstall
+rmemo setup --uninstall --remove-config
+```
+
 ## 可执行规则（CI / Hooks）
 
 `rmemo` 支持在 `.repo-memory/rules.json` 里写规则，并用 `rmemo check` 在本地或 CI 执行。

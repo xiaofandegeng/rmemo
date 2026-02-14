@@ -109,3 +109,4 @@ Done:
 - Add `rmemo setup` to install hooks:
   - `pre-commit`: `rmemo check --staged` (blocking)
   - `post-commit/post-merge/post-checkout`: `rmemo sync` (non-blocking)
+- Add `rmemo setup --check` and `rmemo setup --uninstall` for audit and rollback

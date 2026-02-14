@@ -25,7 +25,9 @@ export function parseArgs(argv) {
           k === "check" ||
           k === "dry-run" ||
           k === "dryrun" ||
-          k === "no-hooks"
+          k === "no-hooks" ||
+          k === "uninstall" ||
+          k === "remove-config"
         ) {
           flags[k] = true;
           continue;
@@ -87,6 +89,9 @@ Options:
   --dry-run                  For sync: show what would be written without changing files
   --hooks <list>             For setup: comma-separated git hooks (default: pre-commit,post-commit,post-merge,post-checkout)
   --no-hooks                 For setup: do not install any hooks
+  --check                    For setup: exit non-zero if hooks/config are missing or out of date
+  --uninstall                For setup: remove rmemo-managed hooks (safe; won't touch custom hooks)
+  --remove-config            For setup --uninstall: also remove .repo-memory/config.json (backs up first)
   --next <text>              Append a bullet to .repo-memory/todos.md under "## Next"
   --blocker <text>           Append a bullet to .repo-memory/todos.md under "## Blockers"
   --staged                   For check: only validate staged (git index) files

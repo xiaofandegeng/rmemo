@@ -86,6 +86,19 @@ node /path/to/rmemo/bin/rmemo.js --root . setup
 - `pre-commit` 会阻止不符合 `rules.json` 的提交（`rmemo check --staged`）。
 - 其它 hooks 用于保持 AI 指令文件更新（`rmemo sync`，不阻塞提交/切分支等操作）。
 
+审计检查 / CI：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . --check setup
+```
+
+卸载：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . --uninstall setup
+node /path/to/rmemo/bin/rmemo.js --root . --uninstall --remove-config setup
+```
+
 ## 小建议
 
 - `rules.md` 尽量控制在 10-20 条强约束。

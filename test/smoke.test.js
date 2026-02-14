@@ -536,8 +536,20 @@ test("rmemo setup writes config and installs multiple git hooks", async () => {
     assert.equal(r.code, 0, r.err || r.out);
   }
 
+  // check mode should fail before setup
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--check", "setup"]);
+    assert.equal(r.code, 2, "setup --check should fail before setup");
+  }
+
   {
     const r = await runNode([rmemoBin, "--root", tmp, "setup"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // check mode should pass after setup
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--check", "setup"]);
     assert.equal(r.code, 0, r.err || r.out);
   }
 
@@ -560,4 +572,41 @@ test("rmemo setup writes config and installs multiple git hooks", async () => {
     const s = await fs.readFile(p, "utf8");
     assert.ok(s.includes(`rmemo hook:${h}`), `hook marker should exist: ${h}`);
   }
+});
+
+test("rmemo setup --uninstall removes rmemo-managed hooks and can keep custom hooks", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-uninstall-"));
+
+  {
+    const r = await runCmd("git", ["init"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // Install rmemo hooks/config
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "setup"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // Uninstall should remove managed hooks (but keep config by default)
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--uninstall", "setup"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const hooks = ["pre-commit", "post-commit", "post-merge", "post-checkout"];
+  for (const h of hooks) {
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal(await exists(path.join(tmp, ".git", "hooks", h)), false, `hook should be removed: ${h}`);
+  }
+  assert.equal(await exists(path.join(tmp, ".repo-memory", "config.json")), true, "config should remain by default");
+
+  // Custom hook should not be removed
+  await fs.writeFile(path.join(tmp, ".git", "hooks", "pre-commit"), "#!/usr/bin/env bash\necho custom\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--uninstall", "--hooks", "pre-commit", "setup"]);
+    assert.equal(r.code, 2, "should skip external hook and exit 2");
+  }
+  assert.equal(await exists(path.join(tmp, ".git", "hooks", "pre-commit")), true);
 });

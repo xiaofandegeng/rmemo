@@ -128,6 +128,19 @@ Disable hook installation:
 rmemo setup --no-hooks
 ```
 
+Audit (CI-friendly):
+
+```bash
+rmemo setup --check
+```
+
+Uninstall (safe: only removes rmemo-managed hooks):
+
+```bash
+rmemo setup --uninstall
+rmemo setup --uninstall --remove-config
+```
+
 ## Enforcing Rules (CI / Hooks)
 
 `rmemo` supports executable repo rules in `.repo-memory/rules.json`.

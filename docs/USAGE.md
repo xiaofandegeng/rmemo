@@ -86,6 +86,19 @@ Notes:
 - `pre-commit` blocks commits that violate `rules.json` (`rmemo check --staged`).
 - other hooks keep AI instruction files updated (`rmemo sync`, non-blocking).
 
+Audit / CI:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . --check setup
+```
+
+Uninstall:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . --uninstall setup
+node /path/to/rmemo/bin/rmemo.js --root . --uninstall --remove-config setup
+```
+
 ## Tips
 
 - Keep `rules.md` short and strict: 10-20 bullets.
