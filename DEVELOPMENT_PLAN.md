@@ -166,16 +166,30 @@ Goals:
 Done:
 - Add `rmemo ws batch ...` and write `.repo-memory/ws.md` at repo root
 
-## v1.5 (Profiles) (Planned)
+## v1.5 (Profiles) (Shipped)
 
 Goals:
 - Make adoption near-zero effort for common repo types (admin web, miniapp, backend, monorepo).
 - Encode team defaults in a reusable profile: rules, todos seed, config defaults.
 - Allow safe upgrades over time.
 
-Proposed:
-- Add `rmemo profile ls/apply/describe`
+Done:
+- Add `rmemo profile ls/describe/apply`
 - Add `rmemo init --auto` (detect + apply recommended profile)
-- Add profile upgrades:
+- Add profile drift + upgrades:
   - `rmemo profile check` (drift report)
-  - `rmemo profile upgrade` (apply updates with backups)
+  - `rmemo profile upgrade` (re-apply template + backups)
+
+## v1.6 (Sessions) (Planned)
+
+Goals:
+- Make daily work trackable as a sequence of "sessions" (start -> notes -> end).
+- Each session should produce a deterministic handoff pack for AI, without manual copy/paste.
+
+Proposed:
+- Add `rmemo session start|note|end|ls|show`
+- Each session stored in `.repo-memory/sessions/<id>/`:
+  - `meta.json` (schema, startedAt/endedAt, branch, baseRef)
+  - `notes.md` (human notes)
+  - `handoff.md` (generated at end)
+- Optional: `rmemo session end --update-todos` to extract "Next/Blockers" into todos.md
