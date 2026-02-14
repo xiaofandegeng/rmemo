@@ -9,6 +9,9 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
+const PATTERN_CACHE = new Map();
+const CONTENT_MATCH_CACHE = new Map();
+
 function toPosix(p) {
   return p.split(path.sep).join("/");
 }
@@ -75,19 +78,29 @@ function globToRegExp(glob) {
 
 function compilePattern(pat) {
   const s = String(pat);
-  if (s.startsWith("re:")) return new RegExp(s.slice(3));
+  const cached = PATTERN_CACHE.get(s);
+  if (cached) return cached;
+  if (s.startsWith("re:")) {
+    const re = new RegExp(s.slice(3));
+    PATTERN_CACHE.set(s, re);
+    return re;
+  }
   if (s.startsWith("/") && s.lastIndexOf("/") > 0) {
     // Support "/.../i" style
     const last = s.lastIndexOf("/");
     const body = s.slice(1, last);
     const flags = s.slice(last + 1);
     try {
-      return new RegExp(body, flags);
+      const re = new RegExp(body, flags);
+      PATTERN_CACHE.set(s, re);
+      return re;
     } catch {
       // fallthrough to glob
     }
   }
-  return globToRegExp(s);
+  const re = globToRegExp(s);
+  PATTERN_CACHE.set(s, re);
+  return re;
 }
 
 function escapeRegExpLiteral(s) {
@@ -97,15 +110,25 @@ function escapeRegExpLiteral(s) {
 function compileContentMatcher(match) {
   const s = String(match ?? "");
   if (!s) return null;
-  if (s.startsWith("re:")) return new RegExp(s.slice(3));
+  const cached = CONTENT_MATCH_CACHE.get(s);
+  if (cached) return cached;
+  if (s.startsWith("re:")) {
+    const re = new RegExp(s.slice(3));
+    CONTENT_MATCH_CACHE.set(s, re);
+    return re;
+  }
   if (s.startsWith("/") && s.lastIndexOf("/") > 0) {
     const last = s.lastIndexOf("/");
     const body = s.slice(1, last);
     const flags = s.slice(last + 1);
-    return new RegExp(body, flags);
+    const re = new RegExp(body, flags);
+    CONTENT_MATCH_CACHE.set(s, re);
+    return re;
   }
   // Default: treat as literal substring.
-  return new RegExp(escapeRegExpLiteral(s), "g");
+  const re = new RegExp(escapeRegExpLiteral(s), "g");
+  CONTENT_MATCH_CACHE.set(s, re);
+  return re;
 }
 
 function matchAny(str, patterns) {
