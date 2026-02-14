@@ -492,3 +492,36 @@ test("rmemo init can apply template via --template", async () => {
   const rulesMd = await fs.readFile(path.join(tmp, ".repo-memory", "rules.md"), "utf8");
   assert.ok(rulesMd.includes("Mini App"));
 });
+
+test("rmemo sync generates AI instruction files and supports --check", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-sync-"));
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // First sync writes files
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "sync"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  assert.equal(await exists(path.join(tmp, "AGENTS.md")), true);
+  assert.equal(await exists(path.join(tmp, ".github", "copilot-instructions.md")), true);
+  assert.equal(await exists(path.join(tmp, ".cursor", "rules", "rmemo.mdc")), true);
+
+  // Check mode should pass if in sync
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--check", "sync"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // Mutate one file => check should fail
+  await fs.appendFile(path.join(tmp, "AGENTS.md"), "\ncustom\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--check", "sync"]);
+    assert.equal(r.code, 2, "check should detect diff");
+  }
+});

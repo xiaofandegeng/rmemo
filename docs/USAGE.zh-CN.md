@@ -60,6 +60,20 @@ node /path/to/rmemo/bin/rmemo.js --root . check
 node /path/to/rmemo/bin/rmemo.js --root . hook install
 ```
 
+## 同步到 AI 工具指令文件
+
+如果你使用的 AI 工具支持“仓库内指令文件”，可以从 `.repo-memory/` 生成同步：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . sync
+```
+
+CI / 检查模式（不写文件）：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . --check sync
+```
+
 ## 小建议
 
 - `rules.md` 尽量控制在 10-20 条强约束。

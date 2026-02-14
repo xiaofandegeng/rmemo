@@ -60,6 +60,20 @@ For git pre-commit (fast, staged only):
 node /path/to/rmemo/bin/rmemo.js --root . hook install
 ```
 
+## Sync Instructions Into AI Tools
+
+If your AI tool supports repo-local instruction files, generate them from `.repo-memory/`:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . sync
+```
+
+CI / sanity check (no writes):
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . --check sync
+```
+
 ## Tips
 
 - Keep `rules.md` short and strict: 10-20 bullets.

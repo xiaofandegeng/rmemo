@@ -81,6 +81,7 @@ rmemo scan
 rmemo log <text>
 rmemo status
 rmemo check
+rmemo sync
 rmemo hook install
 rmemo start
 rmemo done
@@ -91,6 +92,24 @@ rmemo context
 rmemo print
 rmemo template ls
 rmemo template apply <id>
+```
+
+## 同步到 AI 工具的“项目指令文件”
+
+一些 AI 工具支持把“项目规则”存为仓库内的指令文件，这样隔天继续开发时不容易忘记约定。
+
+`rmemo sync` 会把 `.repo-memory/` 的规则/进度同步生成到：
+- `AGENTS.md`
+- `.github/copilot-instructions.md`
+- `.cursor/rules/rmemo.mdc`
+
+示例：
+
+```bash
+rmemo sync
+rmemo sync --check
+rmemo sync --targets agents,copilot,cursor
+rmemo sync --force
 ```
 
 ## 可执行规则（CI / Hooks）

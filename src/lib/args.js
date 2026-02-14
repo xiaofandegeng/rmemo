@@ -17,7 +17,15 @@ export function parseArgs(argv) {
         const k = a.slice(2);
         // Common boolean flag convention: `--no-foo` means a boolean toggle.
         // Do not accidentally consume the next positional arg as its value.
-        if (k.startsWith("no-") || k === "help" || k === "force" || k === "staged") {
+        if (
+          k.startsWith("no-") ||
+          k === "help" ||
+          k === "force" ||
+          k === "staged" ||
+          k === "check" ||
+          k === "dry-run" ||
+          k === "dryrun"
+        ) {
           flags[k] = true;
           continue;
         }
@@ -53,6 +61,7 @@ Usage:
   rmemo log <text>           Append a note to today's journal
   rmemo status               Print a paste-ready status summary (rules/todos/journal)
   rmemo check                Enforce .repo-memory/rules.json (for CI / hooks)
+  rmemo sync                 Generate AI tool instruction files from .repo-memory/
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
@@ -71,6 +80,9 @@ Options:
   --format <md|json>         Output format for status/scan/check (default: md)
   --mode <brief|full>        Output detail level for status/start (default: full)
   --template <id>            For init: apply a built-in template (see: rmemo template ls)
+  --targets <list>           For sync: comma-separated targets (agents,copilot,cursor,cline,claude)
+  --check                    For sync: exit non-zero if generated files are out of date
+  --dry-run                  For sync: show what would be written without changing files
   --next <text>              Append a bullet to .repo-memory/todos.md under "## Next"
   --blocker <text>           Append a bullet to .repo-memory/todos.md under "## Blockers"
   --staged                   For check: only validate staged (git index) files

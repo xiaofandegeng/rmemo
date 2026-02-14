@@ -82,11 +82,30 @@ rmemo context
 rmemo print
 rmemo status
 rmemo check
+rmemo sync
 rmemo hook install
 rmemo start
 rmemo done
 rmemo template ls
 rmemo template apply <id>
+```
+
+## Sync AI Tool Instructions
+
+Some AI tools support repo-local instruction files (so they don't "forget" between sessions).
+
+`rmemo sync` generates these files from `.repo-memory/`:
+- `AGENTS.md`
+- `.github/copilot-instructions.md`
+- `.cursor/rules/rmemo.mdc`
+
+Run:
+
+```bash
+rmemo sync
+rmemo sync --check
+rmemo sync --targets agents,copilot,cursor
+rmemo sync --force
 ```
 
 ## Enforcing Rules (CI / Hooks)

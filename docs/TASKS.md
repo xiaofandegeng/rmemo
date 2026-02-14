@@ -12,16 +12,16 @@ This file is a lightweight "what are we doing next" board.
 
 ## Next (Recommended)
 
-1. Add more templates
+1. Improve `rmemo sync`
+   - add `--targets` docs per tool
+   - add `--print <target>` (stdout) for quick copy/paste
+2. Add more templates
    - `web-admin-react`
    - `backend-node`
    - `fullstack-monorepo`
-2. Add `rmemo template describe <id>` (prints what it writes and why)
-3. Add `rmemo check` UX flags
+3. Add `rmemo template describe <id>` (prints what it writes and why)
+4. Add `rmemo check` UX flags
    - `--max-violations <n>`
    - stable ordering for violations
-4. Add `rmemo scan` optional outputs
+5. Add `rmemo scan` optional outputs
    - `--format md` include a compact subproject table
-5. Improve docs
-   - a copy/paste prompt block for common AI tools
-

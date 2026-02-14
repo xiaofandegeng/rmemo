@@ -84,3 +84,16 @@ Done:
 Remaining ideas:
 - `rmemo scan --format md` optionally include a short "subprojects summary" table
 - `rmemo check` output: optional `--max-violations <n>` and show stable ordering
+
+## v0.7 (AI Tool Integration) (In Progress)
+
+Goals:
+- Make project memory "stick" inside AI tools that support repo-local instruction files.
+- Keep instruction files generated and consistent across days and contributors.
+
+Done:
+- Add `rmemo sync` to generate instruction files from `.repo-memory/`:
+  - `AGENTS.md`
+  - `.github/copilot-instructions.md`
+  - `.cursor/rules/rmemo.mdc`
+- Add `--check/--dry-run/--targets/--force` flags and smoke tests
