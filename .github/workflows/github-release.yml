@@ -1,0 +1,49 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.1.0). Leave empty to use the pushed tag."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: vars
+        run: |
+          TAG_INPUT="${{ inputs.tag }}"
+          if [ -n "$TAG_INPUT" ]; then
+            echo "tag=$TAG_INPUT" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.vars.outputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build npm tarball (for release assets)
+        run: npm_config_cache=.npm-cache npm pack
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.tag }}
+          generate_release_notes: true
+          files: "*.tgz"
