@@ -89,10 +89,11 @@ rmemo start
 rmemo done
 rmemo handoff
 rmemo pr
-rmemo watch
-rmemo ws
-rmemo template ls
-rmemo template apply <id>
+  rmemo watch
+  rmemo ws
+  rmemo template ls
+  rmemo template apply <id>
+  rmemo session
 ```
 
 ## Sync AI Tool Instructions
@@ -177,6 +178,17 @@ If you want context + instruction files to stay up to date while you work:
 rmemo watch
 rmemo watch --interval 5000
 rmemo watch --no-sync
+```
+
+## Sessions (Start -> Note -> End)
+
+If you want a lightweight "work session" trail (and a handoff snapshot per session):
+
+```bash
+rmemo session start --title "Fix login flow"
+rmemo session note "Found root cause: token refresh race"
+rmemo session end
+rmemo session ls
 ```
 
 ## Monorepo Workspaces

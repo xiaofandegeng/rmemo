@@ -73,6 +73,7 @@ Usage:
   rmemo watch                Watch repo changes and auto-refresh context/sync (long-running)
   rmemo ws                   Monorepo helper: list and run commands in detected subprojects
   rmemo profile              Profiles: apply team defaults (rules + config) for common repo types
+  rmemo session              Sessions: start -> note -> end for AI-ready handoff snapshots
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos

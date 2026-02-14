@@ -34,6 +34,14 @@ node /path/to/rmemo/bin/rmemo.js --root . todo add "实现用户搜索筛选"
 node /path/to/rmemo/bin/rmemo.js --root . todo block "等待后端接口契约"
 ```
 
+可选：用 sessions（开始 -> 记录 -> 结束）把过程变成一串可追溯的交接快照：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . session start --title "功能：用户搜索"
+node /path/to/rmemo/bin/rmemo.js --root . session note "决策：筛选条件保持在 URL query"
+node /path/to/rmemo/bin/rmemo.js --root . session end
+```
+
 ### 收工
 
 写总结，并把“明天第一步”写进 todos：

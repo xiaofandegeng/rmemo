@@ -34,6 +34,14 @@ node /path/to/rmemo/bin/rmemo.js --root . todo add "Implement user search filter
 node /path/to/rmemo/bin/rmemo.js --root . todo block "Waiting for backend API contract"
 ```
 
+Optional: use sessions (start -> note -> end) to keep a sequence of handoff snapshots:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . session start --title "Feature: user search"
+node /path/to/rmemo/bin/rmemo.js --root . session note "Decision: keep filters in URL query"
+node /path/to/rmemo/bin/rmemo.js --root . session end
+```
+
 ### End of day
 
 Write a summary and set the first task for tomorrow:

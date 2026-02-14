@@ -60,3 +60,11 @@ export function prJsonPath(root) {
 export function wsSummaryPath(root) {
   return path.join(memDir(root), "ws.md");
 }
+
+export function sessionsDir(root) {
+  return path.join(memDir(root), "sessions");
+}
+
+export function activeSessionPath(root) {
+  return path.join(memDir(root), "session.json");
+}

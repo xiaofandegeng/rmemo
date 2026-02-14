@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 - Add monorepo workspace helper `rmemo ws` and scope git scanning to `--root` subdir.
 - Add `rmemo ws batch` to run handoff/pr/sync/start across subprojects and write `.repo-memory/ws.md`.
 - Add profiles (`rmemo profile`) and `rmemo init --auto` (detect + apply recommended profile).
+- Add `rmemo profile check/upgrade` for profile drift reporting and safe re-apply with backups.
+- Add `rmemo session` (start/note/end) to store sequential handoff snapshots in `.repo-memory/sessions/`.
 
 ## 0.0.3
 

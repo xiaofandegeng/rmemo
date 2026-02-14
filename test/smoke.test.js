@@ -908,6 +908,31 @@ test("rmemo init --auto recommends and applies a profile", async () => {
   assert.equal(cfg.profile.id, "miniapp");
 });
 
+test("rmemo session start/note/end works (no git)", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-session-"));
+
+  const r1 = await runNode([rmemoBin, "--root", tmp, "--no-git", "--title", "Demo", "session", "start"]);
+  assert.equal(r1.code, 0, r1.err || r1.out);
+
+  const active = JSON.parse(await fs.readFile(path.join(tmp, ".repo-memory", "session.json"), "utf8"));
+  assert.equal(active.schema, 1);
+  assert.ok(active.id);
+
+  const r2 = await runNode([rmemoBin, "--root", tmp, "--no-git", "session", "note", "hello"]);
+  assert.equal(r2.code, 0, r2.err || r2.out);
+
+  const notes = await fs.readFile(path.join(tmp, ".repo-memory", "sessions", active.id, "notes.md"), "utf8");
+  assert.ok(notes.includes("hello"));
+
+  const r3 = await runNode([rmemoBin, "--root", tmp, "--no-git", "session", "end"]);
+  assert.equal(r3.code, 0, r3.err || r3.out);
+
+  assert.equal(await exists(path.join(tmp, ".repo-memory", "session.json")), false, "active session pointer should be cleared");
+  assert.equal(await exists(path.join(tmp, ".repo-memory", "sessions", active.id, "handoff.md")), true);
+  assert.equal(await exists(path.join(tmp, ".repo-memory", "sessions", active.id, "context.md")), true);
+});
+
 test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-handoff-json-"));

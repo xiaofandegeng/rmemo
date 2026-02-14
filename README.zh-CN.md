@@ -88,15 +88,16 @@ rmemo start
 rmemo done
 rmemo handoff
 rmemo pr
-rmemo watch
-rmemo ws
-rmemo todo add <text>
-rmemo todo block <text>
-rmemo todo ls
-rmemo context
-rmemo print
-rmemo template ls
-rmemo template apply <id>
+  rmemo watch
+  rmemo ws
+  rmemo todo add <text>
+  rmemo todo block <text>
+  rmemo todo ls
+  rmemo session
+  rmemo context
+  rmemo print
+  rmemo template ls
+  rmemo template apply <id>
 ```
 
 ## 同步到 AI 工具的“项目指令文件”
@@ -181,6 +182,17 @@ rmemo pr --no-refresh
 rmemo watch
 rmemo watch --interval 5000
 rmemo watch --no-sync
+```
+
+## Sessions（开始 -> 记录 -> 结束）
+
+如果你希望把开发过程按“session”顺序沉淀，并在结束时自动生成一份交接包快照：
+
+```bash
+rmemo session start --title "修复登录流程"
+rmemo session note "定位到原因：token refresh 竞态"
+rmemo session end
+rmemo session ls
 ```
 
 ## Monorepo 工作区（子项目）
