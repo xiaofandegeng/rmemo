@@ -30,6 +30,89 @@ function detectFromPackageJson(pkg) {
   return { frameworks, pkgManager, workspaces, scripts: pkg.scripts || {} };
 }
 
+function detectMonorepoSignals(files) {
+  const set = new Set(files);
+  const signals = [];
+  if (set.has("pnpm-workspace.yaml")) signals.push("pnpm-workspace");
+  if (set.has("lerna.json")) signals.push("lerna");
+  if (set.has("turbo.json")) signals.push("turborepo");
+  if (set.has("nx.json")) signals.push("nx");
+  if (set.has("rush.json")) signals.push("rush");
+  if (set.has("workspace.json")) signals.push("workspace.json");
+  return signals;
+}
+
+function detectDocsRoots(files) {
+  const roots = new Set();
+  for (const f of files) {
+    if (f.startsWith("docs/")) roots.add("docs");
+    if (f.startsWith("doc/")) roots.add("doc");
+    if (f.startsWith("documentation/")) roots.add("documentation");
+  }
+  return Array.from(roots).sort();
+}
+
+function detectApiContracts(files) {
+  const out = [];
+  for (const f of files) {
+    const base = path.posix.basename(f).toLowerCase();
+    if (base === "openapi.yaml" || base === "openapi.yml" || base === "swagger.yaml" || base === "swagger.yml") out.push(f);
+    if (base === "openapi.json" || base === "swagger.json") out.push(f);
+  }
+  return Array.from(new Set(out)).slice(0, 30);
+}
+
+function detectSubprojectCandidates(files) {
+  // Heuristic: subproject roots are dirs containing common manifest/config files.
+  // Keep it generic and cheap: only look at shallow depths.
+  const candidates = new Map(); // dir -> { reasons: Set<string>, files: Set<string> }
+  const add = (dir, reason, file) => {
+    if (!dir || dir === ".") return;
+    const cur = candidates.get(dir) || { reasons: new Set(), files: new Set() };
+    cur.reasons.add(reason);
+    if (file) cur.files.add(file);
+    candidates.set(dir, cur);
+  };
+
+  for (const f of files) {
+    const parts = f.split("/");
+    if (parts.length < 2) continue;
+    const dir = parts.slice(0, -1).join("/");
+    const base = parts[parts.length - 1];
+
+    // Depth cap: avoid too deep noise
+    if (parts.length > 4) continue;
+
+    if (base === "package.json") add(dir, "package.json", f);
+    if (base === "pom.xml") add(dir, "pom.xml", f);
+    if (base === "go.mod") add(dir, "go.mod", f);
+    if (base === "Cargo.toml") add(dir, "Cargo.toml", f);
+    if (base === "composer.json") add(dir, "composer.json", f);
+    if (base === "pyproject.toml" || base === "requirements.txt") add(dir, "python", f);
+
+    // Miniapp-ish hints (generic, not tied to one vendor)
+    if (base === "project.config.json") add(dir, "miniapp:project.config.json", f);
+    if (base === "app.json" && dir.includes("mini")) add(dir, "miniapp:app.json", f);
+  }
+
+  // Prefer top-level-ish subprojects: unique dirs not nested inside another candidate.
+  const dirs = Array.from(candidates.keys()).sort((a, b) => a.length - b.length);
+  const filtered = [];
+  for (const d of dirs) {
+    if (filtered.some((x) => d.startsWith(x + "/"))) continue;
+    filtered.push(d);
+  }
+
+  return filtered.slice(0, 30).map((dir) => {
+    const meta = candidates.get(dir);
+    return {
+      dir,
+      reasons: Array.from(meta.reasons).sort(),
+      hintFiles: Array.from(meta.files).sort().slice(0, 10)
+    };
+  });
+}
+
 async function safeJson(absPath) {
   try {
     const s = await readText(absPath);
@@ -127,14 +210,22 @@ export async function scanRepo(root, { maxFiles = 4000, preferGit = true } = {})
   if (files.length > maxFiles) files = files.slice(0, maxFiles);
 
   const repoHints = detectRepoType(files);
+  const monorepoSignals = detectMonorepoSignals(files);
   const lockfiles = detectLockfiles(files);
   const keyFiles = pickKeyFiles(files);
+  const docsRoots = detectDocsRoots(files);
+  const apiContracts = detectApiContracts(files);
+  const subprojects = detectSubprojectCandidates(files);
   const topDirs = pickTopLevelDirs(files);
   const topExts = summarizeExtensions(files);
 
   const pkgAbs = path.join(root, "package.json");
   const pkg = await safeJson(pkgAbs);
   const pkgInfo = pkg ? detectFromPackageJson(pkg) : null;
+  const monorepo = {
+    signals: monorepoSignals,
+    rootWorkspaces: pkgInfo?.workspaces || null
+  };
 
   const manifest = {
     schema: 1,
@@ -143,10 +234,14 @@ export async function scanRepo(root, { maxFiles = 4000, preferGit = true } = {})
     usingGit: gitOk,
     fileCount: files.length,
     repoHints,
+    monorepo,
     lockfiles,
     topDirs,
     topExts,
     keyFiles,
+    docsRoots,
+    apiContracts,
+    subprojects,
     packageJson: pkg
       ? {
           name: pkg.name || null,
@@ -185,4 +280,3 @@ export async function scanRepo(root, { maxFiles = 4000, preferGit = true } = {})
 
   return { manifest, index };
 }
-

@@ -164,3 +164,47 @@ test("rmemo hook install writes pre-commit hook (and respects --force)", async (
   const hook2 = await fs.readFile(hookPath, "utf8");
   assert.ok(hook2.includes("rmemo pre-commit hook"));
 });
+
+test("scan detects monorepo signals and subprojects", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-scan-"));
+
+  // root monorepo
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify(
+      {
+        name: "root",
+        private: true,
+        workspaces: ["apps/*", "packages/*"]
+      },
+      null,
+      2
+    ) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "pnpm-workspace.yaml"), "packages:\n  - 'apps/*'\n", "utf8");
+
+  // subprojects
+  await fs.mkdir(path.join(tmp, "apps", "admin-web"), { recursive: true });
+  await fs.writeFile(
+    path.join(tmp, "apps", "admin-web", "package.json"),
+    JSON.stringify({ name: "admin-web", dependencies: { vue: "^3.0.0" } }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.mkdir(path.join(tmp, "apps", "miniapp"), { recursive: true });
+  await fs.writeFile(path.join(tmp, "apps", "miniapp", "project.config.json"), "{\n}\n", "utf8");
+
+  const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "scan"]);
+  assert.equal(r.code, 0, r.err || r.out);
+
+  const manifestPath = path.join(tmp, ".repo-memory", "manifest.json");
+  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  assert.ok(manifest.monorepo, "manifest should include monorepo");
+  assert.ok(Array.isArray(manifest.monorepo.signals), "monorepo.signals should be array");
+  assert.ok(manifest.monorepo.signals.includes("pnpm-workspace"), "should detect pnpm-workspace.yaml");
+  assert.ok(Array.isArray(manifest.subprojects), "manifest should include subprojects");
+  assert.ok(manifest.subprojects.some((p) => p.dir === "apps/admin-web"), "should detect apps/admin-web subproject");
+  assert.ok(manifest.subprojects.some((p) => p.dir === "apps/miniapp"), "should detect apps/miniapp subproject");
+});
