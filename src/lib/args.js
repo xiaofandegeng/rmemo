@@ -17,7 +17,7 @@ export function parseArgs(argv) {
         const k = a.slice(2);
         // Common boolean flag convention: `--no-foo` means a boolean toggle.
         // Do not accidentally consume the next positional arg as its value.
-        if (k.startsWith("no-") || k === "help") {
+        if (k.startsWith("no-") || k === "help" || k === "force") {
           flags[k] = true;
           continue;
         }
@@ -53,12 +53,14 @@ Usage:
   rmemo log <text>           Append a note to today's journal
   rmemo status               Print a paste-ready status summary (rules/todos/journal)
   rmemo check                Enforce .repo-memory/rules.json (for CI / hooks)
+  rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo context              Generate .repo-memory/context.md
   rmemo print                Print context.md to stdout (generate first if missing)
 
 Options:
   --root <path>              Repo root (default: cwd)
   --format <md|json>         Output format for status (default: md)
+  --force                    Overwrite existing git hook (creates backup)
   --max-files <n>            Max files to analyze (default: 4000)
   --snip-lines <n>           Max lines per snippet (default: 120)
   --recent-days <n>          Include recent journal entries (default: 7)

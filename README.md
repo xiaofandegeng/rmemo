@@ -60,6 +60,7 @@ rmemo context
 rmemo print
 rmemo status
 rmemo check
+rmemo hook install
 ```
 
 ## Enforcing Rules (CI / Hooks)
@@ -88,6 +89,12 @@ Run:
 
 ```bash
 rmemo check
+```
+
+Install a pre-commit hook (runs `rmemo check` before commit):
+
+```bash
+rmemo hook install
 ```
 
 ## Roadmap (short)

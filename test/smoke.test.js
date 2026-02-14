@@ -17,6 +17,18 @@ function runNode(args, { cwd } = {}) {
   });
 }
 
+function runCmd(bin, args, { cwd } = {}) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(bin, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    let err = "";
+    p.stdout.on("data", (d) => (out += d.toString("utf8")));
+    p.stderr.on("data", (d) => (err += d.toString("utf8")));
+    p.on("error", reject);
+    p.on("close", (code) => resolve({ code, out, err }));
+  });
+}
+
 async function exists(p) {
   try {
     await fs.access(p);
@@ -115,4 +127,40 @@ test("rmemo check enforces forbidden/required/naming rules", async () => {
     assert.equal(r.code, 0, r.err || r.out);
     assert.ok(r.out.includes("OK:"), "stdout should confirm OK");
   }
+});
+
+test("rmemo hook install writes pre-commit hook (and respects --force)", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-hook-"));
+
+  // init a git repo
+  {
+    const r = await runCmd("git", ["init"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // install hook
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "hook", "install"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const hookPath = path.join(tmp, ".git", "hooks", "pre-commit");
+  assert.equal(await exists(hookPath), true);
+  const hook = await fs.readFile(hookPath, "utf8");
+  assert.ok(hook.includes("rmemo pre-commit hook"), "hook should include marker");
+  assert.ok(hook.includes(" check"), "hook should call check");
+
+  // existing non-rmemo hook should block unless --force
+  await fs.writeFile(hookPath, "#!/usr/bin/env bash\necho custom\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "hook", "install"]);
+    assert.equal(r.code, 2, "should refuse to overwrite");
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--force", "hook", "install"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  const hook2 = await fs.readFile(hookPath, "utf8");
+  assert.ok(hook2.includes("rmemo pre-commit hook"));
 });

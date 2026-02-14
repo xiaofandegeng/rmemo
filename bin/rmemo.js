@@ -6,6 +6,7 @@ import { cmdContext } from "../src/cmd/context.js";
 import { cmdPrint } from "../src/cmd/print.js";
 import { cmdStatus } from "../src/cmd/status.js";
 import { cmdCheck } from "../src/cmd/check.js";
+import { cmdHook } from "../src/cmd/hook.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -34,6 +35,9 @@ try {
       break;
     case "check":
       await cmdCheck({ flags });
+      break;
+    case "hook":
+      await cmdHook({ rest, flags });
       break;
     case "help":
     case undefined:
