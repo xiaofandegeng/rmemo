@@ -17,6 +17,19 @@ function runNode(args, { cwd } = {}) {
   });
 }
 
+function runNodeWithStdin(args, stdinText, { cwd } = {}) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(process.execPath, args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
+    let out = "";
+    let err = "";
+    p.stdout.on("data", (d) => (out += d.toString("utf8")));
+    p.stderr.on("data", (d) => (err += d.toString("utf8")));
+    p.on("error", reject);
+    p.on("close", (code) => resolve({ code, out, err }));
+    p.stdin.end(stdinText, "utf8");
+  });
+}
+
 function runCmd(bin, args, { cwd } = {}) {
   return new Promise((resolve, reject) => {
     const p = spawn(bin, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
@@ -221,4 +234,34 @@ test("rmemo start runs scan+context and prints status", async () => {
   assert.ok(r.out.includes("# Status"), "start should print status");
   assert.ok(await exists(path.join(tmp, ".repo-memory", "manifest.json")), true);
   assert.ok(await exists(path.join(tmp, ".repo-memory", "context.md")), true);
+});
+
+test("rmemo done appends journal and can update todos (args and stdin)", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-done-"));
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "done", "--next", "Tomorrow: do Z", "Today: did X"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const journalDir = path.join(tmp, ".repo-memory", "journal");
+  const jf = (await fs.readdir(journalDir)).sort().pop();
+  const jText = await fs.readFile(path.join(journalDir, jf), "utf8");
+  assert.ok(jText.includes("Done"), "journal should include Done section");
+  assert.ok(jText.includes("Today: did X"), "journal should include note");
+
+  const todos = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
+  assert.ok(todos.includes("Tomorrow: do Z"), "todos should include next bullet");
+
+  // stdin mode
+  {
+    const r = await runNodeWithStdin([rmemoBin, "--root", tmp, "done"], "stdin note\n");
+    assert.equal(r.code, 0, r.err || r.out);
+  }
 });

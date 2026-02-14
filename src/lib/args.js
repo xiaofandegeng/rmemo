@@ -55,12 +55,14 @@ Usage:
   rmemo check                Enforce .repo-memory/rules.json (for CI / hooks)
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
+  rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
   rmemo context              Generate .repo-memory/context.md
   rmemo print                Print context.md to stdout (generate first if missing)
 
 Options:
   --root <path>              Repo root (default: cwd)
   --format <md|json>         Output format for status (default: md)
+  --next <text>              Append a bullet to .repo-memory/todos.md under "## Next"
   --force                    Overwrite existing git hook (creates backup)
   --max-files <n>            Max files to analyze (default: 4000)
   --snip-lines <n>           Max lines per snippet (default: 120)

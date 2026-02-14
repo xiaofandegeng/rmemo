@@ -62,6 +62,7 @@ rmemo status
 rmemo check
 rmemo hook install
 rmemo start
+rmemo done
 ```
 
 ## Enforcing Rules (CI / Hooks)
@@ -102,6 +103,14 @@ Start-of-day entrypoint (scan + generate context + print status):
 
 ```bash
 rmemo start
+```
+
+End-of-day note (append to journal; supports stdin):
+
+```bash
+rmemo done "Finished X; decided Y"
+echo "Finished X; decided Y" | rmemo done
+rmemo done --next "Tomorrow: implement Z" "Summary: ..."
 ```
 
 ## Roadmap (short)
