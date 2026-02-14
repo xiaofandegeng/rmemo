@@ -83,6 +83,8 @@ rmemo check
 rmemo hook install
 rmemo start
 rmemo done
+rmemo template ls
+rmemo template apply <id>
 ```
 
 ## Enforcing Rules (CI / Hooks)
@@ -173,6 +175,16 @@ Print scan results to stdout:
 ```bash
 rmemo scan --format json
 rmemo scan --format md
+```
+
+## Templates (Optional)
+
+Built-in templates can bootstrap `.repo-memory/` rules/todos:
+
+```bash
+rmemo template ls
+rmemo template apply web-admin-vue
+rmemo template apply miniapp
 ```
 
 ## Roadmap (short)

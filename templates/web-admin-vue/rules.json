@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "requiredPaths": [],
+  "requiredOneOf": [
+    ["pnpm-lock.yaml", "package-lock.json", "yarn.lock"]
+  ],
+  "forbiddenPaths": [".env", ".env.*"],
+  "forbiddenContent": [
+    {
+      "include": ["**/*"],
+      "exclude": ["**/*.png", "**/*.jpg", "**/*.zip", "**/*.pdf"],
+      "match": "BEGIN PRIVATE KEY",
+      "message": "Do not commit private keys."
+    }
+  ],
+  "namingRules": [
+    {
+      "include": ["**/*.vue"],
+      "exclude": ["**/node_modules/**", "**/dist/**", "**/build/**"],
+      "target": "basename",
+      "match": "^[A-Za-z0-9][A-Za-z0-9_-]*\\.vue$",
+      "message": "Vue component filenames should be stable (letters/numbers/_/-)."
+    }
+  ]
+}
+

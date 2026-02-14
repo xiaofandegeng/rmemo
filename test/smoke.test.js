@@ -459,3 +459,22 @@ test("rmemo todo add/block/ls updates todos file", async () => {
     assert.ok(!r.out.includes("Blocked on D"), "removed blocker should be gone");
   }
 });
+
+test("rmemo template ls/apply works", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-tpl-"));
+
+  {
+    const r = await runNode([rmemoBin, "template", "ls"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("web-admin-vue"));
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "template", "apply", "web-admin-vue"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const rulesMd = await fs.readFile(path.join(tmp, ".repo-memory", "rules.md"), "utf8");
+  assert.ok(rulesMd.includes("Web Admin - Vue"));
+});

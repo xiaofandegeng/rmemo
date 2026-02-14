@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "requiredPaths": [],
+  "requiredOneOf": [
+    ["project.config.json", "app.json"]
+  ],
+  "forbiddenPaths": [".env", ".env.*"],
+  "forbiddenContent": [
+    {
+      "include": ["**/*"],
+      "exclude": ["**/*.png", "**/*.jpg", "**/*.zip", "**/*.pdf"],
+      "match": "BEGIN PRIVATE KEY",
+      "message": "Do not commit private keys."
+    }
+  ],
+  "namingRules": []
+}
+

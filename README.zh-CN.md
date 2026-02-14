@@ -73,6 +73,8 @@ rmemo todo block <text>
 rmemo todo ls
 rmemo context
 rmemo print
+rmemo template ls
+rmemo template apply <id>
 ```
 
 ## 可执行规则（CI / Hooks）
@@ -165,6 +167,16 @@ rmemo todo unblock 1
 ```bash
 rmemo scan --format json
 rmemo scan --format md
+```
+
+## 模板（可选）
+
+内置模板用于快速生成 `.repo-memory/` 的规则与 todos：
+
+```bash
+rmemo template ls
+rmemo template apply web-admin-vue
+rmemo template apply miniapp
 ```
 
 ## Roadmap（简版）

@@ -61,6 +61,8 @@ Usage:
   rmemo todo done <n>        Remove the nth item from "## Next"
   rmemo todo unblock <n>     Remove the nth item from "## Blockers"
   rmemo todo ls              Print parsed todos (Next/Blockers)
+  rmemo template ls          List built-in templates
+  rmemo template apply <id>  Apply a template into .repo-memory/
   rmemo context              Generate .repo-memory/context.md
   rmemo print                Print context.md to stdout (generate first if missing)
 
@@ -71,7 +73,7 @@ Options:
   --next <text>              Append a bullet to .repo-memory/todos.md under "## Next"
   --blocker <text>           Append a bullet to .repo-memory/todos.md under "## Blockers"
   --staged                   For check: only validate staged (git index) files
-  --force                    Overwrite existing git hook (creates backup)
+  --force                    Overwrite existing files/hooks when installing (creates backups)
   --max-files <n>            Max files to analyze (default: 4000)
   --snip-lines <n>           Max lines per snippet (default: 120)
   --recent-days <n>          Include recent journal entries (default: 7)

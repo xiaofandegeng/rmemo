@@ -10,6 +10,7 @@ import { cmdHook } from "../src/cmd/hook.js";
 import { cmdStart } from "../src/cmd/start.js";
 import { cmdDone } from "../src/cmd/done.js";
 import { cmdTodo } from "../src/cmd/todo.js";
+import { cmdTemplate } from "../src/cmd/template.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -50,6 +51,9 @@ try {
       break;
     case "todo":
       await cmdTodo({ rest, flags });
+      break;
+    case "template":
+      await cmdTemplate({ rest, flags });
       break;
     case "help":
     case undefined:
