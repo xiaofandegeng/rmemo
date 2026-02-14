@@ -137,3 +137,12 @@ Goals:
 
 Done:
 - Add GitHub Actions workflow: `.github/workflows/pr-assistant.yml`
+
+## v1.2 (Watch Mode) (In Progress)
+
+Goals:
+- Keep `.repo-memory/context.md` and instruction files fresh while you work.
+- Avoid requiring external deps (no chokidar).
+
+Done:
+- Add `rmemo watch` (poll-based) with `--interval`, `--once`, and `--no-sync`

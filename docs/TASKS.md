@@ -34,3 +34,6 @@ This file is a lightweight "what are we doing next" board.
    - optionally include a short "why" section from journal heuristics
 8. GitHub integration
    - PR workflow: run check + generate pr/handoff + comment
+9. Watch mode
+   - add ignore patterns and stable poll signature for non-git repos
+   - consider `--format json` events for tooling

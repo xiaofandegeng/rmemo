@@ -723,3 +723,14 @@ test("rmemo pr generates PR summary markdown and writes .repo-memory/pr.md", asy
     assert.ok(j.baseSha);
   }
 });
+
+test("rmemo watch --once refreshes context (and does not hang)", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-watch-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+
+  const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--once", "watch"]);
+  assert.equal(r.code, 0, r.err || r.out);
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "context.md")), true);
+});

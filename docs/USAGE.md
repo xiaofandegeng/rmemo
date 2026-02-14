@@ -128,6 +128,14 @@ node /path/to/rmemo/bin/rmemo.js --root . --base origin/main pr
 This repo includes a workflow that comments PR summaries automatically:
 - [PR Automation](./PR_AUTOMATION.md)
 
+## Watch Mode
+
+Keep context and instruction files fresh while you work:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . watch
+```
+
 ## Tips
 
 - Keep `rules.md` short and strict: 10-20 bullets.

@@ -89,6 +89,7 @@ rmemo start
 rmemo done
 rmemo handoff
 rmemo pr
+rmemo watch
 rmemo template ls
 rmemo template apply <id>
 ```
@@ -164,6 +165,16 @@ rmemo pr
 rmemo pr --base origin/main
 rmemo pr --format json
 rmemo pr --no-refresh
+```
+
+## Watch Mode (Always Fresh)
+
+If you want context + instruction files to stay up to date while you work:
+
+```bash
+rmemo watch
+rmemo watch --interval 5000
+rmemo watch --no-sync
 ```
 
 ## Enforcing Rules (CI / Hooks)

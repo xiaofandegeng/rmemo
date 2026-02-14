@@ -27,7 +27,8 @@ export function parseArgs(argv) {
           k === "dryrun" ||
           k === "no-hooks" ||
           k === "uninstall" ||
-          k === "remove-config"
+          k === "remove-config" ||
+          k === "once"
         ) {
           flags[k] = true;
           continue;
@@ -68,6 +69,7 @@ Usage:
   rmemo setup                One-time repo setup: config + git hooks (check + sync)
   rmemo handoff              Generate a single AI handoff markdown (status + journal + git summary)
   rmemo pr                   Generate a PR-ready markdown summary (commits/files + brief status)
+  rmemo watch                Watch repo changes and auto-refresh context/sync (long-running)
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
@@ -104,6 +106,9 @@ Options:
   --since <ref>              For handoff: show git summary since <ref>..HEAD
   --base <ref>               For pr: base branch/ref (default: origin default branch, else main/master)
   --no-refresh               For pr: do not refresh scan/context before generating output
+  --interval <ms>            For watch: poll interval (default: 2000)
+  --once                     For watch: run at most one refresh tick and exit (test/script friendly)
+  --no-sync                  For watch: do not run rmemo sync on refresh
   --no-git                   Don't use git for scanning (fallback to filesystem walk)
 `;
   process.stdout.write(help.trimStart());

@@ -88,6 +88,7 @@ rmemo start
 rmemo done
 rmemo handoff
 rmemo pr
+rmemo watch
 rmemo todo add <text>
 rmemo todo block <text>
 rmemo todo ls
@@ -168,6 +169,16 @@ rmemo pr
 rmemo pr --base origin/main
 rmemo pr --format json
 rmemo pr --no-refresh
+```
+
+## Watch 模式（保持一直最新）
+
+如果你希望开发过程中 context 与指令文件始终保持最新：
+
+```bash
+rmemo watch
+rmemo watch --interval 5000
+rmemo watch --no-sync
 ```
 
 ## 可执行规则（CI / Hooks）
