@@ -18,6 +18,16 @@ All notable changes to this project will be documented in this file.
 - Add `rmemo session` (start/note/end) to store sequential handoff snapshots in `.repo-memory/sessions/`.
 - Add `rmemo serve` to expose repo memory over local HTTP (read-only by default, supports token auth).
 
+## [0.2.0](https://github.com/xiaofandegeng/rmemo/compare/v0.1.0...v0.2.0) (2026-02-14)
+
+
+### Features
+
+* add profile check/upgrade ([d3254b5](https://github.com/xiaofandegeng/rmemo/commit/d3254b5a8e2ad5fe93f756fa2f088f19a3cd9eef))
+* add rmemo serve (local http api) ([c478293](https://github.com/xiaofandegeng/rmemo/commit/c4782930b1606e3cf73226049f99dcee41e31454))
+* add session workflow ([8e3ea85](https://github.com/xiaofandegeng/rmemo/commit/8e3ea85f98b0cad67000a2b8a4bc5f6a375a199d))
+* workspace batch mode (ws batch) ([2f50fb1](https://github.com/xiaofandegeng/rmemo/commit/2f50fb105ad36c618e5a1a8dc8185e4c143d8151))
+
 ## 0.0.3
 
 - Publish scoped package `@xiaofandegeng/rmemo` via GitHub Actions.
