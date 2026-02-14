@@ -180,16 +180,28 @@ Done:
   - `rmemo profile check` (drift report)
   - `rmemo profile upgrade` (re-apply template + backups)
 
-## v1.6 (Sessions) (Planned)
+## v1.6 (Sessions) (Shipped)
 
 Goals:
 - Make daily work trackable as a sequence of "sessions" (start -> notes -> end).
 - Each session should produce a deterministic handoff pack for AI, without manual copy/paste.
 
-Proposed:
+Done:
 - Add `rmemo session start|note|end|ls|show`
 - Each session stored in `.repo-memory/sessions/<id>/`:
-  - `meta.json` (schema, startedAt/endedAt, branch, baseRef)
+  - `meta.json` (schema, startedAt/endedAt, git branch/head when available)
   - `notes.md` (human notes)
-  - `handoff.md` (generated at end)
-- Optional: `rmemo session end --update-todos` to extract "Next/Blockers" into todos.md
+  - `handoff.md` + `context.md` snapshots (generated at end)
+
+## v1.7 (Repo Memory API) (Planned)
+
+Goals:
+- Let AI tools fetch repo memory without copy/paste.
+- Keep it local-first and safe (no outbound network, read-only by default).
+
+Proposed:
+- Add `rmemo serve` (local HTTP) or `rmemo mcp` (stdio tool server)
+- Provide endpoints/tools:
+  - get status/context/handoff/pr/rules/todos
+  - search journal/todos/rules by keyword
+- Add auth token support for local server mode
