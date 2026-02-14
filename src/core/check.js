@@ -140,6 +140,20 @@ async function getStagedFiles(root, { maxFiles = 4000 } = {}) {
   return files.slice(0, maxFiles);
 }
 
+async function readStagedFileHeadBytes(root, relPosixPath, maxBytes) {
+  // Reads file content from the git index (staged version), not from the working tree.
+  // Note: git doesn't support partial reads here; we cap via maxBuffer and then slice.
+  const mb = Number(maxBytes) || 0;
+  const maxBuffer = Math.max(1024 * 1024, mb + 64 * 1024);
+  const { stdout } = await execFileAsync("git", ["show", `:${relPosixPath}`], {
+    cwd: root,
+    encoding: "buffer",
+    maxBuffer
+  });
+  const buf = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout);
+  return mb > 0 && buf.byteLength > mb ? buf.subarray(0, mb) : buf;
+}
+
 async function existsRel(root, rel) {
   try {
     await fs.access(path.join(root, rel));
@@ -325,8 +339,11 @@ export async function runCheck(root, { maxFiles = 4000, preferGit = true, staged
 
         let buf = null;
         try {
-          buf = await readFileHeadBytes(path.join(root, f), maxBytes);
+          buf = stagedOnly
+            ? await readStagedFileHeadBytes(root, f, maxBytes)
+            : await readFileHeadBytes(path.join(root, f), maxBytes);
         } catch {
+          // Staged file might be deleted/renamed; ignore.
           continue;
         }
         if (!buf || buf.byteLength === 0) continue;

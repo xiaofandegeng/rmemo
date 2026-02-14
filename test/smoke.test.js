@@ -234,6 +234,10 @@ test("rmemo check --staged validates staged changes only", async () => {
 
   // Stage it => should fail
   await runCmd("git", ["add", "secret.txt"], { cwd: tmp });
+
+  // Make working tree clean-looking, but keep the staged content secret.
+  await fs.writeFile(path.join(tmp, "secret.txt"), "ok\n", "utf8");
+
   {
     const r = await runNode([rmemoBin, "--root", tmp, "--staged", "check"]);
     assert.equal(r.code, 1, "staged secret should fail");
