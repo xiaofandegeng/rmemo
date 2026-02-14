@@ -74,6 +74,18 @@ CI / 检查模式（不写文件）：
 node /path/to/rmemo/bin/rmemo.js --root . --check sync
 ```
 
+## 一次性初始化（hooks + 配置）
+
+如果目标仓库是 git 仓库，可以开启“默认一直生效”的工作流：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . setup
+```
+
+说明：
+- `pre-commit` 会阻止不符合 `rules.json` 的提交（`rmemo check --staged`）。
+- 其它 hooks 用于保持 AI 指令文件更新（`rmemo sync`，不阻塞提交/切分支等操作）。
+
 ## 小建议
 
 - `rules.md` 尽量控制在 10-20 条强约束。

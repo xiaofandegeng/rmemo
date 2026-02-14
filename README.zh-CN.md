@@ -112,6 +112,26 @@ rmemo sync --targets agents,copilot,cursor
 rmemo sync --force
 ```
 
+## 一次性初始化（推荐）
+
+如果你希望这个能力在仓库里“默认一直生效”，执行：
+
+```bash
+rmemo setup
+```
+
+它会：
+- 创建/更新 `.repo-memory/config.json`（sync 的 targets 配置）
+- 安装一组 git hooks：
+  - `pre-commit`：`rmemo check --staged`（阻止不符合规则的提交）
+  - `post-commit/post-merge/post-checkout`：`rmemo sync`（不阻塞，只负责保持 AI 指令文件最新）
+
+不安装 hooks：
+
+```bash
+rmemo setup --no-hooks
+```
+
 ## 可执行规则（CI / Hooks）
 
 `rmemo` 支持在 `.repo-memory/rules.json` 里写规则，并用 `rmemo check` 在本地或 CI 执行。

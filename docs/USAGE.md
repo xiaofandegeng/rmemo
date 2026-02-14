@@ -74,6 +74,18 @@ CI / sanity check (no writes):
 node /path/to/rmemo/bin/rmemo.js --root . --check sync
 ```
 
+## One-Time Setup (Hooks + Config)
+
+If the repo is a git repo, you can enable an "always-on" workflow:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . setup
+```
+
+Notes:
+- `pre-commit` blocks commits that violate `rules.json` (`rmemo check --staged`).
+- other hooks keep AI instruction files updated (`rmemo sync`, non-blocking).
+
 ## Tips
 
 - Keep `rules.md` short and strict: 10-20 bullets.

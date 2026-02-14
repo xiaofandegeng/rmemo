@@ -108,6 +108,26 @@ rmemo sync --targets agents,copilot,cursor
 rmemo sync --force
 ```
 
+## One-Time Setup (Recommended)
+
+If you want this to be "always on" in a repo, run:
+
+```bash
+rmemo setup
+```
+
+This will:
+- create/update `.repo-memory/config.json` (sync targets)
+- install git hooks:
+  - `pre-commit`: `rmemo check --staged` (blocks bad commits)
+  - `post-commit/post-merge/post-checkout`: `rmemo sync` (non-blocking, keeps AI instruction files fresh)
+
+Disable hook installation:
+
+```bash
+rmemo setup --no-hooks
+```
+
 ## Enforcing Rules (CI / Hooks)
 
 `rmemo` supports executable repo rules in `.repo-memory/rules.json`.

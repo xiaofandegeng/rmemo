@@ -97,3 +97,15 @@ Done:
   - `.github/copilot-instructions.md`
   - `.cursor/rules/rmemo.mdc`
 - Add `--check/--dry-run/--targets/--force` flags and smoke tests
+
+## v0.8 (Always-On Workflow) (In Progress)
+
+Goals:
+- Make the workflow "set and forget" for each repo.
+- Keep instruction files fresh automatically via git hooks.
+
+Done:
+- Add `.repo-memory/config.json` to store sync defaults (targets).
+- Add `rmemo setup` to install hooks:
+  - `pre-commit`: `rmemo check --staged` (blocking)
+  - `post-commit/post-merge/post-checkout`: `rmemo sync` (non-blocking)

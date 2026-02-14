@@ -1,10 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileExists, readText, writeText } from "../lib/io.js";
+import { fileExists, readJson, readText, writeText } from "../lib/io.js";
 import { resolveRoot } from "../lib/paths.js";
 import { ensureRepoMemory } from "./memory.js";
 import { ensureContextFile } from "./context.js";
-import { rulesPath, todosPath } from "../lib/paths.js";
+import { configPath, rulesPath, todosPath } from "../lib/paths.js";
 
 const SYNC_MARKER = "rmemo:sync:v1";
 
@@ -184,7 +184,19 @@ export async function syncAiInstructions({ root, targets, force = false, checkOn
 
   const targetPaths = getSyncTargetPaths(rootAbs);
 
-  const wanted = (targets && targets.length ? targets : getDefaultSyncTargets()).map((t) => t.toLowerCase());
+  let wanted = (targets && targets.length ? targets : []).map((t) => t.toLowerCase());
+  if (!wanted.length) {
+    try {
+      if (await fileExists(configPath(rootAbs))) {
+        const cfg = await readJson(configPath(rootAbs));
+        const cfgTargets = cfg?.sync?.enabled === false ? [] : cfg?.sync?.targets;
+        if (Array.isArray(cfgTargets) && cfgTargets.length) wanted = cfgTargets.map((t) => String(t).toLowerCase());
+      }
+    } catch {
+      // ignore invalid config; fall back to defaults
+    }
+  }
+  if (!wanted.length) wanted = getDefaultSyncTargets();
   const unknown = wanted.filter((t) => !renderers[t] || !targetPaths[t]);
   if (unknown.length) {
     const msg = `Unknown sync target(s): ${unknown.join(", ")}\n` + `Known: ${Object.keys(renderers).join(", ")}`;
@@ -227,4 +239,3 @@ export function parseSyncTargetsFromFlags(flags) {
   const raw = flags.targets || flags.target || "";
   return splitTargets(raw);
 }
-

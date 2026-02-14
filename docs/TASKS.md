@@ -15,6 +15,9 @@ This file is a lightweight "what are we doing next" board.
 1. Improve `rmemo sync`
    - add `--targets` docs per tool
    - add `--print <target>` (stdout) for quick copy/paste
+2. Improve `rmemo setup`
+   - add `rmemo setup --check` (report missing hooks/config)
+   - add `rmemo setup --uninstall` (remove rmemo-managed hooks safely)
 2. Add more templates
    - `web-admin-react`
    - `backend-node`

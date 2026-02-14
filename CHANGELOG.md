@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 - Add `rmemo sync` to generate AI tool instruction files from `.repo-memory/`.
+- Add `.repo-memory/config.json` and `rmemo setup` (one-time hooks + config).
 
 ## 0.0.3
 

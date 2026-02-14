@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import { ensureDir, fileExists, writeJson, writeText } from "../lib/io.js";
-import { journalDir, memDir, rulesJsonPath, rulesPath, todosPath } from "../lib/paths.js";
+import { configPath, journalDir, memDir, rulesJsonPath, rulesPath, todosPath } from "../lib/paths.js";
 import { applyTemplate } from "./templates.js";
 
 export const DEFAULT_RULES_MD = `# Rules
@@ -54,6 +54,14 @@ export const DEFAULT_RULES_JSON = {
   namingRules: []
 };
 
+export const DEFAULT_CONFIG_JSON = {
+  schema: 1,
+  sync: {
+    enabled: true,
+    targets: ["agents", "copilot", "cursor"]
+  }
+};
+
 export async function ensureRepoMemory(root, { template = "", force = false } = {}) {
   await ensureDir(memDir(root));
   await ensureDir(journalDir(root));
@@ -66,5 +74,5 @@ export async function ensureRepoMemory(root, { template = "", force = false } = 
   if (!(await fileExists(rulesPath(root)))) await writeText(rulesPath(root), DEFAULT_RULES_MD);
   if (!(await fileExists(rulesJsonPath(root)))) await writeJson(rulesJsonPath(root), DEFAULT_RULES_JSON);
   if (!(await fileExists(todosPath(root)))) await writeText(todosPath(root), DEFAULT_TODOS_MD);
+  if (!(await fileExists(configPath(root)))) await writeJson(configPath(root), DEFAULT_CONFIG_JSON);
 }
-

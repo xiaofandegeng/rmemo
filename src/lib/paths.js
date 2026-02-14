@@ -36,3 +36,7 @@ export function contextPath(root) {
 export function todosPath(root) {
   return path.join(memDir(root), "todos.md");
 }
+
+export function configPath(root) {
+  return path.join(memDir(root), "config.json");
+}

@@ -525,3 +525,39 @@ test("rmemo sync generates AI instruction files and supports --check", async () 
     assert.equal(r.code, 2, "check should detect diff");
   }
 });
+
+test("rmemo setup writes config and installs multiple git hooks", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-setup-"));
+
+  // init a git repo
+  {
+    const r = await runCmd("git", ["init"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "setup"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // config exists
+  const cfgText = await fs.readFile(path.join(tmp, ".repo-memory", "config.json"), "utf8");
+  const cfg = JSON.parse(cfgText);
+  assert.equal(cfg.schema, 1);
+  assert.equal(cfg.sync.enabled, true);
+  assert.ok(Array.isArray(cfg.sync.targets));
+  assert.ok(cfg.sync.targets.length > 0);
+
+  // hooks exist
+  const hooks = ["pre-commit", "post-commit", "post-merge", "post-checkout"];
+  for (const h of hooks) {
+    // eslint-disable-next-line no-await-in-loop
+    const p = path.join(tmp, ".git", "hooks", h);
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal(await exists(p), true, `hook should exist: ${h}`);
+    // eslint-disable-next-line no-await-in-loop
+    const s = await fs.readFile(p, "utf8");
+    assert.ok(s.includes(`rmemo hook:${h}`), `hook marker should exist: ${h}`);
+  }
+});

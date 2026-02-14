@@ -12,6 +12,7 @@ import { cmdDone } from "../src/cmd/done.js";
 import { cmdTodo } from "../src/cmd/todo.js";
 import { cmdTemplate } from "../src/cmd/template.js";
 import { cmdSync } from "../src/cmd/sync.js";
+import { cmdSetup } from "../src/cmd/setup.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -58,6 +59,9 @@ try {
       break;
     case "sync":
       await cmdSync({ flags });
+      break;
+    case "setup":
+      await cmdSetup({ flags });
       break;
     case "help":
     case undefined:

@@ -24,7 +24,8 @@ export function parseArgs(argv) {
           k === "staged" ||
           k === "check" ||
           k === "dry-run" ||
-          k === "dryrun"
+          k === "dryrun" ||
+          k === "no-hooks"
         ) {
           flags[k] = true;
           continue;
@@ -62,6 +63,7 @@ Usage:
   rmemo status               Print a paste-ready status summary (rules/todos/journal)
   rmemo check                Enforce .repo-memory/rules.json (for CI / hooks)
   rmemo sync                 Generate AI tool instruction files from .repo-memory/
+  rmemo setup                One-time repo setup: config + git hooks (check + sync)
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
@@ -83,6 +85,8 @@ Options:
   --targets <list>           For sync: comma-separated targets (agents,copilot,cursor,cline,claude)
   --check                    For sync: exit non-zero if generated files are out of date
   --dry-run                  For sync: show what would be written without changing files
+  --hooks <list>             For setup: comma-separated git hooks (default: pre-commit,post-commit,post-merge,post-checkout)
+  --no-hooks                 For setup: do not install any hooks
   --next <text>              Append a bullet to .repo-memory/todos.md under "## Next"
   --blocker <text>           Append a bullet to .repo-memory/todos.md under "## Blockers"
   --staged                   For check: only validate staged (git index) files
