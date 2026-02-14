@@ -28,6 +28,22 @@ What it does:
 4. Publishes to npm
 5. Creates a GitHub Release for the tag (release notes auto-generated)
 
+## Fully Automatic Release (Recommended)
+
+If you want "no GitHub clicking", use tag-based publishing:
+
+1. Update version locally (creates a git commit + tag):
+
+```bash
+npm version 0.2.0 -m "chore(release): %s"
+git push origin main --follow-tags
+```
+
+2. GitHub Actions will auto-run workflow `Publish (tag)` on tag push (`v*`) to:
+- run tests
+- publish to npm (requires `NPM_TOKEN`)
+- create a GitHub Release with notes + `.tgz` asset
+
 ## GitHub Releases (Automation)
 
 This repo also includes a workflow `GitHub Release` that:

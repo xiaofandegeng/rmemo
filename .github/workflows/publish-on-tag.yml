@@ -1,0 +1,87 @@
+name: Publish (tag)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Resolve version + dist-tag
+        id: vars
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          DIST_TAG="latest"
+          if echo "$VERSION" | grep -q '-'; then
+            DIST_TAG="next"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$DIST_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package.json version matches tag
+        run: |
+          node -e "const pkg=require('./package.json'); const v='${{ steps.vars.outputs.version }}'; if(pkg.version!==v){ console.error('package.json version mismatch:', pkg.version, '!=', v); process.exit(1)}"
+
+      - name: Run tests
+        run: node --test
+
+      - name: Generate release notes (git log)
+        run: |
+          TAG="${{ steps.vars.outputs.tag }}"
+          PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          echo "# ${TAG}" > release-notes.md
+          echo "" >> release-notes.md
+          if [ -n "$PREV" ]; then
+            echo "## Changes (${PREV}..${TAG})" >> release-notes.md
+            echo "" >> release-notes.md
+            git log --pretty=format:"- %s (%h)" "${PREV}..${TAG}" >> release-notes.md
+            echo "" >> release-notes.md
+          else
+            echo "## Changes" >> release-notes.md
+            echo "" >> release-notes.md
+            git log --pretty=format:"- %s (%h)" "${TAG}" >> release-notes.md
+            echo "" >> release-notes.md
+          fi
+
+      - name: Build npm tarball (for release assets)
+        run: npm_config_cache=.npm-cache npm pack
+
+      - name: Publish to npm (skip if already published)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm_config_cache: .npm-cache
+        run: |
+          PKG="$(node -p "require('./package.json').name")"
+          V="${{ steps.vars.outputs.version }}"
+          if npm view "$PKG@$V" version >/dev/null 2>&1; then
+            echo "Already published: $PKG@$V (skipping)"
+            exit 0
+          fi
+          npm whoami
+          npm publish --tag "${{ steps.vars.outputs.dist_tag }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.tag }}
+          body_path: release-notes.md
+          prerelease: ${{ steps.vars.outputs.dist_tag == 'next' }}
+          files: "*.tgz"
+
