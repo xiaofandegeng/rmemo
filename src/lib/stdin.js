@@ -1,5 +1,6 @@
 export async function readStdinText() {
-  // If nothing is piped, stdin is usually a TTY and this resolves to "".
+  // If nothing is piped, stdin is usually a TTY. Do not block waiting for EOF.
+  if (process.stdin.isTTY) return "";
   return await new Promise((resolve, reject) => {
     let s = "";
     process.stdin.setEncoding("utf8");
@@ -9,4 +10,3 @@ export async function readStdinText() {
     process.stdin.resume();
   });
 }
-

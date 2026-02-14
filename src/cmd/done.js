@@ -2,9 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { ensureDir, fileExists, writeText } from "../lib/io.js";
 import { resolveRoot } from "../lib/paths.js";
-import { journalDir, memDir, todosPath } from "../lib/paths.js";
-import { nowHm, todayYmd } from "../lib/time.js";
+import { memDir, todosPath } from "../lib/paths.js";
 import { readStdinText } from "../lib/stdin.js";
+import { appendJournalEntry } from "../core/journal.js";
 
 function normalizeNote(s) {
   const t = String(s || "").trim();
@@ -14,24 +14,7 @@ function normalizeNote(s) {
 }
 
 async function appendJournal(root, text) {
-  await ensureDir(memDir(root));
-  await ensureDir(journalDir(root));
-
-  const fn = `${todayYmd()}.md`;
-  const p = path.join(journalDir(root), fn);
-
-  const stamp = nowHm();
-  const body = text.includes("\n") ? `\n\n${text}\n` : `${text}\n`;
-  const entry = `\n## ${stamp} Done\n${body}`;
-
-  if (await fileExists(p)) {
-    await fs.appendFile(p, entry, "utf8");
-  } else {
-    const head = `# Journal ${todayYmd()}\n`;
-    await fs.writeFile(p, head + entry, "utf8");
-  }
-
-  return p;
+  return await appendJournalEntry(root, { kind: "Done", text });
 }
 
 function ensureTodosTemplate() {
@@ -89,7 +72,7 @@ export async function cmdDone({ rest, flags }) {
 
   const next = flags.next ? String(flags.next).trim() : "";
   const argText = normalizeNote(rest.join(" "));
-  const stdinText = normalizeNote(await readStdinText());
+  const stdinText = argText ? "" : normalizeNote(await readStdinText());
 
   const text = argText || stdinText;
   if (!text) {
@@ -113,4 +96,3 @@ export async function cmdDone({ rest, flags }) {
   process.stdout.write(`Wrote journal: ${path.relative(process.cwd(), jp)}\n`);
   if (tp) process.stdout.write(`Updated todos: ${path.relative(process.cwd(), tp)}\n`);
 }
-
