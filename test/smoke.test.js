@@ -541,6 +541,15 @@ test("rmemo setup writes config and installs multiple git hooks", async () => {
     const r = await runNode([rmemoBin, "--root", tmp, "--check", "setup"]);
     assert.equal(r.code, 2, "setup --check should fail before setup");
   }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--check", "--format", "json", "setup"]);
+    assert.equal(r.code, 2);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.equal(j.ok, false);
+    assert.ok(j.config);
+    assert.ok(Array.isArray(j.hooks));
+  }
 
   {
     const r = await runNode([rmemoBin, "--root", tmp, "setup"]);
@@ -551,6 +560,13 @@ test("rmemo setup writes config and installs multiple git hooks", async () => {
   {
     const r = await runNode([rmemoBin, "--root", tmp, "--check", "setup"]);
     assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--check", "--format", "json", "setup"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.ok, true);
+    assert.ok(j.root);
   }
 
   // config exists

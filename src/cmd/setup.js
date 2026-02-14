@@ -19,6 +19,7 @@ export async function cmdSetup({ flags }) {
   const checkOnly = !!flags.check;
   const uninstall = !!flags.uninstall;
   const removeConfig = !!flags["remove-config"];
+  const format = String(flags.format || "md").toLowerCase();
 
   try {
     if (uninstall) {
@@ -31,7 +32,23 @@ export async function cmdSetup({ flags }) {
 
     if (checkOnly) {
       const r = await checkSetup({ root, targets, hooks });
-      process.stdout.write(formatSetupCheckSummary(r));
+      if (format === "json") {
+        process.stdout.write(
+          JSON.stringify(
+            {
+              schema: 1,
+              ok: r.ok,
+              root: r.repoRoot,
+              config: r.config,
+              hooks: r.hooks
+            },
+            null,
+            2
+          ) + "\n"
+        );
+      } else {
+        process.stdout.write(formatSetupCheckSummary(r));
+      }
       if (!r.ok) process.exitCode = 2;
       return;
     }

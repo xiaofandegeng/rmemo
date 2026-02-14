@@ -81,7 +81,7 @@ Usage:
 
 Options:
   --root <path>              Repo root (default: cwd)
-  --format <md|json>         Output format for status/scan/check (default: md)
+  --format <md|json>         Output format for status/scan/check/setup --check (default: md)
   --mode <brief|full>        Output detail level for status/start (default: full)
   --template <id>            For init: apply a built-in template (see: rmemo template ls)
   --targets <list>           For sync: comma-separated targets (agents,copilot,cursor,cline,claude)
