@@ -139,6 +139,15 @@ test("rmemo check enforces forbidden/required/naming rules", async () => {
     assert.ok(r.err.includes("FAIL:"), "stderr should include fail summary");
     assert.ok(r.err.includes("== forbidden"), "stderr should group violations");
   }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--format", "json", "check"]);
+    assert.equal(r.code, 1);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.equal(j.ok, false);
+    assert.ok(Array.isArray(j.violations));
+    assert.ok(j.violations.length > 0);
+  }
 
   // Fix violations
   await fs.writeFile(path.join(tmp, "README.md"), "# ok\n", "utf8");

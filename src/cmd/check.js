@@ -50,8 +50,30 @@ export async function cmdCheck({ flags }) {
   const maxFiles = Number(flags["max-files"] || 4000);
   const preferGit = flags["no-git"] ? false : true;
   const stagedOnly = !!flags.staged;
+  const format = flags.format ? String(flags.format).toLowerCase() : "text";
 
   const res = await runCheck(root, { maxFiles, preferGit, stagedOnly });
+
+  if (format === "json") {
+    process.stdout.write(
+      JSON.stringify(
+        {
+          schema: 1,
+          generatedAt: new Date().toISOString(),
+          root,
+          stagedOnly,
+          ok: res.ok,
+          exitCode: res.exitCode,
+          errors: res.errors,
+          violations: res.violations
+        },
+        null,
+        2
+      ) + "\n"
+    );
+    process.exitCode = res.exitCode;
+    return;
+  }
 
   for (const e of res.errors) {
     process.stderr.write(`ERROR: ${e}\n`);

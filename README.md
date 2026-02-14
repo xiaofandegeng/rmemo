@@ -124,6 +124,12 @@ Run:
 rmemo check
 ```
 
+Machine-readable output:
+
+```bash
+rmemo check --format json
+```
+
 Pre-commit usage (faster, checks only staged files):
 
 ```bash

@@ -66,7 +66,7 @@ Usage:
 
 Options:
   --root <path>              Repo root (default: cwd)
-  --format <md|json>         Output format for status/scan (default: md)
+  --format <md|json>         Output format for status/scan/check (default: md)
   --mode <brief|full>        Output detail level for status/start (default: full)
   --next <text>              Append a bullet to .repo-memory/todos.md under "## Next"
   --blocker <text>           Append a bullet to .repo-memory/todos.md under "## Blockers"

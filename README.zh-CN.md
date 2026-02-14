@@ -114,6 +114,12 @@ rmemo print
 rmemo check
 ```
 
+机器可读输出：
+
+```bash
+rmemo check --format json
+```
+
 Pre-commit 使用（更快，只检查暂存区文件）：
 
 ```bash
