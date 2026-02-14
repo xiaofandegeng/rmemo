@@ -32,3 +32,5 @@ This file is a lightweight "what are we doing next" board.
 7. Improve `rmemo pr`
    - add `--max-changes` and stable ordering
    - optionally include a short "why" section from journal heuristics
+8. GitHub integration
+   - PR workflow: run check + generate pr/handoff + comment

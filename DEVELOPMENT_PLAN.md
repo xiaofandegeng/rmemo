@@ -128,3 +128,12 @@ Goals:
 
 Done:
 - Add `rmemo pr` to generate `.repo-memory/pr.md` (supports `--base`, `--format json`, `--no-refresh`)
+
+## v1.1 (GitHub PR Automation) (In Progress)
+
+Goals:
+- Auto-run `rmemo check` on pull requests.
+- Auto-generate PR summaries and post them as artifacts and PR comments.
+
+Done:
+- Add GitHub Actions workflow: `.github/workflows/pr-assistant.yml`

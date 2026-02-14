@@ -123,6 +123,11 @@ If your base branch is not detected correctly, pass `--base`:
 node /path/to/rmemo/bin/rmemo.js --root . --base origin/main pr
 ```
 
+## PR Comment Automation (GitHub Actions)
+
+This repo includes a workflow that comments PR summaries automatically:
+- [PR Automation](./PR_AUTOMATION.md)
+
 ## Tips
 
 - Keep `rules.md` short and strict: 10-20 bullets.

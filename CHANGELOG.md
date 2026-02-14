@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Add `.repo-memory/config.json` and `rmemo setup` (one-time hooks + config).
 - Add `rmemo handoff` to generate a one-file, paste-ready AI handoff markdown.
 - Add `rmemo pr` to generate a PR-ready markdown summary (`.repo-memory/pr.md`).
+- Add a GitHub Actions PR workflow that comments rmemo summaries on pull requests.
 
 ## 0.0.3
 

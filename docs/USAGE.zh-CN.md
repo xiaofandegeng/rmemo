@@ -123,6 +123,11 @@ node /path/to/rmemo/bin/rmemo.js --root . pr
 node /path/to/rmemo/bin/rmemo.js --root . --base origin/main pr
 ```
 
+## PR 自动评论（GitHub Actions）
+
+本仓库提供一个工作流用于自动在 PR 里留言摘要：
+- [PR 自动化](./PR_AUTOMATION.zh-CN.md)
+
 ## 小建议
 
 - `rules.md` 尽量控制在 10-20 条强约束。
