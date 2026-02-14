@@ -23,3 +23,5 @@ jobs:
         run: |
           node bin/rmemo.js init
           node bin/rmemo.js check
+      - name: Verify npm package contents (dry-run)
+        run: npm run pack:dry

@@ -7,6 +7,9 @@ out
 # rmemo-generated outputs (should not be committed in this repo)
 .repo-memory
 
+# npm cache (local pack/test)
+.npm-cache
+
 # Logs
 *.log
 npm-debug.log*

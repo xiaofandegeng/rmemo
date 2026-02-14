@@ -6,13 +6,33 @@
   "bin": {
     "rmemo": "bin/rmemo.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/xiaofandegeng/rmemo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xiaofandegeng/rmemo/issues"
+  },
+  "homepage": "https://github.com/xiaofandegeng/rmemo#readme",
   "license": "MIT",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "pack:dry": "npm_config_cache=.npm-cache npm pack --dry-run"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "test/",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "DEVELOPMENT_PLAN.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md"
+  ],
   "keywords": [
     "ai",
     "developer-tools",
