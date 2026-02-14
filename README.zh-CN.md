@@ -1,0 +1,137 @@
+# rmemo
+
+面向任何代码仓库的“项目记忆 + 开发日志”CLI：自动扫描项目结构，沉淀约定/进度，一键生成可直接粘贴给 AI 的 Context Pack。
+
+[English](./README.md) | [简体中文](./README.zh-CN.md)
+
+## 为什么需要它
+
+隔天继续开发时，AI 工具经常会：
+- 忘记项目结构和约定（目录边界、命名、规范）
+- 重复做你已经做过的决策
+- 逐渐偏离仓库里既有的模式（AI drift）
+
+`rmemo` 的思路是把“项目记忆”放回仓库本身：把规则、进度、下一步、结构索引固化为文件，然后生成一个统一的 `Context Pack`，你可以把它喂给任何 AI（不绑定某一个模型/产品）。
+
+## 安装 / 运行
+
+目前是零依赖 Node 直接运行：
+
+```bash
+node bin/rmemo.js init
+node bin/rmemo.js log "完成用户列表页；下一步：加筛选条件"
+node bin/rmemo.js context
+node bin/rmemo.js print
+```
+
+后续可以发布到 npm，再全局安装。
+
+## 用在任意项目
+
+在目标项目根目录执行：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js init
+node /path/to/rmemo/bin/rmemo.js log "做了 X；下一步 Y"
+node /path/to/rmemo/bin/rmemo.js context
+node /path/to/rmemo/bin/rmemo.js print
+```
+
+或者不切目录，直接指定仓库根路径：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root /path/to/your-repo init
+```
+
+## 它会创建哪些文件
+
+- `.repo-memory/manifest.json`：检测到的结构信息、技术栈提示、关键文件
+- `.repo-memory/index.json`：文件索引（用于生成 context）
+- `.repo-memory/rules.md`：你的规则/约定（手写）
+- `.repo-memory/rules.json`：可执行规则（用于 `check`）
+- `.repo-memory/todos.md`：下一步与阻塞（手写/命令追加）
+- `.repo-memory/journal/YYYY-MM-DD.md`：按天顺序记录进度（手写/命令追加）
+- `.repo-memory/context.md`：生成的 AI 上下文包（生成文件）
+
+## 命令
+
+```bash
+rmemo init
+rmemo scan
+rmemo log <text>
+rmemo status
+rmemo check
+rmemo hook install
+rmemo start
+rmemo done
+rmemo todo add <text>
+rmemo todo block <text>
+rmemo todo ls
+rmemo context
+rmemo print
+```
+
+## 可执行规则（CI / Hooks）
+
+`rmemo` 支持在 `.repo-memory/rules.json` 里写规则，并用 `rmemo check` 在本地或 CI 执行。
+
+示例：
+
+```json
+{
+  "schema": 1,
+  "requiredPaths": ["README.md"],
+  "forbiddenPaths": [".env", ".env.*"],
+  "namingRules": [
+    {
+      "include": ["src/pages/**"],
+      "target": "basename",
+      "match": "^[a-z0-9-]+\\.vue$",
+      "message": "页面文件名必须是 kebab-case。"
+    }
+  ]
+}
+```
+
+执行检查：
+
+```bash
+rmemo check
+```
+
+安装 git pre-commit hook（提交前自动执行 `rmemo check`）：
+
+```bash
+rmemo hook install
+```
+
+## 日常工作流（推荐）
+
+开工（扫描结构 + 生成 context + 打印 status，方便你粘贴给 AI）：
+
+```bash
+rmemo start
+```
+
+收工（写入当天 journal；可选同时更新 Next/Blockers）：
+
+```bash
+rmemo done "今天完成了什么/做了什么决策"
+echo "今天总结..." | rmemo done
+rmemo done --next "明天第一步做什么" --blocker "当前阻塞是什么" "今天总结..."
+```
+
+手动维护下一步/阻塞（不想打开文件改）：
+
+```bash
+rmemo todo add "实现用户搜索"
+rmemo todo block "后端接口还没出"
+rmemo todo ls
+```
+
+## Roadmap（简版）
+
+- v0.2：增强通用扫描（monorepo/子项目/API 契约/文档根目录）
+- v0.3：规则能力增强 + 更好的 `check` 输出 + hooks/CI 体验打磨
+- v0.4：VS Code 扩展（快速 log/start/done）
+

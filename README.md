@@ -2,6 +2,8 @@
 
 Repo memory + dev journal CLI: scan any project, persist conventions/progress, and generate an AI-ready context pack.
 
+[English](./README.md) | [简体中文](./README.zh-CN.md)
+
 ## Why
 
 When you resume work the next day, AI tools often:
