@@ -648,3 +648,46 @@ test("rmemo handoff generates a one-file markdown and writes it to .repo-memory/
   assert.ok(md.includes("# Handoff"));
   assert.ok(md.includes(".repo-memory/context.md"), "handoff should reference context pack");
 });
+
+test("rmemo pr generates PR summary markdown and writes .repo-memory/pr.md", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-pr-"));
+
+  // init a git repo
+  {
+    const r = await runCmd("git", ["init"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  await runCmd("git", ["add", "-A"], { cwd: tmp });
+  await runCmd("git", ["commit", "-m", "init"], { cwd: tmp });
+
+  // second commit
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n\nmore\n", "utf8");
+  await runCmd("git", ["add", "-A"], { cwd: tmp });
+  await runCmd("git", ["commit", "-m", "feat: update readme"], { cwd: tmp });
+
+  // base is previous commit
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--base", "HEAD~1", "pr"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("# PR Summary"), "pr should print markdown");
+    assert.ok(r.out.includes("## What Changed"), "pr should include changes section");
+  }
+
+  const p = path.join(tmp, ".repo-memory", "pr.md");
+  assert.equal(await exists(p), true, "pr.md should be written");
+  const md = await fs.readFile(p, "utf8");
+  assert.ok(md.includes("feat: update readme"), "pr should include commit message");
+
+  // json output
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--base", "HEAD~1", "--format", "json", "pr"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.ok(j.baseRef);
+    assert.ok(j.baseSha);
+  }
+});

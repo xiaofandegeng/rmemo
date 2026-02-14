@@ -14,6 +14,7 @@ import { cmdTemplate } from "../src/cmd/template.js";
 import { cmdSync } from "../src/cmd/sync.js";
 import { cmdSetup } from "../src/cmd/setup.js";
 import { cmdHandoff } from "../src/cmd/handoff.js";
+import { cmdPr } from "../src/cmd/pr.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -66,6 +67,9 @@ try {
       break;
     case "handoff":
       await cmdHandoff({ flags });
+      break;
+    case "pr":
+      await cmdPr({ flags });
       break;
     case "help":
     case undefined:

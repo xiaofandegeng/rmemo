@@ -87,6 +87,7 @@ rmemo hook install
 rmemo start
 rmemo done
 rmemo handoff
+rmemo pr
 rmemo template ls
 rmemo template apply <id>
 ```
@@ -151,6 +152,17 @@ rmemo handoff
 rmemo handoff --recent-days 5
 rmemo handoff --since v0.0.3
 rmemo handoff --staged
+```
+
+## PR Summary
+
+Generate a PR-ready markdown summary (also written to `.repo-memory/pr.md`):
+
+```bash
+rmemo pr
+rmemo pr --base origin/main
+rmemo pr --format json
+rmemo pr --no-refresh
 ```
 
 ## Enforcing Rules (CI / Hooks)

@@ -1,7 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { fileExists, readText, writeJson, writeText } from "../lib/io.js";
 import {
   contextPath,
@@ -12,13 +10,11 @@ import {
   rulesPath,
   todosPath
 } from "../lib/paths.js";
-import { hasGit, isGitRepo } from "../lib/git.js";
 import { parseTodos } from "./todos.js";
 import { scanRepo } from "./scan.js";
 import { ensureRepoMemory } from "./memory.js";
 import { generateContext } from "./context.js";
-
-const execFileAsync = promisify(execFile);
+import { getGitSummary } from "./git_summary.js";
 
 function clampLines(s, maxLines) {
   const lines = String(s || "").split("\n");
@@ -53,52 +49,6 @@ async function readMaybe(p, maxBytes = 512_000) {
   } catch {
     return null;
   }
-}
-
-async function gitCmd(root, args, { maxBuffer = 1024 * 1024 * 10 } = {}) {
-  const { stdout } = await execFileAsync("git", args, { cwd: root, maxBuffer });
-  return stdout.toString("utf8");
-}
-
-async function getGitSummary(root, { since = "", staged = false } = {}) {
-  const ok = (await hasGit()) && (await isGitRepo(root));
-  if (!ok) return null;
-
-  let head = null;
-  try {
-    head = (await gitCmd(root, ["rev-parse", "HEAD"])).trim();
-  } catch {
-    head = null;
-  }
-
-  const status = (await gitCmd(root, ["status", "--porcelain=v1"])).trimEnd();
-
-  let diffNames = "";
-  try {
-    if (staged) diffNames = (await gitCmd(root, ["diff", "--cached", "--name-status"])).trimEnd();
-    else diffNames = (await gitCmd(root, ["diff", "--name-status"])).trimEnd();
-  } catch {
-    diffNames = "";
-  }
-
-  let range = null;
-  let rangeLog = "";
-  let rangeNames = "";
-  if (since) {
-    range = `${since}..HEAD`;
-    try {
-      rangeLog = (await gitCmd(root, ["log", "--oneline", "--no-decorate", "--max-count=30", range])).trimEnd();
-    } catch {
-      rangeLog = "";
-    }
-    try {
-      rangeNames = (await gitCmd(root, ["diff", "--name-status", range])).trimEnd();
-    } catch {
-      rangeNames = "";
-    }
-  }
-
-  return { head, status, diffNames, range, rangeLog, rangeNames };
 }
 
 function detectInstructionFiles(root) {
@@ -242,4 +192,3 @@ export async function generateHandoff(root, opts) {
   await writeText(out, md);
   return { schema: 1, generatedAt: new Date().toISOString(), root, out, markdown: md };
 }
-

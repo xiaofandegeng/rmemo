@@ -119,3 +119,12 @@ Goals:
 
 Done:
 - Add `rmemo handoff` to update scan/context and generate `.repo-memory/handoff.md`
+
+## v1.0 (PR Assistant) (In Progress)
+
+Goals:
+- Generate a PR-ready markdown summary (commits/files + brief status).
+- Make it easy to paste into GitHub/GitLab PR descriptions.
+
+Done:
+- Add `rmemo pr` to generate `.repo-memory/pr.md` (supports `--base`, `--format json`, `--no-refresh`)

@@ -44,3 +44,7 @@ export function configPath(root) {
 export function handoffPath(root) {
   return path.join(memDir(root), "handoff.md");
 }
+
+export function prPath(root) {
+  return path.join(memDir(root), "pr.md");
+}

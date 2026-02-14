@@ -109,6 +109,20 @@ node /path/to/rmemo/bin/rmemo.js --root . handoff
 
 It updates scan/context first, then prints the handoff markdown and writes `.repo-memory/handoff.md`.
 
+## PR Summary (Paste-Ready)
+
+Generate a PR description snippet:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . pr
+```
+
+If your base branch is not detected correctly, pass `--base`:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . --base origin/main pr
+```
+
 ## Tips
 
 - Keep `rules.md` short and strict: 10-20 bullets.

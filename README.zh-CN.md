@@ -86,6 +86,7 @@ rmemo hook install
 rmemo start
 rmemo done
 rmemo handoff
+rmemo pr
 rmemo todo add <text>
 rmemo todo block <text>
 rmemo todo ls
@@ -155,6 +156,17 @@ rmemo handoff
 rmemo handoff --recent-days 5
 rmemo handoff --since v0.0.3
 rmemo handoff --staged
+```
+
+## PR 摘要
+
+生成一份可直接用作 PR 描述的 markdown（同时写入 `.repo-memory/pr.md`）：
+
+```bash
+rmemo pr
+rmemo pr --base origin/main
+rmemo pr --format json
+rmemo pr --no-refresh
 ```
 
 ## 可执行规则（CI / Hooks）
