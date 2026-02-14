@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 - Add `rmemo pr` to generate a PR-ready markdown summary (`.repo-memory/pr.md`).
 - Add a GitHub Actions PR workflow that comments rmemo summaries on pull requests.
 - Add `rmemo watch` to auto-refresh context/sync while working (poll-based).
+- Add `--format json` for `handoff` and `pr`, with `--max-changes` and `.repo-memory/*.json` outputs.
+- Add monorepo workspace helper `rmemo ws` and scope git scanning to `--root` subdir.
 
 ## 0.0.3
 

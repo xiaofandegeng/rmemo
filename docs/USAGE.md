@@ -142,6 +142,16 @@ Keep context and instruction files fresh while you work:
 node /path/to/rmemo/bin/rmemo.js --root . watch
 ```
 
+## Monorepo Workspaces
+
+If you are in a monorepo, list subprojects and run commands inside them:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . ws ls
+node /path/to/rmemo/bin/rmemo.js --root . ws start 1
+node /path/to/rmemo/bin/rmemo.js --root . ws handoff apps/admin-web
+```
+
 ## Tips
 
 - Keep `rules.md` short and strict: 10-20 bullets.

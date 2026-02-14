@@ -142,6 +142,16 @@ node /path/to/rmemo/bin/rmemo.js --root . --base origin/main pr
 node /path/to/rmemo/bin/rmemo.js --root . watch
 ```
 
+## Monorepo 工作区（子项目）
+
+如果你的仓库是 monorepo，可以列出子项目并在子项目内执行命令：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . ws ls
+node /path/to/rmemo/bin/rmemo.js --root . ws start 1
+node /path/to/rmemo/bin/rmemo.js --root . ws handoff apps/admin-web
+```
+
 ## 小建议
 
 - `rules.md` 尽量控制在 10-20 条强约束。

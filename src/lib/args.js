@@ -70,6 +70,7 @@ Usage:
   rmemo handoff              Generate a single AI handoff markdown (status + journal + git summary)
   rmemo pr                   Generate a PR-ready markdown summary (commits/files + brief status)
   rmemo watch                Watch repo changes and auto-refresh context/sync (long-running)
+  rmemo ws                   Monorepo helper: list and run commands in detected subprojects
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos

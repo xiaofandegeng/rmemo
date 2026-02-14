@@ -146,3 +146,13 @@ Goals:
 
 Done:
 - Add `rmemo watch` (poll-based) with `--interval`, `--once`, and `--no-sync`
+
+## v1.3 (Monorepo Workspaces) (In Progress)
+
+Goals:
+- Make `--root <subdir>` behave correctly in git repos (scope file listing).
+- Provide a first-class monorepo UX to run rmemo commands in subprojects.
+
+Done:
+- Scope `git ls-files` to `--root` subdir when `--root` is inside a git repo
+- Add `rmemo ws` (workspace helper) to list/detect subprojects and run commands inside them

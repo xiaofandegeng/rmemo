@@ -89,6 +89,7 @@ rmemo done
 rmemo handoff
 rmemo pr
 rmemo watch
+rmemo ws
 rmemo todo add <text>
 rmemo todo block <text>
 rmemo todo ls
@@ -180,6 +181,17 @@ rmemo pr --no-refresh
 rmemo watch
 rmemo watch --interval 5000
 rmemo watch --no-sync
+```
+
+## Monorepo 工作区（子项目）
+
+如果你的仓库是 monorepo，`rmemo ws` 可以检测子项目并在子项目内执行命令：
+
+```bash
+rmemo ws ls
+rmemo ws start 1
+rmemo ws handoff apps/admin-web
+rmemo ws pr apps/admin-web --base origin/main
 ```
 
 ## 可执行规则（CI / Hooks）

@@ -37,3 +37,6 @@ This file is a lightweight "what are we doing next" board.
 9. Watch mode
    - add ignore patterns and stable poll signature for non-git repos
    - consider `--format json` events for tooling
+10. Monorepo workspaces
+   - `rmemo ws ls/start/status/handoff/pr/sync`
+   - ensure git scanning is scoped to `--root` subdir

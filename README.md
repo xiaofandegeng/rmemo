@@ -90,6 +90,7 @@ rmemo done
 rmemo handoff
 rmemo pr
 rmemo watch
+rmemo ws
 rmemo template ls
 rmemo template apply <id>
 ```
@@ -176,6 +177,17 @@ If you want context + instruction files to stay up to date while you work:
 rmemo watch
 rmemo watch --interval 5000
 rmemo watch --no-sync
+```
+
+## Monorepo Workspaces
+
+If your repo is a monorepo, `rmemo ws` can detect subprojects and run commands inside them:
+
+```bash
+rmemo ws ls
+rmemo ws start 1
+rmemo ws handoff apps/admin-web
+rmemo ws pr apps/admin-web --base origin/main
 ```
 
 ## Enforcing Rules (CI / Hooks)

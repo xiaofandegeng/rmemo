@@ -16,6 +16,7 @@ import { cmdSetup } from "../src/cmd/setup.js";
 import { cmdHandoff } from "../src/cmd/handoff.js";
 import { cmdPr } from "../src/cmd/pr.js";
 import { cmdWatch } from "../src/cmd/watch.js";
+import { cmdWs } from "../src/cmd/ws.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -74,6 +75,9 @@ try {
       break;
     case "watch":
       await cmdWatch({ flags });
+      break;
+    case "ws":
+      await cmdWs({ rest, flags });
       break;
     case "help":
     case undefined:

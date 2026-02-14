@@ -735,6 +735,67 @@ test("rmemo watch --once refreshes context (and does not hang)", async () => {
   assert.ok(await exists(path.join(tmp, ".repo-memory", "context.md")), true);
 });
 
+test("git-aware scan respects --root subdir (does not include sibling files)", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-gitscope-"));
+
+  {
+    const r = await runCmd("git", ["init"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r1 = await runCmd("git", ["config", "user.name", "rmemo-test"], { cwd: tmp });
+    assert.equal(r1.code, 0, r1.err || r1.out);
+    const r2 = await runCmd("git", ["config", "user.email", "rmemo-test@example.com"], { cwd: tmp });
+    assert.equal(r2.code, 0, r2.err || r2.out);
+  }
+
+  await fs.mkdir(path.join(tmp, "apps", "a"), { recursive: true });
+  await fs.mkdir(path.join(tmp, "apps", "b"), { recursive: true });
+  await fs.writeFile(path.join(tmp, "apps", "a", "a.txt"), "a\n", "utf8");
+  await fs.writeFile(path.join(tmp, "apps", "b", "b.txt"), "b\n", "utf8");
+  await runCmd("git", ["add", "-A"], { cwd: tmp });
+  await runCmd("git", ["commit", "-m", "init"], { cwd: tmp });
+
+  const r = await runNode([rmemoBin, "--root", path.join(tmp, "apps", "a"), "--format", "json", "scan"]);
+  assert.equal(r.code, 0, r.err || r.out);
+  const m = JSON.parse(r.out);
+  assert.ok(m.fileCount >= 1);
+  assert.ok(!m.keyFiles?.includes("apps/b/b.txt"), "should not include sibling files");
+
+  const idxText = await fs.readFile(path.join(tmp, "apps", "a", ".repo-memory", "index.json"), "utf8");
+  const idx = JSON.parse(idxText);
+  assert.ok(idx.files.includes("a.txt"), "index should include a.txt");
+  assert.ok(!idx.files.includes("apps/b/b.txt") && !idx.files.includes("b.txt"), "index should not include b");
+});
+
+test("rmemo ws ls lists detected subprojects", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-ws-"));
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "root", private: true, workspaces: ["apps/*"] }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "pnpm-workspace.yaml"), "packages:\n  - 'apps/*'\n", "utf8");
+
+  await fs.mkdir(path.join(tmp, "apps", "admin-web"), { recursive: true });
+  await fs.writeFile(
+    path.join(tmp, "apps", "admin-web", "package.json"),
+    JSON.stringify({ name: "admin-web", dependencies: { vue: "^3.0.0" } }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.mkdir(path.join(tmp, "apps", "miniapp"), { recursive: true });
+  await fs.writeFile(path.join(tmp, "apps", "miniapp", "project.config.json"), "{\n}\n", "utf8");
+
+  const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "ws", "ls"]);
+  assert.equal(r.code, 0, r.err || r.out);
+  assert.ok(r.out.includes("apps/admin-web"));
+  assert.ok(r.out.includes("apps/miniapp"));
+});
+
 test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-handoff-json-"));
