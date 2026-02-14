@@ -1,0 +1,20 @@
+name: Release (dry-run)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish_dry_run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run tests
+        run: node --test
+      - name: npm pack (dry-run)
+        run: npm_config_cache=.npm-cache npm pack --dry-run
+      - name: npm publish (dry-run)
+        run: npm_config_cache=.npm-cache npm publish --dry-run
+

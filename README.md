@@ -4,6 +4,9 @@ Repo memory + dev journal CLI: scan any project, persist conventions/progress, a
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
+Docs:
+- [Usage (AI Workflow)](./docs/USAGE.md)
+
 ## Why
 
 When you resume work the next day, AI tools often:

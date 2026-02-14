@@ -4,6 +4,9 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
+文档：
+- [使用方式（配合 AI 开发）](./docs/USAGE.zh-CN.md)
+
 ## 为什么需要它
 
 隔天继续开发时，AI 工具经常会：
