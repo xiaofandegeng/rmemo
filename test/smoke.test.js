@@ -246,7 +246,17 @@ test("rmemo done appends journal and can update todos (args and stdin)", async (
   }
 
   {
-    const r = await runNode([rmemoBin, "--root", tmp, "done", "--next", "Tomorrow: do Z", "Today: did X"]);
+    const r = await runNode([
+      rmemoBin,
+      "--root",
+      tmp,
+      "done",
+      "--next",
+      "Tomorrow: do Z",
+      "--blocker",
+      "Waiting for API",
+      "Today: did X"
+    ]);
     assert.equal(r.code, 0, r.err || r.out);
   }
 
@@ -258,10 +268,34 @@ test("rmemo done appends journal and can update todos (args and stdin)", async (
 
   const todos = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
   assert.ok(todos.includes("Tomorrow: do Z"), "todos should include next bullet");
+  assert.ok(todos.includes("Waiting for API"), "todos should include blocker bullet");
 
   // stdin mode
   {
     const r = await runNodeWithStdin([rmemoBin, "--root", tmp, "done"], "stdin note\n");
     assert.equal(r.code, 0, r.err || r.out);
+  }
+});
+
+test("rmemo todo add/block/ls updates todos file", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-todo-"));
+
+  // Create without init: todo commands should still create todos.md.
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "add", "Do A"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "block", "Blocked on B"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "ls"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("## Next"));
+    assert.ok(r.out.includes("Do A"));
+    assert.ok(r.out.includes("## Blockers"));
+    assert.ok(r.out.includes("Blocked on B"));
   }
 });

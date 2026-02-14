@@ -110,7 +110,15 @@ End-of-day note (append to journal; supports stdin):
 ```bash
 rmemo done "Finished X; decided Y"
 echo "Finished X; decided Y" | rmemo done
-rmemo done --next "Tomorrow: implement Z" "Summary: ..."
+rmemo done --next "Tomorrow: implement Z" --blocker "Waiting for API spec" "Summary: ..."
+```
+
+Todo helpers:
+
+```bash
+rmemo todo add "Implement user search"
+rmemo todo block "Backend API missing"
+rmemo todo ls
 ```
 
 ## Roadmap (short)

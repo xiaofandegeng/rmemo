@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileExists, readText } from "../lib/io.js";
 import { resolveRoot } from "../lib/paths.js";
 import { journalDir, manifestPath, rulesPath, todosPath } from "../lib/paths.js";
+import { parseTodos } from "../core/todos.js";
 
 function clampLines(s, maxLines) {
   const lines = s.split("\n");
@@ -17,26 +18,6 @@ async function readMaybe(p, maxBytes = 512_000) {
   } catch {
     return null;
   }
-}
-
-function parseSimpleTodos(md) {
-  // Keep this intentionally basic. Users can keep their own structure.
-  const out = { next: [], blockers: [], raw: md.trimEnd() };
-  const lines = md.split("\n");
-  let section = null;
-  for (const line of lines) {
-    const h = line.match(/^##\s+(.*)\s*$/);
-    if (h) {
-      const t = h[1].toLowerCase();
-      if (t.startsWith("next")) section = "next";
-      else if (t.startsWith("block")) section = "blockers";
-      else section = null;
-      continue;
-    }
-    const m = line.match(/^\s*-\s+(.*)\s*$/);
-    if (m && section) out[section].push(m[1]);
-  }
-  return out;
 }
 
 async function listRecentJournalFiles(root, recentDays) {
@@ -79,7 +60,7 @@ export async function cmdStatus({ flags }) {
     }
   }
 
-  const todos = todosMd ? parseSimpleTodos(todosMd) : null;
+  const todos = todosMd ? parseTodos(todosMd) : null;
   const journalFiles = await listRecentJournalFiles(root, recentDays);
   const journal = [];
   for (const fn of journalFiles) {
@@ -160,4 +141,3 @@ export async function cmdStatus({ flags }) {
 
   process.stdout.write(parts.join("\n").trimEnd() + "\n");
 }
-
