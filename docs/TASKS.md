@@ -25,3 +25,7 @@ This file is a lightweight "what are we doing next" board.
    - stable ordering for violations
 5. Add `rmemo scan` optional outputs
    - `--format md` include a compact subproject table
+6. Improve `rmemo handoff`
+   - add `--format json`
+   - add `--max-changes` and stable ordering
+   - optionally include a compact subproject table

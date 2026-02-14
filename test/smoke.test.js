@@ -626,3 +626,25 @@ test("rmemo setup --uninstall removes rmemo-managed hooks and can keep custom ho
   }
   assert.equal(await exists(path.join(tmp, ".git", "hooks", "pre-commit")), true);
 });
+
+test("rmemo handoff generates a one-file markdown and writes it to .repo-memory/handoff.md", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-handoff-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "demo" }, null, 2) + "\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "handoff"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("# Handoff"), "handoff should print markdown");
+    assert.ok(r.out.includes("## Status (Brief)"), "handoff should include status section");
+    assert.ok(r.out.includes("## Paste To AI"), "handoff should include paste guide");
+  }
+
+  const p = path.join(tmp, ".repo-memory", "handoff.md");
+  assert.equal(await exists(p), true, "handoff.md should be written");
+  const md = await fs.readFile(p, "utf8");
+  assert.ok(md.includes("# Handoff"));
+  assert.ok(md.includes(".repo-memory/context.md"), "handoff should reference context pack");
+});

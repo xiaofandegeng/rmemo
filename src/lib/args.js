@@ -66,6 +66,7 @@ Usage:
   rmemo check                Enforce .repo-memory/rules.json (for CI / hooks)
   rmemo sync                 Generate AI tool instruction files from .repo-memory/
   rmemo setup                One-time repo setup: config + git hooks (check + sync)
+  rmemo handoff              Generate a single AI handoff markdown (status + journal + git summary)
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
@@ -98,7 +99,8 @@ Options:
   --force                    Overwrite existing files/hooks when installing (creates backups)
   --max-files <n>            Max files to analyze (default: 4000)
   --snip-lines <n>           Max lines per snippet (default: 120)
-  --recent-days <n>          Include recent journal entries (default: 7)
+  --recent-days <n>          Include recent journal entries (default: 7; for handoff default: 3)
+  --since <ref>              For handoff: show git summary since <ref>..HEAD
   --no-git                   Don't use git for scanning (fallback to filesystem walk)
 `;
   process.stdout.write(help.trimStart());

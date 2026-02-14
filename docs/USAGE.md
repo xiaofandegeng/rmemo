@@ -99,6 +99,16 @@ node /path/to/rmemo/bin/rmemo.js --root . --uninstall setup
 node /path/to/rmemo/bin/rmemo.js --root . --uninstall --remove-config setup
 ```
 
+## One-File Handoff (Paste-Ready)
+
+If you prefer one single paste, generate a handoff file:
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . handoff
+```
+
+It updates scan/context first, then prints the handoff markdown and writes `.repo-memory/handoff.md`.
+
 ## Tips
 
 - Keep `rules.md` short and strict: 10-20 bullets.

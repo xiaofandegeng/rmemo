@@ -85,6 +85,7 @@ rmemo sync
 rmemo hook install
 rmemo start
 rmemo done
+rmemo handoff
 rmemo todo add <text>
 rmemo todo block <text>
 rmemo todo ls
@@ -143,6 +144,17 @@ rmemo setup --check
 ```bash
 rmemo setup --uninstall
 rmemo setup --uninstall --remove-config
+```
+
+## 一份文件的 AI 交接包
+
+生成一个可直接粘贴给 AI 的 markdown（同时写入 `.repo-memory/handoff.md`）：
+
+```bash
+rmemo handoff
+rmemo handoff --recent-days 5
+rmemo handoff --since v0.0.3
+rmemo handoff --staged
 ```
 
 ## 可执行规则（CI / Hooks）

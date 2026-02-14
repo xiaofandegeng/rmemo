@@ -40,3 +40,7 @@ export function todosPath(root) {
 export function configPath(root) {
   return path.join(memDir(root), "config.json");
 }
+
+export function handoffPath(root) {
+  return path.join(memDir(root), "handoff.md");
+}

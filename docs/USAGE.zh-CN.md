@@ -99,6 +99,16 @@ node /path/to/rmemo/bin/rmemo.js --root . --uninstall setup
 node /path/to/rmemo/bin/rmemo.js --root . --uninstall --remove-config setup
 ```
 
+## 一份文件的交接包（可直接粘贴）
+
+如果你更喜欢“一次性粘贴一份”，生成 handoff 文件：
+
+```bash
+node /path/to/rmemo/bin/rmemo.js --root . handoff
+```
+
+它会先更新 scan/context，然后把 handoff markdown 打印到 stdout，并写入 `.repo-memory/handoff.md`。
+
 ## 小建议
 
 - `rules.md` 尽量控制在 10-20 条强约束。

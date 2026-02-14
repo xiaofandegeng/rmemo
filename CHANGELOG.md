@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 - Add `rmemo sync` to generate AI tool instruction files from `.repo-memory/`.
 - Add `.repo-memory/config.json` and `rmemo setup` (one-time hooks + config).
+- Add `rmemo handoff` to generate a one-file, paste-ready AI handoff markdown.
 
 ## 0.0.3
 

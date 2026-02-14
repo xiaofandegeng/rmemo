@@ -13,6 +13,7 @@ import { cmdTodo } from "../src/cmd/todo.js";
 import { cmdTemplate } from "../src/cmd/template.js";
 import { cmdSync } from "../src/cmd/sync.js";
 import { cmdSetup } from "../src/cmd/setup.js";
+import { cmdHandoff } from "../src/cmd/handoff.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -62,6 +63,9 @@ try {
       break;
     case "setup":
       await cmdSetup({ flags });
+      break;
+    case "handoff":
+      await cmdHandoff({ flags });
       break;
     case "help":
     case undefined:

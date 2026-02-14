@@ -110,3 +110,12 @@ Done:
   - `pre-commit`: `rmemo check --staged` (blocking)
   - `post-commit/post-merge/post-checkout`: `rmemo sync` (non-blocking)
 - Add `rmemo setup --check` and `rmemo setup --uninstall` for audit and rollback
+
+## v0.9 (Handoff Pack) (In Progress)
+
+Goals:
+- Generate a single, paste-ready markdown "handoff" for AI sessions.
+- Include brief status, recent journal, and git change summary.
+
+Done:
+- Add `rmemo handoff` to update scan/context and generate `.repo-memory/handoff.md`

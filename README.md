@@ -86,6 +86,7 @@ rmemo sync
 rmemo hook install
 rmemo start
 rmemo done
+rmemo handoff
 rmemo template ls
 rmemo template apply <id>
 ```
@@ -139,6 +140,17 @@ Uninstall (safe: only removes rmemo-managed hooks):
 ```bash
 rmemo setup --uninstall
 rmemo setup --uninstall --remove-config
+```
+
+## One-File AI Handoff
+
+Generate a single markdown you can paste into AI (also written to `.repo-memory/handoff.md`):
+
+```bash
+rmemo handoff
+rmemo handoff --recent-days 5
+rmemo handoff --since v0.0.3
+rmemo handoff --staged
 ```
 
 ## Enforcing Rules (CI / Hooks)
