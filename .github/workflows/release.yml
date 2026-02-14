@@ -60,3 +60,11 @@ jobs:
       - name: Push commit and tags
         run: |
           git push origin HEAD:main --follow-tags
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.dist_tag == 'next' }}

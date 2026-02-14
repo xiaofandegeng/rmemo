@@ -26,3 +26,4 @@ What it does:
 2. Updates `package.json` version (commit + git tag)
 3. Pushes commit + tags to `main`
 4. Publishes to npm
+5. Creates a GitHub Release for the tag (release notes auto-generated)
