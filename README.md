@@ -22,13 +22,14 @@ When you resume work the next day, AI tools often:
 Install globally:
 
 ```bash
-npm i -g /rmemo
+npm i -g @xiaofandegeng/rmemo
 ```
 
 Then run in any repo:
 
 ```bash
 rmemo --root . init
+rmemo --root . init --template web-admin-vue
 rmemo --root . start
 rmemo --root . done "Today: ..."
 ```
@@ -50,6 +51,7 @@ If installed globally:
 
 ```bash
 rmemo --root . init
+rmemo --root . init --template web-admin-vue
 rmemo --root . start
 rmemo --root . status --mode brief
 rmemo --root . check --staged

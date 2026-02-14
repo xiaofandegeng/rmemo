@@ -6,6 +6,7 @@ import { journalDir, manifestPath, indexPath, rulesJsonPath, rulesPath, todosPat
 import { scanRepo } from "../core/scan.js";
 import { generateContext } from "../core/context.js";
 import { contextPath, memDir } from "../lib/paths.js";
+import { applyTemplate } from "../core/templates.js";
 
 const DEFAULT_RULES = `# Rules
 
@@ -72,6 +73,12 @@ export async function cmdInit({ flags }) {
 
   await ensureDir(memDir(root));
   await ensureDir(journalDir(root));
+
+  const tpl = flags.template ? String(flags.template).trim() : "";
+  if (tpl) {
+    // Apply template first, then fill any missing files with defaults.
+    await applyTemplate(root, tpl, { force: !!flags.force });
+  }
 
   if (!(await fileExists(rulesPath(root)))) await writeText(rulesPath(root), DEFAULT_RULES);
   if (!(await fileExists(rulesJsonPath(root)))) await writeJson(rulesJsonPath(root), DEFAULT_RULES_JSON);

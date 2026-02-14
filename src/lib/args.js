@@ -70,6 +70,7 @@ Options:
   --root <path>              Repo root (default: cwd)
   --format <md|json>         Output format for status/scan/check (default: md)
   --mode <brief|full>        Output detail level for status/start (default: full)
+  --template <id>            For init: apply a built-in template (see: rmemo template ls)
   --next <text>              Append a bullet to .repo-memory/todos.md under "## Next"
   --blocker <text>           Append a bullet to .repo-memory/todos.md under "## Blockers"
   --staged                   For check: only validate staged (git index) files

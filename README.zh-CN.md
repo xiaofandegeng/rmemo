@@ -19,16 +19,22 @@
 
 ## 安装 / 运行
 
-目前是零依赖 Node 直接运行：
+全局安装：
 
 ```bash
-node bin/rmemo.js init
-node bin/rmemo.js log "完成用户列表页；下一步：加筛选条件"
-node bin/rmemo.js context
-node bin/rmemo.js print
+npm i -g @xiaofandegeng/rmemo
 ```
 
-后续可以发布到 npm，再全局安装。
+然后在任意仓库中使用：
+
+```bash
+rmemo --root . init
+rmemo --root . init --template web-admin-vue
+rmemo --root . start
+rmemo --root . done "今天：..."
+```
+
+如果你不想全局安装，也可以在本仓库内用 Node 直接运行。
 
 ## 用在任意项目
 
@@ -39,6 +45,16 @@ node /path/to/rmemo/bin/rmemo.js init
 node /path/to/rmemo/bin/rmemo.js log "做了 X；下一步 Y"
 node /path/to/rmemo/bin/rmemo.js context
 node /path/to/rmemo/bin/rmemo.js print
+```
+
+如果已全局安装：
+
+```bash
+rmemo --root . init
+rmemo --root . init --template web-admin-vue
+rmemo --root . start
+rmemo --root . status --mode brief
+rmemo --root . check --staged
 ```
 
 或者不切目录，直接指定仓库根路径：

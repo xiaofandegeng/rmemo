@@ -478,3 +478,12 @@ test("rmemo template ls/apply works", async () => {
   const rulesMd = await fs.readFile(path.join(tmp, ".repo-memory", "rules.md"), "utf8");
   assert.ok(rulesMd.includes("Web Admin - Vue"));
 });
+
+test("rmemo init can apply template via --template", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-init-tpl-"));
+  const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--template", "miniapp", "init"]);
+  assert.equal(r.code, 0, r.err || r.out);
+  const rulesMd = await fs.readFile(path.join(tmp, ".repo-memory", "rules.md"), "utf8");
+  assert.ok(rulesMd.includes("Mini App"));
+});
