@@ -5,8 +5,9 @@ export async function cmdCheck({ flags }) {
   const root = resolveRoot(flags);
   const maxFiles = Number(flags["max-files"] || 4000);
   const preferGit = flags["no-git"] ? false : true;
+  const stagedOnly = !!flags.staged;
 
-  const res = await runCheck(root, { maxFiles, preferGit });
+  const res = await runCheck(root, { maxFiles, preferGit, stagedOnly });
 
   for (const e of res.errors) {
     process.stderr.write(`ERROR: ${e}\n`);
@@ -27,4 +28,3 @@ export async function cmdCheck({ flags }) {
 
   process.exitCode = res.exitCode;
 }
-

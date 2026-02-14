@@ -4,6 +4,10 @@ import { fileExists, readJson } from "../lib/io.js";
 import { hasGit, isGitRepo, listGitFiles } from "../lib/git.js";
 import { walkFiles } from "../lib/walk.js";
 import { rulesJsonPath } from "../lib/paths.js";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 function toPosix(p) {
   return p.split(path.sep).join("/");
@@ -31,17 +35,42 @@ async function readFileHeadBytes(absPath, maxBytes) {
 }
 
 function globToRegExp(glob) {
-  // Minimal, but good enough:
-  // - ** matches across segments
+  // Minimal glob matcher:
+  // - ** matches across path segments
+  // - **/ matches zero or more directories (so "**/*.txt" matches "a.txt" too)
   // - * matches within a segment
   // - ? matches a single char within a segment
-  let s = String(glob);
-  // Escape everything first (including * and ?), then re-enable glob tokens.
-  s = s.replace(/[.+^${}()|[\]\\*?]/g, "\\$&");
-  s = s.replace(/\\\*\\\*/g, ".*");
-  s = s.replace(/\\\*/g, "[^/]*");
-  s = s.replace(/\\\?/g, "[^/]");
-  return new RegExp("^" + s + "$");
+  const s = String(glob);
+  let out = "^";
+  for (let i = 0; i < s.length; ) {
+    const ch = s[i];
+    if (ch === "*") {
+      if (s[i + 1] === "*") {
+        if (s[i + 2] === "/") {
+          out += "(?:.*/)?";
+          i += 3;
+        } else {
+          out += ".*";
+          i += 2;
+        }
+        continue;
+      }
+      out += "[^/]*";
+      i += 1;
+      continue;
+    }
+    if (ch === "?") {
+      out += "[^/]";
+      i += 1;
+      continue;
+    }
+    // Escape regex special chars, but keep "/" literal.
+    if ("\\.[]{}()+-^$|".includes(ch)) out += "\\" + ch;
+    else out += ch;
+    i += 1;
+  }
+  out += "$";
+  return new RegExp(out);
 }
 
 function compilePattern(pat) {
@@ -100,6 +129,17 @@ async function getFileList(root, { preferGit = true, maxFiles = 4000 } = {}) {
   return files.slice(0, maxFiles);
 }
 
+async function getStagedFiles(root, { maxFiles = 4000 } = {}) {
+  // Requires git repo.
+  const { stdout } = await execFileAsync("git", ["diff", "--cached", "--name-only", "-z"], {
+    cwd: root,
+    maxBuffer: 1024 * 1024 * 20
+  });
+  const files = stdout.split("\0").filter(Boolean);
+  // git returns posix separators already.
+  return files.slice(0, maxFiles);
+}
+
 async function existsRel(root, rel) {
   try {
     await fs.access(path.join(root, rel));
@@ -119,7 +159,7 @@ function validateRulesShape(rules) {
   return null;
 }
 
-export async function runCheck(root, { maxFiles = 4000, preferGit = true } = {}) {
+export async function runCheck(root, { maxFiles = 4000, preferGit = true, stagedOnly = false } = {}) {
   if (!(await fileExists(rulesJsonPath(root)))) {
     return {
       ok: false,
@@ -146,18 +186,37 @@ export async function runCheck(root, { maxFiles = 4000, preferGit = true } = {})
     return { ok: false, exitCode: 2, errors: [shapeErr], violations: [] };
   }
 
-  const files = (await getFileList(root, { preferGit, maxFiles })).map(toPosix);
+  let files = [];
+  if (stagedOnly) {
+    const gitOk = (await hasGit()) && (await isGitRepo(root));
+    if (!gitOk) {
+      return {
+        ok: false,
+        exitCode: 2,
+        errors: ["--staged requires a git repository"],
+        violations: []
+      };
+    }
+    files = (await getStagedFiles(root, { maxFiles })).map(toPosix);
+  } else {
+    files = (await getFileList(root, { preferGit, maxFiles })).map(toPosix);
+  }
 
   const violations = [];
   const errors = [];
 
   // requiredPaths
   if (rules.requiredPaths?.length) {
+    // requiredPaths should validate the repo, not just staged files.
+    // Even in stagedOnly mode, we check existence on disk.
     for (const rel of rules.requiredPaths) {
       const relPosix = toPosix(rel);
       // Allow glob in required paths.
       if (String(relPosix).includes("*") || String(relPosix).includes("?") || String(relPosix).startsWith("re:") || String(relPosix).startsWith("/")) {
-        const ok = files.some((f) => compilePattern(relPosix).test(f));
+        // In stagedOnly mode we still want to check against the whole repo file list
+        // to avoid false failures.
+        const universe = stagedOnly ? (await getFileList(root, { preferGit, maxFiles })).map(toPosix) : files;
+        const ok = universe.some((f) => compilePattern(relPosix).test(f));
         if (!ok) violations.push({ type: "required", pattern: relPosix, message: `Missing required path match: ${relPosix}` });
       } else {
         const ok = await existsRel(root, relPosix);

@@ -17,7 +17,7 @@ export function parseArgs(argv) {
         const k = a.slice(2);
         // Common boolean flag convention: `--no-foo` means a boolean toggle.
         // Do not accidentally consume the next positional arg as its value.
-        if (k.startsWith("no-") || k === "help" || k === "force") {
+        if (k.startsWith("no-") || k === "help" || k === "force" || k === "staged") {
           flags[k] = true;
           continue;
         }
@@ -70,6 +70,7 @@ Options:
   --mode <brief|full>        Output detail level for status/start (default: full)
   --next <text>              Append a bullet to .repo-memory/todos.md under "## Next"
   --blocker <text>           Append a bullet to .repo-memory/todos.md under "## Blockers"
+  --staged                   For check: only validate staged (git index) files
   --force                    Overwrite existing git hook (creates backup)
   --max-files <n>            Max files to analyze (default: 4000)
   --snip-lines <n>           Max lines per snippet (default: 120)

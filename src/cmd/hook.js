@@ -36,7 +36,7 @@ set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 
-${q(rmemoBinAbs)} --root "$repo_root" check
+${q(rmemoBinAbs)} --root "$repo_root" --staged check
 `;
 }
 
@@ -106,4 +106,3 @@ export async function cmdHook({ rest, flags }) {
   const rmemoBinAbs = path.resolve(process.argv[1]);
   await installPreCommitHook({ repoRoot, rmemoBinAbs, force });
 }
-

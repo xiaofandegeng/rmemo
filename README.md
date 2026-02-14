@@ -103,6 +103,12 @@ Run:
 rmemo check
 ```
 
+Pre-commit usage (faster, checks only staged files):
+
+```bash
+rmemo check --staged
+```
+
 Install a pre-commit hook (runs `rmemo check` before commit):
 
 ```bash

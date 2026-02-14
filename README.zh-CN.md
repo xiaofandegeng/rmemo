@@ -107,6 +107,12 @@ rmemo print
 rmemo check
 ```
 
+Pre-commit 使用（更快，只检查暂存区文件）：
+
+```bash
+rmemo check --staged
+```
+
 安装 git pre-commit hook（提交前自动执行 `rmemo check`）：
 
 ```bash

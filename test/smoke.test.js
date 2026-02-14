@@ -173,6 +173,7 @@ test("rmemo hook install writes pre-commit hook (and respects --force)", async (
   const hook = await fs.readFile(hookPath, "utf8");
   assert.ok(hook.includes("rmemo pre-commit hook"), "hook should include marker");
   assert.ok(hook.includes(" check"), "hook should call check");
+  assert.ok(hook.includes("--staged"), "hook should use --staged");
 
   // existing non-rmemo hook should block unless --force
   await fs.writeFile(hookPath, "#!/usr/bin/env bash\necho custom\n", "utf8");
@@ -186,6 +187,57 @@ test("rmemo hook install writes pre-commit hook (and respects --force)", async (
   }
   const hook2 = await fs.readFile(hookPath, "utf8");
   assert.ok(hook2.includes("rmemo pre-commit hook"));
+});
+
+test("rmemo check --staged validates staged changes only", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-staged-"));
+
+  // init a git repo
+  {
+    const r = await runCmd("git", ["init"], { cwd: tmp });
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // init rmemo memory and commit it (so requiredPaths can be checked against repo files)
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  await fs.writeFile(
+    path.join(tmp, ".repo-memory", "rules.json"),
+    JSON.stringify(
+      {
+        schema: 1,
+        requiredPaths: [],
+        forbiddenPaths: [],
+        forbiddenContent: [{ include: ["**/*.txt"], match: "BEGIN PRIVATE KEY" }],
+        namingRules: []
+      },
+      null,
+      2
+    ) + "\n",
+    "utf8"
+  );
+
+  // Commit baseline
+  await runCmd("git", ["add", "-A"], { cwd: tmp });
+  await runCmd("git", ["commit", "-m", "init"], { cwd: tmp });
+
+  // Create a secret file but do not stage it yet
+  await fs.writeFile(path.join(tmp, "secret.txt"), "BEGIN PRIVATE KEY\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--staged", "check"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // Stage it => should fail
+  await runCmd("git", ["add", "secret.txt"], { cwd: tmp });
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--staged", "check"]);
+    assert.equal(r.code, 1, "staged secret should fail");
+  }
 });
 
 test("scan detects monorepo signals and subprojects", async () => {
