@@ -61,6 +61,7 @@ rmemo print
 rmemo status
 rmemo check
 rmemo hook install
+rmemo start
 ```
 
 ## Enforcing Rules (CI / Hooks)
@@ -95,6 +96,12 @@ Install a pre-commit hook (runs `rmemo check` before commit):
 
 ```bash
 rmemo hook install
+```
+
+Start-of-day entrypoint (scan + generate context + print status):
+
+```bash
+rmemo start
 ```
 
 ## Roadmap (short)

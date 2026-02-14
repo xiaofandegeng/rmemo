@@ -54,6 +54,7 @@ Usage:
   rmemo status               Print a paste-ready status summary (rules/todos/journal)
   rmemo check                Enforce .repo-memory/rules.json (for CI / hooks)
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
+  rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo context              Generate .repo-memory/context.md
   rmemo print                Print context.md to stdout (generate first if missing)
 

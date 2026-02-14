@@ -208,3 +208,17 @@ test("scan detects monorepo signals and subprojects", async () => {
   assert.ok(manifest.subprojects.some((p) => p.dir === "apps/admin-web"), "should detect apps/admin-web subproject");
   assert.ok(manifest.subprojects.some((p) => p.dir === "apps/miniapp"), "should detect apps/miniapp subproject");
 });
+
+test("rmemo start runs scan+context and prints status", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-start-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "demo" }, null, 2) + "\n", "utf8");
+
+  const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "start"]);
+  assert.equal(r.code, 0, r.err || r.out);
+  assert.ok(r.out.includes("# Status"), "start should print status");
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "manifest.json")), true);
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "context.md")), true);
+});
