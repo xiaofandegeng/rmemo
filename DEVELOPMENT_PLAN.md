@@ -165,3 +165,17 @@ Goals:
 
 Done:
 - Add `rmemo ws batch ...` and write `.repo-memory/ws.md` at repo root
+
+## v1.5 (Profiles) (Planned)
+
+Goals:
+- Make adoption near-zero effort for common repo types (admin web, miniapp, backend, monorepo).
+- Encode team defaults in a reusable profile: rules, todos seed, config defaults.
+- Allow safe upgrades over time.
+
+Proposed:
+- Add `rmemo profile ls/apply/describe`
+- Add `rmemo init --auto` (detect + apply recommended profile)
+- Add profile upgrades:
+  - `rmemo profile check` (drift report)
+  - `rmemo profile upgrade` (apply updates with backups)

@@ -4,13 +4,26 @@ This file is a lightweight "what are we doing next" board.
 
 ## Current Status
 
-- Latest tag: `v0.0.3`
+- Latest tag: `v0.1.0`
 - Package name: `@xiaofandegeng/rmemo`
 - Milestones:
-  - v0.1-v0.5: shipped
-  - v0.6: optional enhancements (partially shipped)
+  - v0.1-v0.6: shipped
+  - v0.7-v1.4: shipped (AI integration, always-on, handoff/pr, watch, monorepo workspaces)
 
-## Next (Recommended)
+## Next Iteration (Recommended)
+
+Theme: **Profiles (Auto-Adopt + Team Defaults)**
+
+1. Add `rmemo profile` (or evolve `template` into profiles with metadata)
+2. Auto-suggest/apply profile on first run:
+   - `rmemo init --auto` (detect repo type -> apply recommended profile)
+3. Profile-driven defaults (write to `.repo-memory/config.json`)
+   - sync targets, watch interval, PR base ref, handoff/pr max-changes
+4. Profile diff/upgrade:
+   - `rmemo profile check` shows drift from profile
+   - `rmemo profile upgrade` updates rules/config safely (with backups)
+
+## Backlog (Smaller / Optional)
 
 1. Improve `rmemo sync`
    - add `--targets` docs per tool
@@ -25,21 +38,10 @@ This file is a lightweight "what are we doing next" board.
    - stable ordering for violations
 5. Add `rmemo scan` optional outputs
    - `--format md` include a compact subproject table
-6. Improve `rmemo handoff`
-   - add `--format json`
-   - add `--max-changes` and stable ordering
-   - optionally include a compact subproject table
-7. Improve `rmemo pr`
-   - add `--max-changes` and stable ordering
-   - optionally include a short "why" section from journal heuristics
-8. GitHub integration
-   - PR workflow: run check + generate pr/handoff + comment
-9. Watch mode
+6. Watch mode
    - add ignore patterns and stable poll signature for non-git repos
    - consider `--format json` events for tooling
-10. Monorepo workspaces
-   - `rmemo ws ls/start/status/handoff/pr/sync`
-   - ensure git scanning is scoped to `--root` subdir
-11. Workspace batch
-   - `rmemo ws batch handoff/pr/sync/start`
-   - write a monorepo-level summary under `.repo-memory/ws.md`
+7. Monorepo workspaces
+   - `rmemo ws batch` add `pr` example coverage with `--base` and JSON output in docs
+8. GitHub integration
+   - PR workflow: run `rmemo check` on working tree (not `--staged`)
