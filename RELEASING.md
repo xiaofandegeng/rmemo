@@ -37,3 +37,12 @@ This repo also includes a workflow `GitHub Release` that:
 Backfill example:
 1. GitHub -> Actions -> GitHub Release -> Run workflow
 2. Input `tag`: `v0.1.0`
+
+## Backfill All Missing Releases (Automation)
+
+If you already have tags but your Releases page is empty, use:
+1. GitHub -> Actions -> Backfill GitHub Releases -> Run workflow
+
+This workflow:
+- scans tags with a prefix (default: `v`)
+- creates GitHub Releases only when missing (safe to re-run)

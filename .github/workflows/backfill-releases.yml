@@ -1,0 +1,113 @@
+name: Backfill GitHub Releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_prefix:
+        description: "Only tags starting with this prefix will be considered"
+        required: true
+        default: "v"
+        type: string
+      limit:
+        description: "Max tags to scan (sorted by tag list order from GitHub API)"
+        required: true
+        default: "100"
+        type: string
+      create_prerelease_for_pre_tags:
+        description: "Mark tags containing '-' (e.g. v1.0.0-beta.1) as prerelease"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Backfill releases for tags
+        uses: actions/github-script@v7
+        env:
+          TAG_PREFIX: ${{ inputs.tag_prefix }}
+          LIMIT: ${{ inputs.limit }}
+          PRERELEASE_FOR_PRE_TAGS: ${{ inputs.create_prerelease_for_pre_tags }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const tagPrefix = String(process.env.TAG_PREFIX || "v");
+            const limit = Math.max(1, Math.min(500, Number(process.env.LIMIT || "100")));
+            const prereleaseForPreTags = String(process.env.PRERELEASE_FOR_PRE_TAGS || "true") === "true";
+
+            core.info(`Scanning tags: prefix='${tagPrefix}', limit=${limit}`);
+
+            // List tags (GitHub returns most recent tags first).
+            const tags = [];
+            for await (const resp of github.paginate.iterator(github.rest.repos.listTags, {
+              owner,
+              repo,
+              per_page: 100
+            })) {
+              for (const t of resp.data) {
+                tags.push(t);
+                if (tags.length >= limit) break;
+              }
+              if (tags.length >= limit) break;
+            }
+
+            const selected = tags
+              .map((t) => t.name)
+              .filter((name) => name && name.startsWith(tagPrefix));
+
+            core.info(`Candidate tags: ${selected.length}`);
+
+            let created = 0;
+            let skipped = 0;
+            const errors = [];
+
+            for (const tag of selected) {
+              try {
+                await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+                skipped++;
+                continue;
+              } catch (e) {
+                // 404 => no release, create one. Anything else => fail.
+                if (e?.status !== 404) throw e;
+              }
+
+              const prerelease = prereleaseForPreTags ? tag.includes("-") : false;
+              core.info(`Creating release for ${tag} (prerelease=${prerelease})`);
+
+              try {
+                await github.rest.repos.createRelease({
+                  owner,
+                  repo,
+                  tag_name: tag,
+                  name: tag,
+                  generate_release_notes: true,
+                  prerelease
+                });
+                created++;
+              } catch (e) {
+                errors.push({ tag, message: e?.message || String(e) });
+              }
+            }
+
+            core.summary
+              .addHeading("Backfill Result")
+              .addTable([
+                [{ data: "Created", header: true }, String(created)],
+                [{ data: "Skipped (already exists)", header: true }, String(skipped)],
+                [{ data: "Errors", header: true }, String(errors.length)]
+              ])
+              .addCodeBlock(JSON.stringify({ created, skipped, errors }, null, 2), "json");
+
+            await core.summary.write();
+
+            if (errors.length) {
+              core.setFailed(`Failed to create ${errors.length} releases.`);
+            }
+
