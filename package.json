@@ -33,6 +33,9 @@
     "CHANGELOG.md",
     "CONTRIBUTING.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "ai",
     "developer-tools",

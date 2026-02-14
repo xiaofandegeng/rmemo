@@ -6,6 +6,7 @@ Repo memory + dev journal CLI: scan any project, persist conventions/progress, a
 
 Docs:
 - [Usage (AI Workflow)](./docs/USAGE.md)
+- [Releasing](./RELEASING.md)
 
 ## Why
 

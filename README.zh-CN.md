@@ -6,6 +6,7 @@
 
 文档：
 - [使用方式（配合 AI 开发）](./docs/USAGE.zh-CN.md)
+- [发布说明](./RELEASING.md)
 
 ## 为什么需要它
 
