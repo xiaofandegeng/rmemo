@@ -153,6 +153,40 @@ test("rmemo check enforces forbidden/required/naming rules", async () => {
   }
 });
 
+test("rmemo check supports requiredOneOf groups", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-oneof-"));
+
+  // init creates rules.json; overwrite to include requiredOneOf.
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const rulesPath = path.join(tmp, ".repo-memory", "rules.json");
+  const rules = {
+    schema: 1,
+    requiredPaths: [],
+    requiredOneOf: [["pnpm-lock.yaml", "package-lock.json", "yarn.lock"]],
+    forbiddenPaths: [],
+    forbiddenContent: [],
+    namingRules: []
+  };
+  await fs.writeFile(rulesPath, JSON.stringify(rules, null, 2) + "\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "check"]);
+    assert.equal(r.code, 1, "should fail when none of the group exists");
+    assert.ok(r.err.includes("required-oneof"), "should include group type");
+  }
+
+  await fs.writeFile(path.join(tmp, "pnpm-lock.yaml"), "lockfileVersion: 1\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "check"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+});
+
 test("rmemo hook install writes pre-commit hook (and respects --force)", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-hook-"));

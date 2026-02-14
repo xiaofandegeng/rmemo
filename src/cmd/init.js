@@ -36,6 +36,13 @@ const DEFAULT_RULES_JSON = {
   // These are repo-relative patterns.
   // Patterns support glob like "src/**" or regex like "re:^src/.*\\.vue$".
   requiredPaths: [],
+  // At least one of the patterns in each group must exist.
+  // Example:
+  // requiredOneOf: [
+  //   ["pnpm-lock.yaml", "package-lock.json", "yarn.lock"],
+  //   ["openapi.yaml", "openapi.yml", "swagger.yaml", "swagger.yml"]
+  // ]
+  requiredOneOf: [],
   forbiddenPaths: [
     // Example: forbid committing secrets
     ".env",

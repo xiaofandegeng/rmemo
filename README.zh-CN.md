@@ -85,6 +85,9 @@ rmemo print
 {
   "schema": 1,
   "requiredPaths": ["README.md"],
+  "requiredOneOf": [
+    ["pnpm-lock.yaml", "package-lock.json", "yarn.lock"]
+  ],
   "forbiddenPaths": [".env", ".env.*"],
   "forbiddenContent": [
     {

@@ -26,6 +26,9 @@ function hintFor(v) {
   if (v.type === "required") {
     return "Create the missing file/path (or change requiredPaths/required pattern in .repo-memory/rules.json).";
   }
+  if (v.type === "required-oneof") {
+    return "Add at least one of the required files, or adjust requiredOneOf in .repo-memory/rules.json.";
+  }
   if (v.type === "naming") {
     const match = v.rule?.match ? String(v.rule.match) : null;
     return match ? `Rename to match: ${match}` : "Rename to match the naming rule.";

@@ -191,6 +191,7 @@ function validateRulesShape(rules) {
   if (rules.schema !== 1) return "rules.json schema must be 1";
   if (rules.forbiddenPaths && !Array.isArray(rules.forbiddenPaths)) return "forbiddenPaths must be an array";
   if (rules.requiredPaths && !Array.isArray(rules.requiredPaths)) return "requiredPaths must be an array";
+  if (rules.requiredOneOf && !Array.isArray(rules.requiredOneOf)) return "requiredOneOf must be an array";
   if (rules.forbiddenContent && !Array.isArray(rules.forbiddenContent)) return "forbiddenContent must be an array";
   if (rules.namingRules && !Array.isArray(rules.namingRules)) return "namingRules must be an array";
   return null;
@@ -258,6 +259,34 @@ export async function runCheck(root, { maxFiles = 4000, preferGit = true, staged
       } else {
         const ok = await existsRel(root, relPosix);
         if (!ok) violations.push({ type: "required", path: relPosix, message: `Missing required path: ${relPosix}` });
+      }
+    }
+  }
+
+  // requiredOneOf
+  if (rules.requiredOneOf?.length) {
+    // Validate groups against whole repo to avoid staged-only false failures.
+    const universe = (await getFileList(root, { preferGit, maxFiles })).map(toPosix);
+
+    for (const group of rules.requiredOneOf) {
+      if (!Array.isArray(group) || group.length === 0) {
+        errors.push("requiredOneOf entries must be non-empty arrays");
+        continue;
+      }
+      const pats = group.map(toPosix);
+      const ok = pats.some((p) => {
+        if (String(p).includes("*") || String(p).includes("?") || String(p).startsWith("re:") || String(p).startsWith("/")) {
+          const re = compilePattern(p);
+          return universe.some((f) => re.test(f));
+        }
+        return universe.includes(p) || false;
+      });
+      if (!ok) {
+        violations.push({
+          type: "required-oneof",
+          group: pats,
+          message: `Missing required one-of group: ${pats.join(" OR ")}`
+        });
       }
     }
   }
