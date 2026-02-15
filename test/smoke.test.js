@@ -1171,6 +1171,12 @@ test("rmemo embed build/search supports semantic search (mock provider)", async 
     assert.ok(await exists(path.join(tmp, ".repo-memory", "embeddings", "meta.json")));
   }
 
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock", "--dim", "64", "--check"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("up to date"));
+  }
+
   // Rebuild with a different dim: should not reuse previous vectors and should update index dim.
   {
     const r = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock", "--dim", "128"]);
@@ -1184,6 +1190,14 @@ test("rmemo embed build/search supports semantic search (mock provider)", async 
     assert.ok(first, "index should have vectors");
     const buf = Buffer.from(first.vectorB64, "base64");
     assert.equal(buf.byteLength / 4, 128);
+  }
+
+  // Modify a file that is part of the index; check should fail.
+  await fs.writeFile(path.join(tmp, ".repo-memory", "rules.md"), "# Rules\n- validate auth token always (updated)\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock", "--dim", "128", "--check"]);
+    assert.equal(r.code, 1);
+    assert.ok(r.err.includes("out of date"));
   }
 
   {

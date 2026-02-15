@@ -1,6 +1,6 @@
 import { resolveRoot } from "../lib/paths.js";
 import { exitWithError } from "../lib/io.js";
-import { buildEmbeddingsIndex, semanticSearch } from "../core/embeddings.js";
+import { buildEmbeddingsIndex, embeddingsUpToDate, semanticSearch } from "../core/embeddings.js";
 
 function help() {
   return [
@@ -45,6 +45,18 @@ export async function cmdEmbed({ rest, flags }) {
     const kinds = parseKinds(flags.kinds) || undefined;
     const recentDays = flags["recent-days"] !== undefined ? Number(flags["recent-days"]) : undefined;
     const force = !!flags.force;
+    const check = !!flags.check;
+
+    if (check) {
+      const r = await embeddingsUpToDate(root, { provider, model, apiKey, dim, kinds, recentDays });
+      if (r.ok) {
+        process.stdout.write("OK: embeddings index is up to date\n");
+        return;
+      }
+      process.stderr.write(`FAIL: embeddings index is out of date (${r.reason}${r.file ? `: ${r.file}` : ""})\n`);
+      process.exitCode = 1;
+      return;
+    }
 
     const r = await buildEmbeddingsIndex(root, { provider, model, apiKey, dim, kinds, recentDays, force });
     process.stdout.write(

@@ -270,6 +270,66 @@ function sameConfig(a, b) {
   return ak === bk;
 }
 
+async function currentFileStamp(abs) {
+  try {
+    const st = await fs.stat(abs);
+    return { size: Number(st.size), mtimeMs: Number(st.mtimeMs) };
+  } catch {
+    return null;
+  }
+}
+
+export async function embeddingsUpToDate(
+  root,
+  {
+    provider = "mock",
+    model = "",
+    apiKey = "",
+    dim = 128,
+    kinds = defaultEmbeddingConfig().kinds,
+    recentDays = defaultEmbeddingConfig().recentDays,
+    maxChunksPerFile = defaultEmbeddingConfig().maxChunksPerFile,
+    maxCharsPerChunk = defaultEmbeddingConfig().maxCharsPerChunk,
+    overlapChars = defaultEmbeddingConfig().overlapChars,
+    maxTotalChunks = defaultEmbeddingConfig().maxTotalChunks
+  } = {}
+) {
+  const embedder = createEmbedder({ provider, dim, apiKey, model });
+  const wantConfig = {
+    provider: embedder.provider,
+    model: embedder.model,
+    dim: embedder.provider === "mock" ? Number(embedder.dim) : undefined,
+    kinds,
+    recentDays,
+    maxChunksPerFile,
+    maxCharsPerChunk,
+    overlapChars,
+    maxTotalChunks
+  };
+
+  const [meta, idx] = await Promise.all([loadEmbeddingsMeta(root), loadEmbeddingsIndex(root)]);
+  if (!meta || !idx) return { ok: false, reason: "missing_index_or_meta" };
+  if (!sameConfig(meta, wantConfig)) return { ok: false, reason: "config_changed" };
+
+  const files = idx && idx.files && typeof idx.files === "object" ? idx.files : null;
+  if (!files) return { ok: false, reason: "missing_files_index" };
+
+  const docList = await buildDocList(root, { kinds, recentDays });
+  for (const d of docList) {
+    const fileRel = path.relative(root, d.abs).replace(/\\/g, "/");
+    const fk = fileKey(d.kind, fileRel);
+    // eslint-disable-next-line no-await-in-loop
+    const stamp = await currentFileStamp(d.abs);
+    if (!stamp) return { ok: false, reason: "file_missing", file: fk };
+    const prev = files[fk];
+    if (!prev) return { ok: false, reason: "file_not_indexed", file: fk };
+    if (Number(prev.size) !== stamp.size || Number(prev.mtimeMs) !== stamp.mtimeMs) return { ok: false, reason: "file_changed", file: fk };
+    if (!Array.isArray(prev.ids) || prev.ids.length === 0) return { ok: false, reason: "file_ids_missing", file: fk };
+  }
+
+  return { ok: true };
+}
+
 export async function buildEmbeddingsIndex(
   root,
   {
