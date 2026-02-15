@@ -25,6 +25,7 @@ import { addTodoBlocker, addTodoNext, removeTodoBlockerByIndex, removeTodoNextBy
 import { appendJournalEntry } from "./journal.js";
 import { syncAiInstructions } from "./sync.js";
 import { embedAuto } from "./embed_auto.js";
+import { watchRepo } from "./watch.js";
 
 function json(res, code, obj) {
   const s = JSON.stringify(obj, null, 2) + "\n";
@@ -54,6 +55,52 @@ function notFound(res, msg = "Not found") {
 function unauthorized(res) {
   res.writeHead(401, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify({ ok: false, error: "Unauthorized" }) + "\n");
+}
+
+function sseHeaders() {
+  return {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-cache, no-transform",
+    connection: "keep-alive"
+  };
+}
+
+function sseWrite(res, { event, data, id } = {}) {
+  // SSE format: https://html.spec.whatwg.org/multipage/server-sent-events.html
+  let s = "";
+  if (id !== undefined && id !== null) s += `id: ${String(id)}\n`;
+  if (event) s += `event: ${String(event)}\n`;
+  if (data !== undefined) s += `data: ${typeof data === "string" ? data : JSON.stringify(data)}\n`;
+  s += "\n";
+  res.write(s);
+}
+
+export function createEventsBus({ max = 200 } = {}) {
+  const clients = new Set();
+  const history = [];
+  let seq = 0;
+
+  const add = (res) => {
+    clients.add(res);
+    res.on?.("close", () => clients.delete(res));
+    res.on?.("error", () => clients.delete(res));
+  };
+
+  const emit = (evt) => {
+    const id = ++seq;
+    const payload = { id, at: new Date().toISOString(), ...evt };
+    history.push(payload);
+    while (history.length > max) history.shift();
+    for (const res of clients) {
+      try {
+        sseWrite(res, { id, event: payload.type || "event", data: payload });
+      } catch {
+        clients.delete(res);
+      }
+    }
+  };
+
+  return { add, emit, history: () => history.slice(), size: () => clients.size };
 }
 
 function parseAuthToken(req, url) {
@@ -229,7 +276,7 @@ async function searchInText({ file, text, q, maxHits = 50 }) {
 }
 
 export function createServeHandler(root, opts = {}) {
-  const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer } = opts;
+  const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer, events } = opts;
 
   return async function handler(req, res) {
     const url = new URL(req.url || "/", `http://${host}:${port || 80}`);
@@ -273,6 +320,17 @@ export function createServeHandler(root, opts = {}) {
     }
 
     try {
+      if (req.method === "GET" && url.pathname === "/events") {
+        res.writeHead(200, sseHeaders());
+        // Initial hello + recent history for quick UI boot.
+        sseWrite(res, { event: "hello", data: { ok: true, schema: 1, root } });
+        for (const h of events?.history?.() || []) {
+          sseWrite(res, { id: h.id, event: h.type || "event", data: h });
+        }
+        events?.add?.(res);
+        return;
+      }
+
       // Write operations: only allowed if allowWrite is true.
       if (req.method === "POST" && url.pathname.startsWith("/todos/")) {
         if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
@@ -541,7 +599,11 @@ export async function startServe(root, opts = {}) {
     allowRefresh = false,
     allowWrite = false,
     allowShutdown = false,
-    cors = false
+    cors = false,
+    watch = false,
+    watchIntervalMs = 2000,
+    watchSync = true,
+    watchEmbed = false
   } = opts;
 
   if (!isLoopbackHost(host) && !token) {
@@ -552,6 +614,7 @@ export async function startServe(root, opts = {}) {
   }
 
   let server = null;
+  const events = createEventsBus({ max: 200 });
   const handler = createServeHandler(root, {
     host,
     port,
@@ -560,7 +623,8 @@ export async function startServe(root, opts = {}) {
     allowWrite,
     allowShutdown,
     cors,
-    getServer: () => server
+    getServer: () => server,
+    events
   });
 
   server = http.createServer((req, res) => {
@@ -582,5 +646,32 @@ export async function startServe(root, opts = {}) {
       server.close(() => resolve());
     });
 
-  return { server, host, port: actualPort, baseUrl, close };
+  const abort = new AbortController();
+  const stopWatch = () => abort.abort();
+  if (watch) {
+    events.emit({ type: "watch:starting", intervalMs: watchIntervalMs, sync: watchSync, embed: watchEmbed });
+    // Run in background; any errors are surfaced as events.
+    void watchRepo(root, {
+      preferGit: true,
+      maxFiles: 4000,
+      snipLines: 120,
+      recentDays: 7,
+      intervalMs: watchIntervalMs,
+      once: false,
+      sync: watchSync,
+      embed: watchEmbed,
+      signal: abort.signal,
+      noSignals: true,
+      onEvent: (e) => events.emit(e)
+    }).catch((e) => {
+      events.emit({ type: "watch:error", error: e?.message || String(e) });
+    });
+  }
+
+  const closeAll = async () => {
+    stopWatch();
+    await close();
+  };
+
+  return { server, host, port: actualPort, baseUrl, close: closeAll, events };
 }

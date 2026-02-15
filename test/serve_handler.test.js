@@ -4,7 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import fs from "node:fs/promises";
 import { Readable } from "node:stream";
-import { createServeHandler } from "../src/core/serve.js";
+import { createEventsBus, createServeHandler } from "../src/core/serve.js";
 import { fileExists, readText } from "../src/lib/io.js";
 import { memDir, todosPath, journalDir } from "../src/lib/paths.js";
 
@@ -53,7 +53,8 @@ async function run(handler, reqOpts) {
 
 test("serve handler: /health and /ui are always unauthenticated", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
-  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t" });
+  const events = createEventsBus();
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", events });
 
   const h = await run(handler, { method: "GET", url: "/health" });
   assert.equal(h.status, 200);
@@ -70,7 +71,8 @@ test("serve handler: token gates all non-UI endpoints when configured", async ()
   await fs.mkdir(memDir(root), { recursive: true });
   await fs.writeFile(todosPath(root), "# Todos\n\n## Next\n- A\n\n## Blockers\n- B\n", "utf8");
 
-  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true });
+  const events = createEventsBus();
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events });
 
   const noAuth = await run(handler, { method: "GET", url: "/todos?format=md" });
   assert.equal(noAuth.status, 401);
@@ -86,7 +88,7 @@ test("serve handler: token gates all non-UI endpoints when configured", async ()
 test("serve handler: write endpoints require allowWrite, and validate JSON body", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
 
-  const ro = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: false });
+  const ro = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: false, events: createEventsBus() });
   const denied = await run(ro, {
     method: "POST",
     url: "/todos/next",
@@ -96,7 +98,7 @@ test("serve handler: write endpoints require allowWrite, and validate JSON body"
   assert.equal(denied.status, 400);
   assert.ok(denied.body.includes("Write not allowed"));
 
-  const rw = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true });
+  const rw = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events: createEventsBus() });
   const badJson = await run(rw, {
     method: "POST",
     url: "/todos/next",
@@ -109,7 +111,7 @@ test("serve handler: write endpoints require allowWrite, and validate JSON body"
 
 test("serve handler: todos + log write endpoints mutate repo memory", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
-  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true });
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events: createEventsBus() });
 
   // Add next todo (creates todos.md)
   {
@@ -181,3 +183,18 @@ test("serve handler: todos + log write endpoints mutate repo memory", async () =
   }
 });
 
+test("serve handler: /events returns SSE stream (requires token if set)", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
+  const events = createEventsBus();
+  events.emit({ type: "refresh:ok", reason: "test" });
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", events });
+
+  const unauth = await run(handler, { method: "GET", url: "/events" });
+  assert.equal(unauth.status, 401);
+
+  const authed = await run(handler, { method: "GET", url: "/events?token=t" });
+  assert.equal(authed.status, 200);
+  assert.ok((authed.headers["content-type"] || "").includes("text/event-stream"));
+  assert.ok(authed.body.includes("event: hello"));
+  assert.ok(authed.body.includes("refresh:ok"));
+});

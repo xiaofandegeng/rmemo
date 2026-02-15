@@ -209,6 +209,7 @@ rmemo serve --root . --token devtoken --port 7357
 
 常用接口：
 - `GET /ui`（本地面板）
+- `GET /events`（SSE 事件流；用于实时刷新）
 - `GET /status?format=json`
 - `GET /context`
 - `GET /rules`
@@ -220,6 +221,12 @@ rmemo serve --root . --token devtoken --port 7357
 
 ```bash
 rmemo serve --root . --token devtoken --allow-write
+```
+
+可选：开启 watch（自动保持 repo memory 最新）并输出事件流：
+
+```bash
+rmemo serve --root . --token devtoken --watch --watch-interval 2000
 ```
 
 写入接口：

@@ -34,6 +34,9 @@ export function parseArgs(argv) {
           k === "allow-shutdown" ||
           k === "allow-write" ||
           k === "cors" ||
+          k === "watch" ||
+          k === "watch-no-sync" ||
+          k === "watch-embed" ||
           k === "embed" ||
           k === "no-status"
         ) {

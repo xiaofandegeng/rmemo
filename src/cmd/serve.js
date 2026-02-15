@@ -10,6 +10,10 @@ function help() {
     "  --host <host>            Bind host (default: 127.0.0.1)",
     "  --port <n>               Bind port (default: 7357; use 0 for random)",
     "  --token <token>          Require token for all endpoints (recommended)",
+    "  --watch                 Start background refresh loop and stream SSE events",
+    "  --watch-interval <ms>    Watch interval (default: 2000)",
+    "  --watch-no-sync          For --watch: do not run rmemo sync",
+    "  --watch-embed            For --watch: also run embed auto",
     "  --allow-refresh          Allow generating handoff/pr on request (?refresh=1)",
     "  --allow-write            Allow write actions (todos/log/sync/embed) over HTTP (token required)",
     "  --allow-shutdown         Allow POST /shutdown (token required if set)",
@@ -27,9 +31,16 @@ export async function cmdServe({ flags }) {
   const allowWrite = !!flags["allow-write"];
   const allowShutdown = !!flags["allow-shutdown"];
   const cors = !!flags.cors;
+  const watch = !!flags.watch;
+  const watchIntervalMs = flags["watch-interval"] !== undefined ? Number(flags["watch-interval"]) : 2000;
+  const watchSync = flags["watch-no-sync"] ? false : true;
+  const watchEmbed = !!flags["watch-embed"];
 
   if (Number.isNaN(port) || port < 0 || port > 65535) {
     throw new Error(`Invalid --port: ${flags.port}`);
+  }
+  if (Number.isNaN(watchIntervalMs) || watchIntervalMs < 200) {
+    throw new Error(`Invalid --watch-interval: ${flags["watch-interval"]}`);
   }
 
   if (flags.help) {
@@ -37,14 +48,28 @@ export async function cmdServe({ flags }) {
     return;
   }
 
-  const r = await startServe(root, { host, port, token, allowRefresh, allowWrite, allowShutdown, cors });
+  const r = await startServe(root, {
+    host,
+    port,
+    token,
+    watch,
+    watchIntervalMs,
+    watchSync,
+    watchEmbed,
+    allowRefresh,
+    allowWrite,
+    allowShutdown,
+    cors
+  });
 
   process.stdout.write(`Listening: ${r.baseUrl}\n`);
   process.stdout.write(`Root: ${root}\n`);
   process.stdout.write(`Auth: ${token ? "token required" : "none (localhost only recommended)"}\n`);
+  process.stdout.write(`Watch: ${watch ? `on (interval=${watchIntervalMs}ms sync=${watchSync ? "yes" : "no"} embed=${watchEmbed ? "yes" : "no"})` : "off"}\n`);
   process.stdout.write(`Endpoints:\n`);
   process.stdout.write(`- GET /health\n`);
   process.stdout.write(`- GET /ui\n`);
+  process.stdout.write(`- GET /events (SSE)\n`);
   process.stdout.write(`- GET /status?format=json|md\n`);
   process.stdout.write(`- GET /context\n`);
   process.stdout.write(`- GET /rules, /rules.json, /todos\n`);

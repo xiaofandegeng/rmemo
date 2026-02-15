@@ -202,6 +202,7 @@ Goals:
 Done:
 - Add `rmemo serve` (local HTTP API; read-only by default)
 - Add `GET /ui` (single-file local dashboard; unauthenticated)
+- Add `GET /events` (SSE stream) and `rmemo serve --watch` to keep memory fresh automatically
 - Endpoints:
   - `GET /status` (json|md)
   - `GET /context`

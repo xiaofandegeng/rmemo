@@ -205,6 +205,7 @@ rmemo serve --root . --token devtoken --port 7357
 
 Then fetch:
 - `GET /ui` (local dashboard)
+- `GET /events` (SSE stream; for live updates)
 - `GET /status?format=json`
 - `GET /context`
 - `GET /rules`
@@ -216,6 +217,12 @@ Optional: enable write actions (token required):
 
 ```bash
 rmemo serve --root . --token devtoken --allow-write
+```
+
+Optional: keep repo memory fresh automatically (watch mode) and stream events:
+
+```bash
+rmemo serve --root . --token devtoken --watch --watch-interval 2000
 ```
 
 Write endpoints:

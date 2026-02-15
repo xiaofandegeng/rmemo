@@ -129,6 +129,12 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <button class="btn secondary" id="loadContext">Context</button>
               </div>
 
+              <div class="row">
+                <button class="btn secondary" id="startEvents">Events On</button>
+                <button class="btn secondary" id="stopEvents">Events Off</button>
+                <div class="hint" id="eventsState" style="margin: 0;">events: off</div>
+              </div>
+
               <div class="panel" style="border-radius: 12px;">
                 <div class="ph"><strong>Quick Write</strong></div>
                 <div class="pb">
@@ -389,6 +395,34 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Embed Auto";
       }
 
+      let evt = null;
+      function stopEvents() {
+        try { evt && evt.close && evt.close(); } catch {}
+        evt = null;
+        qs("#eventsState").textContent = "events: off";
+      }
+
+      function startEvents() {
+        stopEvents();
+        const token = (qs("#token").value || "").trim();
+        const u = new URL(API_BASE + "/events", location.origin);
+        if (token) u.searchParams.set("token", token);
+        evt = new EventSource(u.toString());
+        qs("#eventsState").textContent = "events: connecting...";
+        evt.addEventListener("open", () => {
+          qs("#eventsState").textContent = "events: on";
+        });
+        evt.addEventListener("error", () => {
+          qs("#eventsState").textContent = "events: error";
+        });
+        // On watch refresh events, update status to keep UI current.
+        evt.addEventListener("refresh:ok", () => {
+          // Best-effort refresh; don't break UI if token expired.
+          loadStatus().catch(() => {});
+          loadTodos().catch(() => {});
+        });
+      }
+
       qs("#saveToken").addEventListener("click", saveToken);
       qs("#clearToken").addEventListener("click", clearToken);
       qs("#refreshAll").addEventListener("click", async () => { await loadStatus(); });
@@ -403,6 +437,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));
       qs("#doSync").addEventListener("click", () => doSync().catch((e) => { err(String(e)); msg(""); }));
       qs("#doEmbedAuto").addEventListener("click", () => doEmbedAuto().catch((e) => { err(String(e)); msg(""); }));
+      qs("#startEvents").addEventListener("click", () => startEvents());
+      qs("#stopEvents").addEventListener("click", () => stopEvents());
 
       qs("#tabs").addEventListener("click", (ev) => {
         const t = ev.target && ev.target.dataset && ev.target.dataset.tab;

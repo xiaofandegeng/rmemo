@@ -69,6 +69,8 @@ export async function watchRepo(root, opts = {}) {
     once = false,
     sync = true,
     embed = false,
+    signal = null,
+    noSignals = false,
     onEvent = null
   } = opts;
 
@@ -114,8 +116,14 @@ export async function watchRepo(root, opts = {}) {
     stopped = true;
     emit({ type: "stop", reason });
   };
-  process.on("SIGINT", () => stop("SIGINT"));
-  process.on("SIGTERM", () => stop("SIGTERM"));
+  if (!noSignals) {
+    process.on("SIGINT", () => stop("SIGINT"));
+    process.on("SIGTERM", () => stop("SIGTERM"));
+  }
+  if (signal) {
+    if (signal.aborted) stop("aborted");
+    else signal.addEventListener("abort", () => stop("aborted"), { once: true });
+  }
 
   while (!stopped) {
     // eslint-disable-next-line no-await-in-loop
