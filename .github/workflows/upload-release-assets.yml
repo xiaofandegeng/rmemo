@@ -37,8 +37,69 @@ jobs:
             const repo = context.repo.repo;
             const tag = "${{ inputs.tag }}";
 
-            const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
-            const release_id = rel.data.id;
+            function stripV(t) {
+              return String(t || "").replace(/^v/i, "");
+            }
+
+            function extractChangelogBody(version) {
+              const p = path.join(process.cwd(), "CHANGELOG.md");
+              if (!fs.existsSync(p)) return "";
+              const s = fs.readFileSync(p, "utf8");
+              // Match headings like:
+              //   ## 0.3.1
+              //   ## [0.3.1]
+              //   ## 0.3.1 (2026-02-14)
+              const v = String(version).replace(/[.*+?^${}()|[\]\\]/g, "\\\\$&");
+              const re = new RegExp(`^##\\\\s*(?:\\\\[)?${v}(?:\\\\])?(?:\\\\s*\\\\([^\\\\n]*\\\\))?\\\\s*$`, "m");
+              const m = s.match(re);
+              if (!m) return "";
+              const start = m.index + m[0].length;
+              const rest = s.slice(start);
+              const next = rest.match(/^##\\\\s+/m);
+              const section = (next ? rest.slice(0, next.index) : rest).trim();
+              // Keep the version heading out of the body; GitHub Release already shows tag.
+              return section;
+            }
+
+            async function ensureRelease() {
+              try {
+                const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+                return rel.data;
+              } catch (e) {
+                const status = e?.status || e?.response?.status;
+                if (status !== 404) throw e;
+
+                const version = stripV(tag);
+                let body = extractChangelogBody(version);
+                if (!body) {
+                  // Best-effort: ask GitHub to generate notes; if it fails, fall back to empty.
+                  try {
+                    const notes = await github.rest.repos.generateReleaseNotes({
+                      owner,
+                      repo,
+                      tag_name: tag,
+                      name: tag
+                    });
+                    body = notes?.data?.body || "";
+                  } catch (_) {}
+                }
+
+                core.info(`Release for ${tag} not found; creating one now...`);
+                const created = await github.rest.repos.createRelease({
+                  owner,
+                  repo,
+                  tag_name: tag,
+                  name: tag,
+                  body: body || "",
+                  draft: false,
+                  prerelease: false
+                });
+                return created.data;
+              }
+            }
+
+            const rel = await ensureRelease();
+            const release_id = rel.id;
 
             const files = fs.readdirSync(process.cwd()).filter((f) => f.endsWith(".tgz"));
             if (!files.length) {
@@ -69,4 +130,3 @@ jobs:
                 }
               });
             }
-
