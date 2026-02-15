@@ -188,6 +188,21 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                     <button class="btn secondary" id="doSync">Sync</button>
                     <button class="btn secondary" id="doEmbedAuto">Embed Auto</button>
                   </div>
+
+                  <div style="height: 10px;"></div>
+
+                  <label>Refresh repo memory</label>
+                  <div class="row">
+                    <label style="display:flex; gap:6px; align-items:center;">
+                      <input id="refreshSync" type="checkbox" checked />
+                      <span class="hint" style="margin:0;">sync</span>
+                    </label>
+                    <label style="display:flex; gap:6px; align-items:center;">
+                      <input id="refreshEmbed" type="checkbox" />
+                      <span class="hint" style="margin:0;">embed</span>
+                    </label>
+                    <button class="btn secondary" id="doRefreshRepo">Refresh Now</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -413,6 +428,19 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Embed Auto";
       }
 
+      async function doRefreshRepo() {
+        err(""); msg("Refreshing repo memory...");
+        const sync = !!qs("#refreshSync").checked;
+        const embed = !!qs("#refreshEmbed").checked;
+        const j = await apiPost("/refresh", { sync, embed });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Refresh";
+        await loadStatus();
+        await loadTodos();
+      }
+
       let evt = null;
       function stopEvents() {
         try { evt && evt.close && evt.close(); } catch {}
@@ -470,6 +498,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));
       qs("#doSync").addEventListener("click", () => doSync().catch((e) => { err(String(e)); msg(""); }));
       qs("#doEmbedAuto").addEventListener("click", () => doEmbedAuto().catch((e) => { err(String(e)); msg(""); }));
+      qs("#doRefreshRepo").addEventListener("click", () => doRefreshRepo().catch((e) => { err(String(e)); msg(""); }));
       qs("#startEvents").addEventListener("click", () => startEvents());
       qs("#stopEvents").addEventListener("click", () => stopEvents());
 

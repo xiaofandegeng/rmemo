@@ -10,6 +10,7 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/search?mode=semantic"));
   assert.ok(html.includes("/focus?q="));
   assert.ok(html.includes("/events"));
+  assert.ok(html.includes("/refresh"));
   // Should not embed tokens.
   assert.ok(!html.toLowerCase().includes("rmemo_token="));
 });
