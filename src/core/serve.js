@@ -108,6 +108,72 @@ export function createEventsBus({ max = 200 } = {}) {
   return { add, emit, history: () => history.slice(), size: () => clients.size };
 }
 
+export function createWatchController(root, { events, watchState } = {}) {
+  let abort = null;
+
+  const ctl = {
+    start: async ({ intervalMs, sync, embed } = {}) => {
+      // Restart semantics: stop existing then start with new config.
+      await ctl.stop("restart");
+      if (intervalMs !== undefined && intervalMs !== null) watchState.intervalMs = Number(intervalMs);
+      if (sync !== undefined) watchState.sync = !!sync;
+      if (embed !== undefined) watchState.embed = !!embed;
+      if (!Number.isFinite(watchState.intervalMs) || watchState.intervalMs < 200) {
+        throw new Error(`Invalid watch intervalMs: ${watchState.intervalMs}`);
+      }
+
+      abort = new AbortController();
+      watchState.enabled = true;
+      events?.emit?.({ type: "watch:starting", intervalMs: watchState.intervalMs, sync: watchState.sync, embed: watchState.embed });
+
+      void watchRepo(root, {
+        preferGit: true,
+        maxFiles: 4000,
+        snipLines: 120,
+        recentDays: 7,
+        intervalMs: watchState.intervalMs,
+        once: false,
+        sync: watchState.sync,
+        embed: watchState.embed,
+        signal: abort.signal,
+        noSignals: true,
+        onEvent: (e) => {
+          if (e.type === "refresh:ok") {
+            watchState.lastOkAt = e.at;
+          } else if (e.type === "refresh:err") {
+            watchState.lastErrAt = e.at;
+            watchState.lastErr = e.error || null;
+          } else if (e.type === "stop") {
+            watchState.enabled = false;
+          }
+          events?.emit?.(e);
+        }
+      }).catch((e) => {
+        events?.emit?.({ type: "watch:error", error: e?.message || String(e) });
+      });
+
+      return { enabled: true, intervalMs: watchState.intervalMs, sync: watchState.sync, embed: watchState.embed };
+    },
+    stop: async (reason = "stop") => {
+      if (!abort) {
+        watchState.enabled = false;
+        return { enabled: false };
+      }
+      try {
+        abort.abort();
+      } catch {
+        // ignore
+      }
+      abort = null;
+      watchState.enabled = false;
+      events?.emit?.({ type: "watch:stopping", reason });
+      return { enabled: false };
+    }
+  };
+
+  return ctl;
+}
+
 function parseAuthToken(req, url) {
   const q = url.searchParams.get("token");
   if (q) return q;
@@ -281,7 +347,7 @@ async function searchInText({ file, text, q, maxHits = 50 }) {
 }
 
 export function createServeHandler(root, opts = {}) {
-  const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer, events, watchState } = opts;
+  const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer, events, watchState, getWatchCtl } = opts;
 
   return async function handler(req, res) {
     const url = new URL(req.url || "/", `http://${host}:${port || 80}`);
@@ -371,6 +437,23 @@ export function createServeHandler(root, opts = {}) {
             lastErr: ws.lastErr || null
           }
         });
+      }
+
+      if (req.method === "POST" && url.pathname === "/watch/start") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const intervalMs = body.intervalMs !== undefined ? Number(body.intervalMs) : undefined;
+        const sync = body.sync !== undefined ? !!body.sync : undefined;
+        const embed = body.embed !== undefined ? !!body.embed : undefined;
+        const r = await getWatchCtl?.()?.start?.({ intervalMs, sync, embed });
+        return json(res, 200, { ok: true, result: r || null });
+      }
+
+      if (req.method === "POST" && url.pathname === "/watch/stop") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const r = await getWatchCtl?.()?.stop?.("api");
+        return json(res, 200, { ok: true, result: r || null });
       }
 
       if (req.method === "POST" && url.pathname === "/refresh") {
@@ -690,6 +773,7 @@ export async function startServe(root, opts = {}) {
     lastErrAt: null,
     lastErr: null
   };
+  const watchCtl = createWatchController(root, { events, watchState });
   const handler = createServeHandler(root, {
     host,
     port,
@@ -700,7 +784,8 @@ export async function startServe(root, opts = {}) {
     cors,
     getServer: () => server,
     events,
-    watchState
+    watchState,
+    getWatchCtl: () => watchCtl
   });
 
   server = http.createServer((req, res) => {
@@ -722,43 +807,14 @@ export async function startServe(root, opts = {}) {
       server.close(() => resolve());
     });
 
-  const abort = new AbortController();
-  const stopWatch = () => abort.abort();
   if (watch) {
-    watchState.enabled = true;
-    events.emit({ type: "watch:starting", intervalMs: watchIntervalMs, sync: watchSync, embed: watchEmbed });
-    // Run in background; any errors are surfaced as events.
-    void watchRepo(root, {
-      preferGit: true,
-      maxFiles: 4000,
-      snipLines: 120,
-      recentDays: 7,
-      intervalMs: watchIntervalMs,
-      once: false,
-      sync: watchSync,
-      embed: watchEmbed,
-      signal: abort.signal,
-      noSignals: true,
-      onEvent: (e) => {
-        if (e.type === "refresh:ok") {
-          watchState.lastOkAt = e.at;
-        } else if (e.type === "refresh:err") {
-          watchState.lastErrAt = e.at;
-          watchState.lastErr = e.error || null;
-        } else if (e.type === "stop") {
-          watchState.enabled = false;
-        }
-        events.emit(e);
-      }
-    }).catch((e) => {
-      events.emit({ type: "watch:error", error: e?.message || String(e) });
-    });
+    await watchCtl.start({ intervalMs: watchIntervalMs, sync: watchSync, embed: watchEmbed });
   }
 
   const closeAll = async () => {
-    stopWatch();
+    await watchCtl.stop("server-close");
     await close();
   };
 
-  return { server, host, port: actualPort, baseUrl, close: closeAll, events };
+  return { server, host, port: actualPort, baseUrl, close: closeAll, events, watchCtl };
 }

@@ -4,7 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import fs from "node:fs/promises";
 import { Readable } from "node:stream";
-import { createEventsBus, createServeHandler } from "../src/core/serve.js";
+import { createEventsBus, createServeHandler, createWatchController } from "../src/core/serve.js";
 import { fileExists, readText } from "../src/lib/io.js";
 import { memDir, todosPath, journalDir } from "../src/lib/paths.js";
 
@@ -216,4 +216,41 @@ test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWri
   assert.ok(await fileExists(path.join(root, ".repo-memory", "context.md")));
   assert.ok(await fileExists(path.join(root, ".repo-memory", "manifest.json")));
   assert.ok(await fileExists(path.join(root, ".repo-memory", "index.json")));
+});
+
+test("serve handler: POST /watch/start and /watch/stop control watch state", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
+  await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
+
+  const events = createEventsBus();
+  const watchState = { enabled: false, intervalMs: 2000, sync: true, embed: false, lastOkAt: null, lastErrAt: null, lastErr: null };
+  const watchCtl = createWatchController(root, { events, watchState });
+
+  const handler = createServeHandler(root, {
+    host: "127.0.0.1",
+    port: 7357,
+    token: "t",
+    allowWrite: true,
+    events,
+    watchState,
+    getWatchCtl: () => watchCtl
+  });
+
+  const s0 = await run(handler, { method: "GET", url: "/watch?token=t" });
+  assert.equal(s0.status, 200);
+  assert.ok(s0.body.includes("\"enabled\": false"));
+
+  const start = await run(handler, { method: "POST", url: "/watch/start?token=t", bodyObj: { intervalMs: 200, sync: false, embed: false } });
+  assert.equal(start.status, 200);
+
+  const s1 = await run(handler, { method: "GET", url: "/watch?token=t" });
+  assert.equal(s1.status, 200);
+  assert.ok(s1.body.includes("\"enabled\": true"));
+
+  const stop = await run(handler, { method: "POST", url: "/watch/stop?token=t", bodyObj: {} });
+  assert.equal(stop.status, 200);
+
+  const s2 = await run(handler, { method: "GET", url: "/watch?token=t" });
+  assert.equal(s2.status, 200);
+  assert.ok(s2.body.includes("\"enabled\": false"));
 });

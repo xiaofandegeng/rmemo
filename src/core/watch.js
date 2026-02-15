@@ -9,8 +9,21 @@ import { syncAiInstructions } from "./sync.js";
 import { getGitSummary, gitOk, revParse } from "./git_summary.js";
 import { embedAuto } from "./embed_auto.js";
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+function sleep(ms, signal) {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve();
+    const t = setTimeout(resolve, ms);
+    if (signal) {
+      signal.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(t);
+          resolve();
+        },
+        { once: true }
+      );
+    }
+  });
 }
 
 function nowIso() {
@@ -127,7 +140,7 @@ export async function watchRepo(root, opts = {}) {
 
   while (!stopped) {
     // eslint-disable-next-line no-await-in-loop
-    await sleep(Math.max(200, intervalMs));
+    await sleep(Math.max(200, intervalMs), signal);
     // eslint-disable-next-line no-await-in-loop
     const sig = await computeSignature(root, { preferGit });
     if (sig.sig !== last) {

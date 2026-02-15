@@ -81,6 +81,8 @@ export async function cmdServe({ flags }) {
   if (allowRefresh) process.stdout.write(`- GET /handoff?refresh=1, /pr?refresh=1\n`);
   if (allowWrite) {
     process.stdout.write(`- POST /refresh {sync?,embed?}\n`);
+    process.stdout.write(`- POST /watch/start {intervalMs?,sync?,embed?}\n`);
+    process.stdout.write(`- POST /watch/stop\n`);
     process.stdout.write(`- POST /todos/next {text}\n`);
     process.stdout.write(`- POST /todos/blockers {text}\n`);
     process.stdout.write(`- POST /todos/next/done {index}\n`);

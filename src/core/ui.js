@@ -145,6 +145,33 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <pre id="live" style="max-height: 160px;"></pre>
               </div>
 
+              <div class="subpanel">
+                <div class="row" style="justify-content: space-between;">
+                  <label style="margin: 0;">Watch</label>
+                  <span class="hint" style="margin: 0;">from <span style="font-family: var(--mono)">GET /watch</span></span>
+                </div>
+                <div style="height: 8px;"></div>
+                <div class="row">
+                  <button class="btn secondary" id="loadWatch">Load</button>
+                  <button class="btn secondary" id="startWatch">Start</button>
+                  <button class="btn secondary" id="stopWatch">Stop</button>
+                </div>
+                <div style="height: 8px;"></div>
+                <div class="row">
+                  <input id="watchInterval" type="text" placeholder="interval ms" style="width: 140px;" />
+                  <label style="display:flex; gap:6px; align-items:center;">
+                    <input id="watchSync" type="checkbox" checked />
+                    <span class="hint" style="margin:0;">sync</span>
+                  </label>
+                  <label style="display:flex; gap:6px; align-items:center;">
+                    <input id="watchEmbed" type="checkbox" />
+                    <span class="hint" style="margin:0;">embed</span>
+                  </label>
+                </div>
+                <div class="hint">Start/Stop requires <span style="font-family: var(--mono)">rmemo serve --allow-write</span>.</div>
+                <pre id="watchOut" style="max-height: 160px;"></pre>
+              </div>
+
               <div class="panel" style="border-radius: 12px;">
                 <div class="ph"><strong>Quick Write</strong></div>
                 <div class="pb">
@@ -347,6 +374,15 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         msg("OK");
         qs("#title").textContent = "Context";
       }
+
+      async function loadWatch() {
+        try {
+          const j = await apiFetch("/watch", { accept: "application/json", json: true });
+          qs("#watchOut").textContent = JSON.stringify(j, null, 2);
+        } catch (e) {
+          qs("#watchOut").textContent = String(e);
+        }
+      }
       async function doSearch() {
         err(""); msg("Searching...");
         const q = (qs("#q").value || "").trim();
@@ -458,6 +494,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("open", () => {
           qs("#eventsState").textContent = "events: on";
           pushLive({ type: "events:open" });
+          loadWatch().catch(() => {});
         });
         evt.addEventListener("error", () => {
           qs("#eventsState").textContent = "events: error";
@@ -478,9 +515,15 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         });
         evt.addEventListener("watch:starting", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "watch:starting"); }
+          loadWatch().catch(() => {});
+        });
+        evt.addEventListener("watch:stopping", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "watch:stopping"); }
+          loadWatch().catch(() => {});
         });
         evt.addEventListener("watch:error", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "watch:error"); }
+          loadWatch().catch(() => {});
         });
       }
 
@@ -501,6 +544,13 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#doRefreshRepo").addEventListener("click", () => doRefreshRepo().catch((e) => { err(String(e)); msg(""); }));
       qs("#startEvents").addEventListener("click", () => startEvents());
       qs("#stopEvents").addEventListener("click", () => stopEvents());
+      qs("#loadWatch").addEventListener("click", () => loadWatch().catch(() => {}));
+      qs("#startWatch").addEventListener("click", () => apiPost("/watch/start", {
+        intervalMs: Number((qs("#watchInterval").value || "").trim() || 2000),
+        sync: !!qs("#watchSync").checked,
+        embed: !!qs("#watchEmbed").checked
+      }).then(() => loadWatch()).catch((e) => { err(String(e)); msg(""); }));
+      qs("#stopWatch").addEventListener("click", () => apiPost("/watch/stop", {}).then(() => loadWatch()).catch((e) => { err(String(e)); msg(""); }));
 
       qs("#tabs").addEventListener("click", (ev) => {
         const t = ev.target && ev.target.dataset && ev.target.dataset.tab;
@@ -512,6 +562,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       setTab("md");
       qs("#base").textContent = location.origin + API_BASE;
       loadStatus().catch((e) => { err(String(e)); msg(""); });
+      loadWatch().catch(() => {});
     </script>
   </body>
 </html>
