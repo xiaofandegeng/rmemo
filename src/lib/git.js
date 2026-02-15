@@ -28,6 +28,60 @@ async function gitTopLevel(root) {
   return stdout.trim();
 }
 
+export async function gitHead(root) {
+  try {
+    const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
+    return stdout.trim();
+  } catch {
+    return "";
+  }
+}
+
+function parseNulList(stdout) {
+  return String(stdout || "")
+    .split("\0")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export async function gitStatusChangedFiles(root) {
+  // Returns paths relative to cwd (root).
+  try {
+    const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-z"], { cwd: root, maxBuffer: 1024 * 1024 * 20 });
+    const toks = parseNulList(stdout);
+    const out = new Set();
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i];
+      if (t.length < 4) continue;
+      const x = t[0];
+      const y = t[1];
+      const p1 = t.slice(3);
+      if (p1) out.add(p1);
+      // Renames/copies: next token is the new path.
+      const isRenameOrCopy = x === "R" || x === "C" || y === "R" || y === "C";
+      if (isRenameOrCopy) {
+        const p2 = toks[i + 1];
+        if (p2) out.add(p2);
+        i++;
+      }
+    }
+    return out;
+  } catch {
+    return new Set();
+  }
+}
+
+export async function gitDiffNameOnly(root, fromRef, toRef, { pathspec = "." } = {}) {
+  // Returns paths relative to cwd (root).
+  try {
+    const args = ["diff", "--name-only", "-z", `${fromRef}..${toRef}`, "--", pathspec];
+    const { stdout } = await execFileAsync("git", args, { cwd: root, maxBuffer: 1024 * 1024 * 50 });
+    return new Set(parseNulList(stdout));
+  } catch {
+    return new Set();
+  }
+}
+
 function toPosixRel(p) {
   // Convert a filesystem relative path to the posix-ish form git returns.
   return p.split(path.sep).join("/");

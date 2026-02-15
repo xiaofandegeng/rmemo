@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileExists, readJson, readText, writeJson } from "../lib/io.js";
 import { contextPath, embeddingsIndexPath, embeddingsMetaPath, handoffPath, journalDir, prPath, rulesPath, sessionsDir, todosPath } from "../lib/paths.js";
+import { gitDiffNameOnly, gitHead, gitStatusChangedFiles, hasGit, isGitRepo } from "../lib/git.js";
 
 function sha256Hex(s) {
   return crypto.createHash("sha256").update(String(s || ""), "utf8").digest("hex");
@@ -314,6 +315,13 @@ export async function embeddingsUpToDate(
   const files = idx && idx.files && typeof idx.files === "object" ? idx.files : null;
   if (!files) return { ok: false, reason: "missing_files_index" };
 
+  const gitOk = (await hasGit()) && (await isGitRepo(root));
+  const curHead = gitOk ? await gitHead(root) : "";
+  const prevHead = String(meta.gitHead || "");
+  const dirty = gitOk ? await gitStatusChangedFiles(root) : new Set();
+  const changedByCommits =
+    gitOk && prevHead && curHead && prevHead !== curHead ? await gitDiffNameOnly(root, prevHead, curHead, { pathspec: "." }) : new Set();
+
   const docList = await buildDocList(root, { kinds, recentDays });
   for (const d of docList) {
     const fileRel = path.relative(root, d.abs).replace(/\\/g, "/");
@@ -323,7 +331,13 @@ export async function embeddingsUpToDate(
     if (!stamp) return { ok: false, reason: "file_missing", file: fk };
     const prev = files[fk];
     if (!prev) return { ok: false, reason: "file_not_indexed", file: fk };
-    if (Number(prev.size) !== stamp.size || Number(prev.mtimeMs) !== stamp.mtimeMs) return { ok: false, reason: "file_changed", file: fk };
+    // If git is available, use git-aware change detection to avoid false positives from timestamp changes.
+    if (gitOk && prevHead && curHead) {
+      if (dirty.has(fileRel)) return { ok: false, reason: "file_dirty", file: fk };
+      if (changedByCommits.has(fileRel)) return { ok: false, reason: "file_changed_in_git", file: fk };
+    } else {
+      if (Number(prev.size) !== stamp.size || Number(prev.mtimeMs) !== stamp.mtimeMs) return { ok: false, reason: "file_changed", file: fk };
+    }
     if (!Array.isArray(prev.ids) || prev.ids.length === 0) return { ok: false, reason: "file_ids_missing", file: fk };
   }
 
@@ -366,6 +380,13 @@ export async function buildEmbeddingsIndex(
 
   const docList = await buildDocList(root, { kinds, recentDays });
   const prevFiles = prev && prev.files && typeof prev.files === "object" ? prev.files : null;
+  const gitRepo = (await hasGit()) && (await isGitRepo(root));
+  const curHead = gitRepo ? await gitHead(root) : "";
+  const gitOk = canReuse && gitRepo;
+  const prevHead = gitOk ? String(prevMeta?.gitHead || "") : "";
+  const dirty = gitOk ? await gitStatusChangedFiles(root) : new Set();
+  const changedByCommits =
+    gitOk && prevHead && curHead && prevHead !== curHead ? await gitDiffNameOnly(root, prevHead, curHead, { pathspec: "." }) : new Set();
 
   const prevById = new Map();
   if (prev && Array.isArray(prev.items)) {
@@ -390,6 +411,29 @@ export async function buildEmbeddingsIndex(
     }
 
     // Fast path: if previous index has per-file metadata and file stats match, reuse without reading/chunking.
+    // Git-aware path: reuse if file is clean AND unchanged between prevHead..curHead.
+    if (prevFiles && prevFiles[fk] && gitOk && !dirty.has(fileRel) && !changedByCommits.has(fileRel)) {
+      const ids = Array.isArray(prevFiles[fk].ids) ? prevFiles[fk].ids : [];
+      const keep = [];
+      for (const id of ids) {
+        const it = prevById.get(id);
+        if (!it || !it.vectorB64 || !it.textHash) continue;
+        keep.push(it);
+        if (outItems.length + keep.length >= maxTotalChunks) break;
+      }
+      if (keep.length) {
+        reusedFiles++;
+        reusedItems += keep.length;
+        outItems.push(...keep);
+        // Update stamps for future non-git checks too.
+        if (st) outFiles[fk] = { kind: d.kind, file: fileRel, size: st.size, mtimeMs: st.mtimeMs, ids: keep.map((x) => x.id) };
+        else outFiles[fk] = { kind: d.kind, file: fileRel, size: Number(prevFiles[fk].size || 0), mtimeMs: Number(prevFiles[fk].mtimeMs || 0), ids: keep.map((x) => x.id) };
+        if (outItems.length >= maxTotalChunks) break;
+        continue;
+      }
+    }
+
+    // Stamp-based path: reuse if file stats match.
     if (prevFiles && st && prevFiles[fk] && Number(prevFiles[fk].size) === Number(st.size) && Number(prevFiles[fk].mtimeMs) === Number(st.mtimeMs)) {
       const ids = Array.isArray(prevFiles[fk].ids) ? prevFiles[fk].ids : [];
       const keep = [];
@@ -470,6 +514,7 @@ export async function buildEmbeddingsIndex(
     dim: embedder.provider === "mock" ? Number(embedder.dim) : undefined,
     startedAt,
     finishedAt: new Date().toISOString(),
+    gitHead: gitRepo ? curHead : "",
     kinds,
     recentDays,
     maxChunksPerFile,
