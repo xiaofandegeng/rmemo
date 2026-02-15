@@ -74,6 +74,9 @@ ${q(rmemoBinAbs)} --root "$repo_root" --staged check
 if ! ${q(rmemoBinAbs)} --root "$repo_root" sync >/dev/null 2>&1; then
   echo "rmemo: sync failed (non-blocking) for ${hookName}" >&2
 fi
+if ! ${q(rmemoBinAbs)} --root "$repo_root" embed auto >/dev/null 2>&1; then
+  echo "rmemo: embed auto failed (non-blocking) for ${hookName}" >&2
+fi
 exit 0
 `
   );
@@ -124,12 +127,12 @@ async function installHook({ repoRoot, hookName, rmemoBinAbs, force }) {
   return { hook: hookName, path: hookPath, installed: true, skipped: false };
 }
 
-async function ensureConfig(rootAbs, { targets, force }) {
+async function ensureConfig(rootAbs, { targets, embed, force }) {
   const p = configPath(rootAbs);
   const wanted = (targets && targets.length ? targets : getDefaultSyncTargets()).map((t) => String(t).toLowerCase());
 
   if (await fileExists(p)) {
-    if (!force && (!targets || !targets.length)) return { path: p, changed: false };
+    if (!force && (!targets || !targets.length) && embed === null) return { path: p, changed: false };
     try {
       const cfg = await readJson(p);
       const next = {
@@ -139,17 +142,20 @@ async function ensureConfig(rootAbs, { targets, force }) {
           ...(cfg?.sync || {}),
           enabled: true,
           targets: wanted
-        }
+        },
+        embed: embed === null ? cfg?.embed : { ...(cfg?.embed || {}), ...embed }
       };
       await writeJson(p, next);
       return { path: p, changed: true };
     } catch {
       // Fallthrough: overwrite invalid config if force or explicit targets were provided.
-      if (!force && (!targets || !targets.length)) return { path: p, changed: false };
+      if (!force && (!targets || !targets.length) && embed === null) return { path: p, changed: false };
     }
   }
 
-  await writeJson(p, { schema: 1, sync: { enabled: true, targets: wanted } });
+  const base = { schema: 1, sync: { enabled: true, targets: wanted } };
+  const next = embed === null ? base : { ...base, embed };
+  await writeJson(p, next);
   return { path: p, changed: true };
 }
 
@@ -249,7 +255,7 @@ export async function uninstallSetup({ root, hooks, removeConfig = false } = {})
   return { repoRoot, config: cfg, hooks: hookResults, ok };
 }
 
-export async function setupRepo({ root, targets, hooks, force = false } = {}) {
+export async function setupRepo({ root, targets, hooks, embed = null, force = false } = {}) {
   const rootAbs = path.resolve(root || process.cwd());
 
   let repoRoot;
@@ -262,7 +268,7 @@ export async function setupRepo({ root, targets, hooks, force = false } = {}) {
   }
 
   await ensureRepoMemory(repoRoot);
-  const cfg = await ensureConfig(repoRoot, { targets, force });
+  const cfg = await ensureConfig(repoRoot, { targets, embed, force });
 
   const rmemoBinAbs = path.resolve(process.argv[1]);
   const hookList = hooks || [];

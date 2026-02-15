@@ -5,7 +5,9 @@ import { cmdStatus } from "./status.js";
 function printEvent(e) {
   const head = `[${e.at}]`;
   if (e.type === "start") {
-    process.stdout.write(`${head} watch start usingGit=${e.usingGit ? "yes" : "no"} intervalMs=${e.intervalMs} sync=${e.sync}\n`);
+    process.stdout.write(
+      `${head} watch start usingGit=${e.usingGit ? "yes" : "no"} intervalMs=${e.intervalMs} sync=${e.sync} embed=${e.embed ? "yes" : "no"}\n`
+    );
     return;
   }
   if (e.type === "refresh:start") {
@@ -35,6 +37,7 @@ export async function cmdWatch({ flags }) {
   const intervalMs = Number(flags.interval || flags["interval-ms"] || 2000);
   const once = !!flags.once;
   const sync = flags["no-sync"] ? false : true;
+  const embed = !!flags.embed;
   const mode = String(flags.mode || "brief").toLowerCase();
 
   await watchRepo(root, {
@@ -45,6 +48,7 @@ export async function cmdWatch({ flags }) {
     intervalMs,
     once,
     sync,
+    embed,
     onEvent: async (e) => {
       printEvent(e);
       if (e.type === "refresh:ok") {
@@ -55,4 +59,3 @@ export async function cmdWatch({ flags }) {
     }
   });
 }
-

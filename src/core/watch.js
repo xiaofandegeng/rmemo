@@ -7,6 +7,7 @@ import { scanRepo } from "./scan.js";
 import { generateContext } from "./context.js";
 import { syncAiInstructions } from "./sync.js";
 import { getGitSummary, gitOk, revParse } from "./git_summary.js";
+import { embedAuto } from "./embed_auto.js";
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -43,7 +44,7 @@ async function computeSignature(root, { preferGit }) {
   return { usingGit: false, sig: stamp };
 }
 
-export async function refreshRepoMemory(root, { preferGit, maxFiles, snipLines, recentDays, sync } = {}) {
+export async function refreshRepoMemory(root, { preferGit, maxFiles, snipLines, recentDays, sync, embed } = {}) {
   await ensureRepoMemory(root);
   const { manifest, index } = await scanRepo(root, { maxFiles, preferGit });
   await writeJson(manifestPath(root), manifest);
@@ -53,6 +54,7 @@ export async function refreshRepoMemory(root, { preferGit, maxFiles, snipLines, 
   await fs.writeFile(contextPath(root), ctx, "utf8");
 
   if (sync) await syncAiInstructions({ root });
+  if (embed) await embedAuto(root, { checkOnly: false });
 
   return { schema: 1, generatedAt: nowIso(), root, manifest };
 }
@@ -66,6 +68,7 @@ export async function watchRepo(root, opts = {}) {
     intervalMs = 2000,
     once = false,
     sync = true,
+    embed = false,
     onEvent = null
   } = opts;
 
@@ -75,12 +78,12 @@ export async function watchRepo(root, opts = {}) {
 
   const initSig = await computeSignature(root, { preferGit });
   let last = initSig.sig;
-  emit({ type: "start", usingGit: initSig.usingGit, intervalMs, sync });
+  emit({ type: "start", usingGit: initSig.usingGit, intervalMs, sync, embed });
 
   const runRefresh = async (reason) => {
     emit({ type: "refresh:start", reason });
     try {
-      const r = await refreshRepoMemory(root, { preferGit, maxFiles, snipLines, recentDays, sync });
+      const r = await refreshRepoMemory(root, { preferGit, maxFiles, snipLines, recentDays, sync, embed });
       emit({ type: "refresh:ok", reason, generatedAt: r.generatedAt });
     } catch (err) {
       emit({ type: "refresh:err", reason, error: err?.message || String(err) });
@@ -128,4 +131,3 @@ export async function watchRepo(root, opts = {}) {
     }
   }
 }
-

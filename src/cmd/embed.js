@@ -1,11 +1,13 @@
 import { resolveRoot } from "../lib/paths.js";
 import { exitWithError } from "../lib/io.js";
 import { buildEmbeddingsIndex, embeddingsUpToDate, semanticSearch } from "../core/embeddings.js";
+import { embedAuto } from "../core/embed_auto.js";
 
 function help() {
   return [
     "Usage:",
     "  rmemo embed build [--provider mock|openai] [--kinds <list>]",
+    "  rmemo embed auto [--check]",
     "  rmemo embed search <query> [--k <n>] [--min-score <n>] [--format md|json]",
     "",
     "Notes:",
@@ -15,6 +17,7 @@ function help() {
     "Examples:",
     "  rmemo embed build",
     "  rmemo embed build --provider openai --model text-embedding-3-small",
+    "  rmemo embed auto",
     "  rmemo embed search \"where is auth token validated?\"",
     ""
   ].join("\\n");
@@ -73,6 +76,26 @@ export async function cmdEmbed({ rest, flags }) {
         `- recentDays: ${r.meta.recentDays}`
       ].join("\n") + "\n"
     );
+    return;
+  }
+
+  if (sub === "auto") {
+    const check = !!flags.check;
+    const r = await embedAuto(root, { checkOnly: check });
+    if (r.ok && r.skipped && r.reason === "up_to_date") {
+      process.stdout.write("OK: embeddings are up to date\n");
+      return;
+    }
+    if (r.ok && r.skipped) {
+      process.stdout.write(`OK: embeddings skipped (${r.reason})\n`);
+      return;
+    }
+    if (r.ok) {
+      process.stdout.write("OK: embeddings rebuilt\n");
+      return;
+    }
+    process.stderr.write(`FAIL: embeddings out of date (${r.reason}${r.file ? `: ${r.file}` : ""})\n`);
+    process.exitCode = 1;
     return;
   }
 

@@ -644,6 +644,9 @@ test("rmemo setup writes config and installs multiple git hooks", async () => {
     // eslint-disable-next-line no-await-in-loop
     const s = await fs.readFile(p, "utf8");
     assert.ok(s.includes(`rmemo hook:${h}`), `hook marker should exist: ${h}`);
+    if (h !== "pre-commit") {
+      assert.ok(s.includes("embed auto"), `post hook should include embed auto: ${h}`);
+    }
   }
 });
 
@@ -1209,5 +1212,45 @@ test("rmemo embed build/search supports semantic search (mock provider)", async 
     assert.ok(Array.isArray(j.hits));
     assert.ok(j.hits.length > 0, "semantic search should return hits");
     assert.ok(j.hits.some((h) => String(h.text || "").toLowerCase().includes("auth token")));
+  }
+});
+
+test("rmemo embed auto respects config.json (enabled/disabled)", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-embed-auto-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // Disabled => no index created.
+  await fs.writeFile(
+    path.join(tmp, ".repo-memory", "config.json"),
+    JSON.stringify({ schema: 1, sync: { enabled: true, targets: ["agents"] }, embed: { enabled: false } }, null, 2) + "\n",
+    "utf8"
+  );
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "auto"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(!r.err.includes("FAIL"), "disabled should not fail");
+    assert.equal(await exists(path.join(tmp, ".repo-memory", "embeddings", "index.json")), false);
+  }
+
+  // Enabled => builds index.
+  await fs.writeFile(
+    path.join(tmp, ".repo-memory", "config.json"),
+    JSON.stringify(
+      { schema: 1, sync: { enabled: true, targets: ["agents"] }, embed: { enabled: true, provider: "mock", dim: 32, kinds: ["rules", "todos"] } },
+      null,
+      2
+    ) + "\n",
+    "utf8"
+  );
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "auto"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.equal(await exists(path.join(tmp, ".repo-memory", "embeddings", "index.json")), true);
   }
 });

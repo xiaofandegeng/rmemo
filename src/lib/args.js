@@ -32,7 +32,8 @@ export function parseArgs(argv) {
           k === "auto" ||
           k === "allow-refresh" ||
           k === "allow-shutdown" ||
-          k === "cors"
+          k === "cors" ||
+          k === "embed"
         ) {
           flags[k] = true;
           continue;
