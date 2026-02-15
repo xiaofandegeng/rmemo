@@ -208,12 +208,28 @@ rmemo serve --root . --token devtoken --port 7357
 ```
 
 常用接口：
+- `GET /ui`（本地面板）
 - `GET /status?format=json`
 - `GET /context`
 - `GET /rules`
 - `GET /todos?format=json`
 - `GET /search?q=...`（关键字检索）
 - `GET /search?mode=semantic&q=...`（语义检索；需要先执行 `rmemo embed build`）
+
+可选：开启写入操作（必须设置 token）：
+
+```bash
+rmemo serve --root . --token devtoken --allow-write
+```
+
+写入接口：
+- `POST /todos/next {text}`
+- `POST /todos/blockers {text}`
+- `POST /todos/next/done {index}`（从 1 开始）
+- `POST /todos/blockers/unblock {index}`（从 1 开始）
+- `POST /log {text, kind?}`
+- `POST /sync`
+- `POST /embed/auto`
 
 ## MCP Server（stdio）
 

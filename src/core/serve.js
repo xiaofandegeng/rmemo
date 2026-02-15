@@ -21,6 +21,10 @@ import { generatePr } from "./pr.js";
 import { semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
 import { renderUiHtml } from "./ui.js";
+import { addTodoBlocker, addTodoNext, removeTodoBlockerByIndex, removeTodoNextByIndex } from "./todos.js";
+import { appendJournalEntry } from "./journal.js";
+import { syncAiInstructions } from "./sync.js";
+import { embedAuto } from "./embed_auto.js";
 
 function json(res, code, obj) {
   const s = JSON.stringify(obj, null, 2) + "\n";
@@ -67,6 +71,34 @@ function parseAuthToken(req, url) {
 
 function isLoopbackHost(host) {
   return host === "127.0.0.1" || host === "localhost" || host === "::1";
+}
+
+async function readBodyJson(req, { maxBytes = 200_000 } = {}) {
+  const chunks = [];
+  let total = 0;
+  for await (const ch of req) {
+    const b = Buffer.isBuffer(ch) ? ch : Buffer.from(String(ch));
+    total += b.byteLength;
+    if (total > maxBytes) throw new Error(`Body too large (max ${maxBytes} bytes)`);
+    chunks.push(b);
+  }
+  const buf = Buffer.concat(chunks);
+  const s = buf.toString("utf8").trim();
+  if (!s) return {};
+  try {
+    return JSON.parse(s);
+  } catch {
+    throw new Error("Invalid JSON body");
+  }
+}
+
+async function readBodyJsonOr400(req, res) {
+  try {
+    return await readBodyJson(req);
+  } catch (e) {
+    badRequest(res, e?.message || "Invalid request body");
+    return null;
+  }
 }
 
 async function readMaybe(abs, maxBytes = 2_000_000) {
@@ -196,23 +228,10 @@ async function searchInText({ file, text, q, maxHits = 50 }) {
   return hits;
 }
 
-export async function startServe(root, opts = {}) {
-  const {
-    host = "127.0.0.1",
-    port = 7357,
-    token = "",
-    allowRefresh = false,
-    allowShutdown = false,
-    cors = false
-  } = opts;
+export function createServeHandler(root, opts = {}) {
+  const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer } = opts;
 
-  if (!isLoopbackHost(host) && !token) {
-    throw new Error(`Refusing to bind to non-loopback host without --token (host=${host})`);
-  }
-
-  let server = null;
-
-  const handler = async (req, res) => {
+  return async function handler(req, res) {
     const url = new URL(req.url || "/", `http://${host}:${port || 80}`);
 
     if (cors) {
@@ -254,6 +273,60 @@ export async function startServe(root, opts = {}) {
     }
 
     try {
+      // Write operations: only allowed if allowWrite is true.
+      if (req.method === "POST" && url.pathname.startsWith("/todos/")) {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const textVal = body && body.text !== undefined ? String(body.text).trim() : "";
+        if (url.pathname === "/todos/next") {
+          if (!textVal) return badRequest(res, "Missing text");
+          await addTodoNext(root, textVal);
+          return json(res, 200, { ok: true });
+        }
+        if (url.pathname === "/todos/blockers") {
+          if (!textVal) return badRequest(res, "Missing text");
+          await addTodoBlocker(root, textVal);
+          return json(res, 200, { ok: true });
+        }
+        if (url.pathname === "/todos/next/done") {
+          const idx = body && body.index !== undefined ? body.index : null;
+          if (idx === null || idx === undefined) return badRequest(res, "Missing index");
+          await removeTodoNextByIndex(root, idx);
+          return json(res, 200, { ok: true });
+        }
+        if (url.pathname === "/todos/blockers/unblock") {
+          const idx = body && body.index !== undefined ? body.index : null;
+          if (idx === null || idx === undefined) return badRequest(res, "Missing index");
+          await removeTodoBlockerByIndex(root, idx);
+          return json(res, 200, { ok: true });
+        }
+        return notFound(res);
+      }
+
+      if (req.method === "POST" && url.pathname === "/log") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const textVal = body && body.text !== undefined ? String(body.text).trim() : "";
+        if (!textVal) return badRequest(res, "Missing text");
+        const kind = body && body.kind ? String(body.kind).trim() : "Log";
+        const p = await appendJournalEntry(root, { kind, text: textVal });
+        return json(res, 200, { ok: true, path: p });
+      }
+
+      if (req.method === "POST" && url.pathname === "/sync") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        await syncAiInstructions({ root });
+        return json(res, 200, { ok: true });
+      }
+
+      if (req.method === "POST" && url.pathname === "/embed/auto") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const r = await embedAuto(root, { checkOnly: false });
+        return json(res, 200, { ok: true, result: r });
+      }
+
       if (req.method === "GET" && url.pathname === "/status") {
         const format = String(url.searchParams.get("format") || "json").toLowerCase();
         const mode = String(url.searchParams.get("mode") || "full").toLowerCase();
@@ -449,7 +522,7 @@ export async function startServe(root, opts = {}) {
         if (!allowShutdown) return badRequest(res, "Shutdown not allowed. Start with: rmemo serve --allow-shutdown");
         json(res, 200, { ok: true });
         // Close after responding.
-        setTimeout(() => server?.close(), 10).unref?.();
+        setTimeout(() => getServer?.()?.close(), 10).unref?.();
         return;
       }
 
@@ -458,6 +531,37 @@ export async function startServe(root, opts = {}) {
       json(res, 500, { ok: false, error: e?.message || String(e) });
     }
   };
+}
+
+export async function startServe(root, opts = {}) {
+  const {
+    host = "127.0.0.1",
+    port = 7357,
+    token = "",
+    allowRefresh = false,
+    allowWrite = false,
+    allowShutdown = false,
+    cors = false
+  } = opts;
+
+  if (!isLoopbackHost(host) && !token) {
+    throw new Error(`Refusing to bind to non-loopback host without --token (host=${host})`);
+  }
+  if (allowWrite && !token) {
+    throw new Error("Refusing --allow-write without --token (set a token to protect write endpoints).");
+  }
+
+  let server = null;
+  const handler = createServeHandler(root, {
+    host,
+    port,
+    token,
+    allowRefresh,
+    allowWrite,
+    allowShutdown,
+    cors,
+    getServer: () => server
+  });
 
   server = http.createServer((req, res) => {
     // Keep errors isolated per request.

@@ -204,12 +204,28 @@ rmemo serve --root . --token devtoken --port 7357
 ```
 
 Then fetch:
+- `GET /ui` (local dashboard)
 - `GET /status?format=json`
 - `GET /context`
 - `GET /rules`
 - `GET /todos?format=json`
 - `GET /search?q=...` (keyword search)
 - `GET /search?mode=semantic&q=...` (semantic search; requires `rmemo embed build`)
+
+Optional: enable write actions (token required):
+
+```bash
+rmemo serve --root . --token devtoken --allow-write
+```
+
+Write endpoints:
+- `POST /todos/next {text}`
+- `POST /todos/blockers {text}`
+- `POST /todos/next/done {index}` (1-based)
+- `POST /todos/blockers/unblock {index}` (1-based)
+- `POST /log {text, kind?}`
+- `POST /sync`
+- `POST /embed/auto`
 
 ## MCP Server (stdio)
 

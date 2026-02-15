@@ -11,6 +11,7 @@ function help() {
     "  --port <n>               Bind port (default: 7357; use 0 for random)",
     "  --token <token>          Require token for all endpoints (recommended)",
     "  --allow-refresh          Allow generating handoff/pr on request (?refresh=1)",
+    "  --allow-write            Allow write actions (todos/log/sync/embed) over HTTP (token required)",
     "  --allow-shutdown         Allow POST /shutdown (token required if set)",
     "  --cors                   Add permissive CORS headers (*), for local tools",
     ""
@@ -23,6 +24,7 @@ export async function cmdServe({ flags }) {
   const port = flags.port !== undefined ? Number(flags.port) : 7357;
   const token = (flags.token ? String(flags.token) : process.env.RMEMO_TOKEN || "").trim();
   const allowRefresh = !!flags["allow-refresh"];
+  const allowWrite = !!flags["allow-write"];
   const allowShutdown = !!flags["allow-shutdown"];
   const cors = !!flags.cors;
 
@@ -35,7 +37,7 @@ export async function cmdServe({ flags }) {
     return;
   }
 
-  const r = await startServe(root, { host, port, token, allowRefresh, allowShutdown, cors });
+  const r = await startServe(root, { host, port, token, allowRefresh, allowWrite, allowShutdown, cors });
 
   process.stdout.write(`Listening: ${r.baseUrl}\n`);
   process.stdout.write(`Root: ${root}\n`);
@@ -51,6 +53,15 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /search?q=... (mode=keyword|semantic)\n`);
   process.stdout.write(`- GET /focus?q=... (mode=semantic|keyword)\n`);
   if (allowRefresh) process.stdout.write(`- GET /handoff?refresh=1, /pr?refresh=1\n`);
+  if (allowWrite) {
+    process.stdout.write(`- POST /todos/next {text}\n`);
+    process.stdout.write(`- POST /todos/blockers {text}\n`);
+    process.stdout.write(`- POST /todos/next/done {index}\n`);
+    process.stdout.write(`- POST /todos/blockers/unblock {index}\n`);
+    process.stdout.write(`- POST /log {text,kind?}\n`);
+    process.stdout.write(`- POST /sync\n`);
+    process.stdout.write(`- POST /embed/auto\n`);
+  }
   if (allowShutdown) process.stdout.write(`- POST /shutdown\n`);
 
   const shutdown = async () => {

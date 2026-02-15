@@ -45,6 +45,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       .sub { color: var(--muted); font-size: 13px; }
       .grid { display: grid; grid-template-columns: 360px 1fr; gap: 14px; margin-top: 14px; }
       @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+      .grid2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
       .panel { background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
       .ph { padding: 12px 12px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
       .ph strong { font-size: 13px; letter-spacing: 0.25px; text-transform: uppercase; color: rgba(230,237,243,0.86); }
@@ -119,12 +120,60 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
 
             <div style="height: 10px;"></div>
 
-            <div class="row">
-              <button class="btn" id="refreshAll">Refresh</button>
-              <button class="btn secondary" id="loadStatus">Status</button>
-              <button class="btn secondary" id="loadRules">Rules</button>
-              <button class="btn secondary" id="loadTodos">Todos</button>
-              <button class="btn secondary" id="loadContext">Context</button>
+            <div class="grid2">
+              <div class="row">
+                <button class="btn" id="refreshAll">Refresh</button>
+                <button class="btn secondary" id="loadStatus">Status</button>
+                <button class="btn secondary" id="loadRules">Rules</button>
+                <button class="btn secondary" id="loadTodos">Todos</button>
+                <button class="btn secondary" id="loadContext">Context</button>
+              </div>
+
+              <div class="panel" style="border-radius: 12px;">
+                <div class="ph"><strong>Quick Write</strong></div>
+                <div class="pb">
+                  <div class="hint">Requires server started with <span style="font-family: var(--mono)">rmemo serve --allow-write --token ...</span>.</div>
+                  <div style="height: 10px;"></div>
+
+                  <label>Add todo</label>
+                  <div class="row">
+                    <select id="todoKind">
+                      <option value="next" selected>next</option>
+                      <option value="blockers">blockers</option>
+                    </select>
+                    <div style="flex: 1; min-width: 220px;">
+                      <input id="todoText" type="text" placeholder="e.g. Implement token refresh debounce" />
+                    </div>
+                    <button class="btn secondary" id="addTodo">Add</button>
+                  </div>
+
+                  <div style="height: 8px;"></div>
+
+                  <label>Mark done / unblock</label>
+                  <div class="row">
+                    <select id="todoRmKind">
+                      <option value="next_done" selected>next done</option>
+                      <option value="blockers_unblock">blockers unblock</option>
+                    </select>
+                    <input id="todoIndex" type="text" placeholder="index (1..n)" style="width: 140px;" />
+                    <button class="btn secondary" id="rmTodo">Apply</button>
+                  </div>
+
+                  <div style="height: 10px;"></div>
+
+                  <label>Log (journal)</label>
+                  <div class="row">
+                    <input id="logText" type="text" placeholder="e.g. Fixed auth token validation; next: add tests" />
+                    <button class="btn secondary" id="addLog">Log</button>
+                  </div>
+
+                  <div style="height: 10px;"></div>
+                  <div class="row">
+                    <button class="btn secondary" id="doSync">Sync</button>
+                    <button class="btn secondary" id="doEmbedAuto">Embed Auto</button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div style="height: 12px;"></div>
@@ -191,6 +240,18 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
           throw new Error("HTTP " + r.status + " " + r.statusText + (t ? ("\\n" + t.slice(0, 800)) : ""));
         }
         return json ? await r.json() : await r.text();
+      }
+
+      async function apiPost(path, bodyObj) {
+        const token = (qs("#token").value || "").trim();
+        const headers = { "content-type": "application/json", "accept": "application/json" };
+        if (token) headers["x-rmemo-token"] = token;
+        const r = await fetch(API_BASE + path, { method: "POST", headers, body: JSON.stringify(bodyObj || {}) });
+        const t = await r.text().catch(() => "");
+        if (!r.ok) {
+          throw new Error("HTTP " + r.status + " " + r.statusText + (t ? ("\\n" + t.slice(0, 800)) : ""));
+        }
+        try { return JSON.parse(t); } catch { return { ok: true, raw: t }; }
       }
 
       function loadToken() {
@@ -280,6 +341,54 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Focus Pack";
       }
 
+      async function addTodo() {
+        err(""); msg("Adding todo...");
+        const kind = qs("#todoKind").value;
+        const text = (qs("#todoText").value || "").trim();
+        if (!text) return msg("Missing todo text.");
+        const p = kind === "blockers" ? "/todos/blockers" : "/todos/next";
+        await apiPost(p, { text });
+        qs("#todoText").value = "";
+        msg("OK");
+        await loadTodos();
+      }
+
+      async function rmTodo() {
+        err(""); msg("Updating todo...");
+        const kind = qs("#todoRmKind").value;
+        const index = Number((qs("#todoIndex").value || "").trim());
+        if (!Number.isFinite(index) || index <= 0) return msg("Invalid index.");
+        const p = kind === "blockers_unblock" ? "/todos/blockers/unblock" : "/todos/next/done";
+        await apiPost(p, { index });
+        qs("#todoIndex").value = "";
+        msg("OK");
+        await loadTodos();
+      }
+
+      async function addLog() {
+        err(""); msg("Logging...");
+        const text = (qs("#logText").value || "").trim();
+        if (!text) return msg("Missing log text.");
+        await apiPost("/log", { text, kind: "Log" });
+        qs("#logText").value = "";
+        msg("OK");
+      }
+
+      async function doSync() {
+        err(""); msg("Syncing...");
+        await apiPost("/sync", {});
+        msg("OK");
+      }
+
+      async function doEmbedAuto() {
+        err(""); msg("Embedding...");
+        const j = await apiPost("/embed/auto", {});
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Auto";
+      }
+
       qs("#saveToken").addEventListener("click", saveToken);
       qs("#clearToken").addEventListener("click", clearToken);
       qs("#refreshAll").addEventListener("click", async () => { await loadStatus(); });
@@ -289,6 +398,11 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadContext").addEventListener("click", loadContext);
       qs("#doSearch").addEventListener("click", () => doSearch().catch((e) => { err(String(e)); msg(""); }));
       qs("#doFocus").addEventListener("click", () => doFocus().catch((e) => { err(String(e)); msg(""); }));
+      qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
+      qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
+      qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));
+      qs("#doSync").addEventListener("click", () => doSync().catch((e) => { err(String(e)); msg(""); }));
+      qs("#doEmbedAuto").addEventListener("click", () => doEmbedAuto().catch((e) => { err(String(e)); msg(""); }));
 
       qs("#tabs").addEventListener("click", (ev) => {
         const t = ev.target && ev.target.dataset && ev.target.dataset.tab;
@@ -305,4 +419,3 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
 </html>
 `;
 }
-
