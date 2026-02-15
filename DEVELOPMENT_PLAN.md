@@ -201,6 +201,7 @@ Goals:
 
 Done:
 - Add `rmemo serve` (local HTTP API; read-only by default)
+- Add `GET /ui` (single-file local dashboard; unauthenticated)
 - Endpoints:
   - `GET /status` (json|md)
   - `GET /context`
@@ -210,6 +211,10 @@ Done:
   - `GET /handoff` + `GET /pr` (serve existing files; optional refresh)
   - `GET /journal` + `GET /journal/YYYY-MM-DD.md`
   - `GET /search?q=...` (search rules/todos/context/manifest/journal)
+- Optional write endpoints (gated by `--allow-write` and token):
+  - `POST /todos/next|blockers`
+  - `POST /todos/next/done|blockers/unblock`
+  - `POST /log`, `POST /sync`, `POST /embed/auto`
 - Token auth support: `--token` / `RMEMO_TOKEN`
 
 ## v1.8 (MCP Server) (Planned)
@@ -218,6 +223,10 @@ Goals:
 - Provide the same capabilities over stdio for AI tools that support MCP.
 
 Done:
+ - Add `rmemo mcp` stdio server with tools:
+   - Read tools: `rmemo_status`, `rmemo_context`, `rmemo_rules`, `rmemo_todos`, `rmemo_handoff`, `rmemo_pr`, `rmemo_search`, `rmemo_focus`
+   - Write tools (disabled by default; enable with `--allow-write`):
+     - `rmemo_todo_add`, `rmemo_todo_done`, `rmemo_log`, `rmemo_sync`, `rmemo_embed_auto`
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:
   - `rmemo_status`
