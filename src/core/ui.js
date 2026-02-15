@@ -93,6 +93,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
       .err { color: #fecaca; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; }
       .ok { color: #bbf7d0; font-family: var(--mono); font-size: 12px; }
+      .subpanel { border-radius: 12px; background: rgba(0,0,0,0.18); border: 1px solid rgba(148,163,184,0.14); padding: 10px; }
     </style>
   </head>
   <body>
@@ -133,6 +134,15 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <button class="btn secondary" id="startEvents">Events On</button>
                 <button class="btn secondary" id="stopEvents">Events Off</button>
                 <div class="hint" id="eventsState" style="margin: 0;">events: off</div>
+              </div>
+
+              <div class="subpanel">
+                <div class="row" style="justify-content: space-between;">
+                  <label style="margin: 0;">Live</label>
+                  <span class="hint" style="margin: 0;">from <span style="font-family: var(--mono)">GET /events</span></span>
+                </div>
+                <div style="height: 8px;"></div>
+                <pre id="live" style="max-height: 160px;"></pre>
               </div>
 
               <div class="panel" style="border-radius: 12px;">
@@ -228,6 +238,14 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       const msg = (s) => (qs("#msg").textContent = s || "");
       const err = (s) => (qs("#err").textContent = s || "");
       const out = (s) => (qs("#out").textContent = s || "");
+      const live = (s) => (qs("#live").textContent = s || "");
+      const liveLines = [];
+      function pushLive(obj) {
+        const s = typeof obj === "string" ? obj : JSON.stringify(obj);
+        liveLines.push(s);
+        while (liveLines.length > 60) liveLines.shift();
+        live(liveLines.join("\n"));
+      }
 
       function setTab(name) {
         for (const el of document.querySelectorAll(".tab")) {
@@ -411,15 +429,30 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#eventsState").textContent = "events: connecting...";
         evt.addEventListener("open", () => {
           qs("#eventsState").textContent = "events: on";
+          pushLive({ type: "events:open" });
         });
         evt.addEventListener("error", () => {
           qs("#eventsState").textContent = "events: error";
+          pushLive({ type: "events:error" });
+        });
+        evt.addEventListener("hello", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "hello"); }
         });
         // On watch refresh events, update status to keep UI current.
-        evt.addEventListener("refresh:ok", () => {
+        evt.addEventListener("refresh:ok", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "refresh:ok"); }
           // Best-effort refresh; don't break UI if token expired.
           loadStatus().catch(() => {});
           loadTodos().catch(() => {});
+        });
+        evt.addEventListener("refresh:err", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "refresh:err"); }
+        });
+        evt.addEventListener("watch:starting", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "watch:starting"); }
+        });
+        evt.addEventListener("watch:error", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "watch:error"); }
         });
       }
 

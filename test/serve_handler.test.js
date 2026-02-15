@@ -198,3 +198,22 @@ test("serve handler: /events returns SSE stream (requires token if set)", async 
   assert.ok(authed.body.includes("event: hello"));
   assert.ok(authed.body.includes("refresh:ok"));
 });
+
+test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWrite + token)", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
+  await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
+  await fs.mkdir(path.join(root, "src"), { recursive: true });
+  await fs.writeFile(path.join(root, "src", "index.js"), "console.log('hi')\n", "utf8");
+
+  const events = createEventsBus();
+  const ro = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: false, events });
+  const denied = await run(ro, { method: "POST", url: "/refresh?token=t", bodyObj: {} });
+  assert.equal(denied.status, 400);
+
+  const rw = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events });
+  const r = await run(rw, { method: "POST", url: "/refresh?token=t", bodyObj: { sync: false, embed: false } });
+  assert.equal(r.status, 200);
+  assert.ok(await fileExists(path.join(root, ".repo-memory", "context.md")));
+  assert.ok(await fileExists(path.join(root, ".repo-memory", "manifest.json")));
+  assert.ok(await fileExists(path.join(root, ".repo-memory", "index.json")));
+});

@@ -70,6 +70,7 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /health\n`);
   process.stdout.write(`- GET /ui\n`);
   process.stdout.write(`- GET /events (SSE)\n`);
+  process.stdout.write(`- GET /watch\n`);
   process.stdout.write(`- GET /status?format=json|md\n`);
   process.stdout.write(`- GET /context\n`);
   process.stdout.write(`- GET /rules, /rules.json, /todos\n`);
@@ -79,6 +80,7 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /focus?q=... (mode=semantic|keyword)\n`);
   if (allowRefresh) process.stdout.write(`- GET /handoff?refresh=1, /pr?refresh=1\n`);
   if (allowWrite) {
+    process.stdout.write(`- POST /refresh {sync?,embed?}\n`);
     process.stdout.write(`- POST /todos/next {text}\n`);
     process.stdout.write(`- POST /todos/blockers {text}\n`);
     process.stdout.write(`- POST /todos/next/done {index}\n`);

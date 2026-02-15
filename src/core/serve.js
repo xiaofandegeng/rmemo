@@ -25,7 +25,7 @@ import { addTodoBlocker, addTodoNext, removeTodoBlockerByIndex, removeTodoNextBy
 import { appendJournalEntry } from "./journal.js";
 import { syncAiInstructions } from "./sync.js";
 import { embedAuto } from "./embed_auto.js";
-import { watchRepo } from "./watch.js";
+import { refreshRepoMemory, watchRepo } from "./watch.js";
 
 function json(res, code, obj) {
   const s = JSON.stringify(obj, null, 2) + "\n";
@@ -73,6 +73,11 @@ function sseWrite(res, { event, data, id } = {}) {
   if (data !== undefined) s += `data: ${typeof data === "string" ? data : JSON.stringify(data)}\n`;
   s += "\n";
   res.write(s);
+}
+
+function ssePing(res) {
+  // Comment line keeps the connection alive without firing an event handler.
+  res.write(`: ping ${Date.now()}\n\n`);
 }
 
 export function createEventsBus({ max = 200 } = {}) {
@@ -276,7 +281,7 @@ async function searchInText({ file, text, q, maxHits = 50 }) {
 }
 
 export function createServeHandler(root, opts = {}) {
-  const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer, events } = opts;
+  const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer, events, watchState } = opts;
 
   return async function handler(req, res) {
     const url = new URL(req.url || "/", `http://${host}:${port || 80}`);
@@ -322,13 +327,74 @@ export function createServeHandler(root, opts = {}) {
     try {
       if (req.method === "GET" && url.pathname === "/events") {
         res.writeHead(200, sseHeaders());
-        // Initial hello + recent history for quick UI boot.
+        // Initial hello + recent history for quick UI boot (supports Last-Event-ID resume).
         sseWrite(res, { event: "hello", data: { ok: true, schema: 1, root } });
-        for (const h of events?.history?.() || []) {
+        const lastIdRaw = req.headers["last-event-id"];
+        const lastId = lastIdRaw ? Number(String(lastIdRaw)) : null;
+        const hist = events?.history?.() || [];
+        for (const h of hist) {
+          if (lastId !== null && Number.isFinite(lastId) && h.id <= lastId) continue;
           sseWrite(res, { id: h.id, event: h.type || "event", data: h });
         }
         events?.add?.(res);
+        // Keepalive ping so proxies/clients don't drop idle connections.
+        // Only start the timer if we can observe `close` (unit tests use a plain object res).
+        if (typeof res.on === "function") {
+          const t = setInterval(() => {
+            try {
+              ssePing(res);
+            } catch {
+              clearInterval(t);
+            }
+          }, 15_000);
+          res.on("close", () => clearInterval(t));
+        }
         return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/watch") {
+        const ws = watchState || {};
+        return json(res, 200, {
+          ok: true,
+          schema: 1,
+          root,
+          watch: {
+            enabled: !!ws.enabled,
+            intervalMs: ws.intervalMs ?? null,
+            sync: ws.sync ?? null,
+            embed: ws.embed ?? null
+          },
+          runtime: {
+            clients: events?.size?.() ?? 0,
+            lastOkAt: ws.lastOkAt || null,
+            lastErrAt: ws.lastErrAt || null,
+            lastErr: ws.lastErr || null
+          }
+        });
+      }
+
+      if (req.method === "POST" && url.pathname === "/refresh") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const doSync = body.sync !== undefined ? !!body.sync : true;
+        const doEmbed = body.embed !== undefined ? !!body.embed : false;
+        events?.emit?.({ type: "refresh:start", reason: "api" });
+        try {
+          const r = await refreshRepoMemory(root, {
+            preferGit: true,
+            maxFiles: 4000,
+            snipLines: 120,
+            recentDays: 7,
+            sync: doSync,
+            embed: doEmbed
+          });
+          events?.emit?.({ type: "refresh:ok", reason: "api", generatedAt: r.generatedAt });
+          return json(res, 200, { ok: true, result: r });
+        } catch (e) {
+          events?.emit?.({ type: "refresh:err", reason: "api", error: e?.message || String(e) });
+          return json(res, 500, { ok: false, error: e?.message || String(e) });
+        }
       }
 
       // Write operations: only allowed if allowWrite is true.
@@ -615,6 +681,15 @@ export async function startServe(root, opts = {}) {
 
   let server = null;
   const events = createEventsBus({ max: 200 });
+  const watchState = {
+    enabled: false,
+    intervalMs: watchIntervalMs,
+    sync: watchSync,
+    embed: watchEmbed,
+    lastOkAt: null,
+    lastErrAt: null,
+    lastErr: null
+  };
   const handler = createServeHandler(root, {
     host,
     port,
@@ -624,7 +699,8 @@ export async function startServe(root, opts = {}) {
     allowShutdown,
     cors,
     getServer: () => server,
-    events
+    events,
+    watchState
   });
 
   server = http.createServer((req, res) => {
@@ -649,6 +725,7 @@ export async function startServe(root, opts = {}) {
   const abort = new AbortController();
   const stopWatch = () => abort.abort();
   if (watch) {
+    watchState.enabled = true;
     events.emit({ type: "watch:starting", intervalMs: watchIntervalMs, sync: watchSync, embed: watchEmbed });
     // Run in background; any errors are surfaced as events.
     void watchRepo(root, {
@@ -662,7 +739,17 @@ export async function startServe(root, opts = {}) {
       embed: watchEmbed,
       signal: abort.signal,
       noSignals: true,
-      onEvent: (e) => events.emit(e)
+      onEvent: (e) => {
+        if (e.type === "refresh:ok") {
+          watchState.lastOkAt = e.at;
+        } else if (e.type === "refresh:err") {
+          watchState.lastErrAt = e.at;
+          watchState.lastErr = e.error || null;
+        } else if (e.type === "stop") {
+          watchState.enabled = false;
+        }
+        events.emit(e);
+      }
     }).catch((e) => {
       events.emit({ type: "watch:error", error: e?.message || String(e) });
     });
