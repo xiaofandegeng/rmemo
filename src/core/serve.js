@@ -20,6 +20,7 @@ import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
 import { semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
+import { renderUiHtml } from "./ui.js";
 
 function json(res, code, obj) {
   const s = JSON.stringify(obj, null, 2) + "\n";
@@ -229,6 +230,18 @@ export async function startServe(root, opts = {}) {
     if (req.method === "GET" && url.pathname === "/health") {
       json(res, 200, { ok: true, schema: 1, root, time: new Date().toISOString() });
       return;
+    }
+
+    // UI is always unauthenticated (it does not expose repo content by itself).
+    // If token is enabled, the UI uses x-rmemo-token for API calls.
+    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/ui")) {
+      if (url.pathname === "/") {
+        res.writeHead(302, { location: "/ui" });
+        res.end("");
+        return;
+      }
+      const html = renderUiHtml({ title: "rmemo", apiBasePath: "" });
+      return text(res, 200, html, "text/html; charset=utf-8");
     }
 
     // Auth: if token is set, require it for everything else.

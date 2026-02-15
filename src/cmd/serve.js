@@ -42,6 +42,7 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`Auth: ${token ? "token required" : "none (localhost only recommended)"}\n`);
   process.stdout.write(`Endpoints:\n`);
   process.stdout.write(`- GET /health\n`);
+  process.stdout.write(`- GET /ui\n`);
   process.stdout.write(`- GET /status?format=json|md\n`);
   process.stdout.write(`- GET /context\n`);
   process.stdout.write(`- GET /rules, /rules.json, /todos\n`);
