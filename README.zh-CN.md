@@ -265,6 +265,21 @@ rmemo integrate antigravity
 rmemo integrate antigravity --format json
 ```
 
+其他 MCP 客户端：
+
+```bash
+rmemo integrate cursor --format json
+rmemo integrate cline --format json
+rmemo integrate claude-desktop --format json
+```
+
+自动合并到现有 JSON 配置文件（若发生修改会先创建备份）：
+
+```bash
+rmemo integrate claude-desktop --apply
+rmemo integrate claude-desktop --apply --config /path/to/claude_desktop_config.json
+```
+
 如果你遇到 `Unknown command: mcp`，说明你全局安装的 `rmemo` 太旧；这个片段默认使用 `node` + `bin/rmemo.js` 绝对路径来绕过 PATH/版本冲突。
 
 ## 语义检索（Embeddings）

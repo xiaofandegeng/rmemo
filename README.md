@@ -261,6 +261,21 @@ rmemo integrate antigravity
 rmemo integrate antigravity --format json
 ```
 
+Other MCP clients:
+
+```bash
+rmemo integrate cursor --format json
+rmemo integrate cline --format json
+rmemo integrate claude-desktop --format json
+```
+
+Apply/merge into an existing JSON config file (creates a backup when changing it):
+
+```bash
+rmemo integrate claude-desktop --apply
+rmemo integrate claude-desktop --apply --config /path/to/claude_desktop_config.json
+```
+
 If you hit `Unknown command: mcp`, your global `rmemo` is outdated. The snippet uses `node` + an absolute `bin/rmemo.js` path to avoid this.
 
 ## Semantic Search (Embeddings)
