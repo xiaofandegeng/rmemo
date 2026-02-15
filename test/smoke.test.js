@@ -1304,3 +1304,37 @@ test("rmemo embed auto respects config.json (enabled/disabled)", async () => {
     assert.equal(await exists(path.join(tmp, ".repo-memory", "embeddings", "index.json")), true);
   }
 });
+
+test("rmemo focus generates a paste-ready pack (semantic with fallback)", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-focus-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  await fs.writeFile(path.join(tmp, ".repo-memory", "rules.md"), "# Rules\n- Always validate auth token.\n", "utf8");
+  await fs.writeFile(path.join(tmp, ".repo-memory", "todos.md"), "## Next\n- Fix auth token refresh\n\n## Blockers\n- (none)\n", "utf8");
+
+  // With no embeddings index, semantic mode should fall back to keyword and still find something.
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "focus", "auth token"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("# Focus"));
+    assert.ok(r.out.toLowerCase().includes("auth token"));
+    assert.ok(r.out.includes("## Top Hits"));
+  }
+
+  // After embeddings build, focus should work in json mode too.
+  {
+    const r1 = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock", "--dim", "32"]);
+    assert.equal(r1.code, 0, r1.err || r1.out);
+    const r2 = await runNode([rmemoBin, "--root", tmp, "focus", "auth token", "--format", "json"]);
+    assert.equal(r2.code, 0, r2.err || r2.out);
+    const j = JSON.parse(r2.out);
+    assert.equal(j.schema, 1);
+    assert.equal(j.q, "auth token");
+    assert.ok(j.search);
+  }
+});

@@ -22,6 +22,7 @@ import { cmdSession } from "../src/cmd/session.js";
 import { cmdServe } from "../src/cmd/serve.js";
 import { cmdMcp } from "../src/cmd/mcp.js";
 import { cmdEmbed } from "../src/cmd/embed.js";
+import { cmdFocus } from "../src/cmd/focus.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -98,6 +99,9 @@ try {
       break;
     case "embed":
       await cmdEmbed({ rest, flags });
+      break;
+    case "focus":
+      await cmdFocus({ rest, flags });
       break;
     case "help":
     case undefined:

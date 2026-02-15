@@ -33,7 +33,8 @@ export function parseArgs(argv) {
           k === "allow-refresh" ||
           k === "allow-shutdown" ||
           k === "cors" ||
-          k === "embed"
+          k === "embed" ||
+          k === "no-status"
         ) {
           flags[k] = true;
           continue;
@@ -81,6 +82,7 @@ Usage:
   rmemo serve                Repo memory HTTP API (local-first, read-only by default)
   rmemo mcp                  MCP server over stdio (tools: status/context/handoff/pr/rules/todos/search)
   rmemo embed                Build embeddings index and run semantic search (local-first)
+  rmemo focus                Generate a paste-ready "focus pack" for a question (status + relevant hits)
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos

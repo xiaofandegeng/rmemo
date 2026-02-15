@@ -19,6 +19,7 @@ import { parseTodos } from "./todos.js";
 import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
 import { semanticSearch } from "./embeddings.js";
+import { generateFocus } from "./focus.js";
 
 function json(res, code, obj) {
   const s = JSON.stringify(obj, null, 2) + "\n";
@@ -412,6 +413,23 @@ export async function startServe(root, opts = {}) {
         }
 
         return json(res, 200, { schema: 1, root, q, hits: hits.slice(0, maxHits) });
+      }
+
+      if (req.method === "GET" && url.pathname === "/focus") {
+        const q = String(url.searchParams.get("q") || "").trim();
+        if (!q) return badRequest(res, "Missing q");
+        const format = String(url.searchParams.get("format") || "md").toLowerCase();
+        const mode = String(url.searchParams.get("mode") || "semantic").toLowerCase();
+        const k = Number(url.searchParams.get("k") || 8);
+        const minScore = Number(url.searchParams.get("minScore") || url.searchParams.get("min-score") || 0.15);
+        const maxHits = Number(url.searchParams.get("maxHits") || 50);
+        const recentDays = Number(url.searchParams.get("recentDays") || 14);
+        const includeStatus = url.searchParams.get("includeStatus") === "0" ? false : true;
+
+        if (format !== "md" && format !== "json") return badRequest(res, "format must be md|json");
+        const out = await generateFocus(root, { q, mode, format, k, minScore, maxHits, recentDays, includeStatus });
+        if (format === "json") return json(res, 200, out.json);
+        return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {

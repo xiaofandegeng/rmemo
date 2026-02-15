@@ -22,6 +22,7 @@ import { generateContext } from "./context.js";
 import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
 import { semanticSearch } from "./embeddings.js";
+import { generateFocus } from "./focus.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -274,6 +275,22 @@ function toolsList() {
       },
       required: ["q"],
       additionalProperties: false
+    }),
+    tool("rmemo_focus", "Generate a paste-ready focus pack for a question (brief status + relevant hits).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        q: { type: "string" },
+        mode: { type: "string", enum: ["semantic", "keyword"], default: "semantic" },
+        format: { type: "string", enum: ["md", "json"], default: "md" },
+        k: { type: "number", default: 8 },
+        minScore: { type: "number", default: 0.15 },
+        maxHits: { type: "number", default: 50 },
+        recentDays: { type: "number", default: 14 },
+        includeStatus: { type: "boolean", default: true }
+      },
+      required: ["q"],
+      additionalProperties: false
     })
   ];
 }
@@ -385,6 +402,20 @@ async function handleToolCall(serverRoot, name, args, logger) {
     const maxHits = Number(args?.maxHits || 50);
     const r = await doSearch(root, { q, scope, recentDays, maxHits });
     return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_focus") {
+    const q = String(args?.q || "");
+    const mode = String(args?.mode || "semantic").toLowerCase();
+    const format = String(args?.format || "md").toLowerCase();
+    const k = Number(args?.k || 8);
+    const minScore = Number(args?.minScore || 0.15);
+    const maxHits = Number(args?.maxHits || 50);
+    const recentDays = Number(args?.recentDays || 14);
+    const includeStatus = args?.includeStatus !== false;
+
+    const r = await generateFocus(root, { q, mode, format, k, minScore, maxHits, recentDays, includeStatus });
+    return format === "json" ? JSON.stringify(r.json, null, 2) : r.markdown;
   }
 
   logger.warn(`Unknown tool call: ${name}`);
