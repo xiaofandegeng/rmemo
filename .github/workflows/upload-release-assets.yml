@@ -1,0 +1,72 @@
+name: Upload Release Assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to upload assets for (e.g. v0.3.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build npm tarball
+        run: npm_config_cache=.npm-cache npm pack
+
+      - name: Upload .tgz assets to GitHub Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const tag = "${{ inputs.tag }}";
+
+            const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+            const release_id = rel.data.id;
+
+            const files = fs.readdirSync(process.cwd()).filter((f) => f.endsWith(".tgz"));
+            if (!files.length) {
+              core.setFailed("No .tgz files found to upload.");
+              return;
+            }
+
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, { owner, repo, release_id, per_page: 100 });
+            const byName = new Map(assets.map((a) => [a.name, a]));
+
+            for (const f of files) {
+              const existing = byName.get(f);
+              if (existing) {
+                core.info(`Deleting existing asset: ${f}`);
+                await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: existing.id });
+              }
+              const data = fs.readFileSync(path.join(process.cwd(), f));
+              core.info(`Uploading asset: ${f} (${data.length} bytes)`);
+              await github.rest.repos.uploadReleaseAsset({
+                owner,
+                repo,
+                release_id,
+                name: f,
+                data,
+                headers: {
+                  "content-type": "application/octet-stream",
+                  "content-length": data.length
+                }
+              });
+            }
+
