@@ -237,6 +237,19 @@ rmemo mcp --root .
 
 It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`.
 
+Optional: enable write tools (safety: disabled by default):
+
+```bash
+rmemo mcp --root . --allow-write
+```
+
+Write tools:
+- `rmemo_todo_add`
+- `rmemo_todo_done`
+- `rmemo_log`
+- `rmemo_sync`
+- `rmemo_embed_auto`
+
 ## Semantic Search (Embeddings)
 
 Build a local embeddings index (default: deterministic `mock` provider):

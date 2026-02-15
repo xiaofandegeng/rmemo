@@ -15,7 +15,8 @@ import {
   rulesPath,
   todosPath
 } from "../lib/paths.js";
-import { parseTodos } from "./todos.js";
+import { addTodoBlocker, addTodoNext, parseTodos, removeTodoBlockerByIndex, removeTodoNextByIndex } from "./todos.js";
+import { appendJournalEntry } from "./journal.js";
 import { scanRepo } from "./scan.js";
 import { ensureRepoMemory } from "./memory.js";
 import { generateContext } from "./context.js";
@@ -23,6 +24,8 @@ import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
 import { semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
+import { syncAiInstructions } from "./sync.js";
+import { embedAuto } from "./embed_auto.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -196,7 +199,7 @@ function toolsList() {
     description: "Repo root. Defaults to server root if omitted."
   };
 
-  return [
+  const base = [
     tool("rmemo_status", "Get status summary (rules/todos/journal/manifest) from .repo-memory.", {
       type: "object",
       properties: {
@@ -293,6 +296,8 @@ function toolsList() {
       additionalProperties: false
     })
   ];
+
+  return base;
 }
 
 async function ensureScanned(root, { preferGit = true, maxFiles = 4000 } = {}) {
@@ -302,8 +307,69 @@ async function ensureScanned(root, { preferGit = true, maxFiles = 4000 } = {}) {
   await writeJson(indexPath(root), index);
 }
 
-async function handleToolCall(serverRoot, name, args, logger) {
+function toolsListWithWrite({ allowWrite } = {}) {
+  const tools = toolsList();
+  if (!allowWrite) return tools;
+
+  const rootProp = {
+    type: "string",
+    description: "Repo root. Defaults to server root if omitted."
+  };
+
+  return tools.concat([
+    tool("rmemo_todo_add", "Add a todo item to .repo-memory/todos.md.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        kind: { type: "string", enum: ["next", "blockers"], default: "next" },
+        text: { type: "string" }
+      },
+      required: ["text"],
+      additionalProperties: false
+    }),
+    tool("rmemo_todo_done", "Mark a todo item as done (remove by 1-based index) from .repo-memory/todos.md.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        kind: { type: "string", enum: ["next", "blockers"], default: "next" },
+        index: { type: "number", description: "1-based index" }
+      },
+      required: ["index"],
+      additionalProperties: false
+    }),
+    tool("rmemo_log", "Append a journal entry to .repo-memory/journal/YYYY-MM-DD.md.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        kind: { type: "string", default: "Log" },
+        text: { type: "string" }
+      },
+      required: ["text"],
+      additionalProperties: false
+    }),
+    tool("rmemo_sync", "Generate AI tool instruction files from .repo-memory/ (AGENTS.md, etc.).", {
+      type: "object",
+      properties: { root: rootProp },
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_auto", "Run embed auto (reads .repo-memory/config.json) to build embeddings if enabled.", {
+      type: "object",
+      properties: { root: rootProp },
+      additionalProperties: false
+    })
+  ]);
+}
+
+async function handleToolCall(serverRoot, name, args, logger, { allowWrite } = {}) {
   const root = args?.root ? path.resolve(String(args.root)) : serverRoot;
+
+  const requireWrite = () => {
+    if (!allowWrite) {
+      const err = new Error("Write tools are disabled. Start with: rmemo mcp --allow-write");
+      err.code = "RMEMO_WRITE_DISABLED";
+      throw err;
+    }
+  };
 
   if (name === "rmemo_status") {
     const mode = String(args?.mode || "full");
@@ -418,18 +484,62 @@ async function handleToolCall(serverRoot, name, args, logger) {
     return format === "json" ? JSON.stringify(r.json, null, 2) : r.markdown;
   }
 
+  if (name === "rmemo_todo_add") {
+    requireWrite();
+    const kind = String(args?.kind || "next").toLowerCase();
+    const text = String(args?.text || "").trim();
+    if (!text) throw new Error("Missing text");
+    if (kind === "blockers") await addTodoBlocker(root, text);
+    else await addTodoNext(root, text);
+    const s = await readMaybe(todosPath(root), 2_000_000);
+    return s || "";
+  }
+
+  if (name === "rmemo_todo_done") {
+    requireWrite();
+    const kind = String(args?.kind || "next").toLowerCase();
+    const index = args?.index;
+    if (index === undefined || index === null) throw new Error("Missing index");
+    if (kind === "blockers") await removeTodoBlockerByIndex(root, index);
+    else await removeTodoNextByIndex(root, index);
+    const s = await readMaybe(todosPath(root), 2_000_000);
+    return s || "";
+  }
+
+  if (name === "rmemo_log") {
+    requireWrite();
+    const kind = String(args?.kind || "Log").trim() || "Log";
+    const text = String(args?.text || "").trim();
+    if (!text) throw new Error("Missing text");
+    const p = await appendJournalEntry(root, { kind, text });
+    const s = await readMaybe(p, 2_000_000);
+    return JSON.stringify({ ok: true, path: p, excerpt: clampLines(s || "", 120) }, null, 2);
+  }
+
+  if (name === "rmemo_sync") {
+    requireWrite();
+    const r = await syncAiInstructions({ root });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_embed_auto") {
+    requireWrite();
+    const r = await embedAuto(root, { checkOnly: false });
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
   logger.warn(`Unknown tool call: ${name}`);
   throw new Error(`Unknown tool: ${name}`);
 }
 
-export async function startMcpServer({ root, logLevel = "info" } = {}) {
+export async function startMcpServer({ root, logLevel = "info", allowWrite = false } = {}) {
   const serverRoot = path.resolve(root || process.cwd());
   const logger = logFactory(logLevel);
 
-  logger.info(`Starting MCP server (root=${serverRoot})`);
+  logger.info(`Starting MCP server (root=${serverRoot}, allowWrite=${allowWrite ? "true" : "false"})`);
 
   let inited = false;
-  const tools = toolsList();
+  const tools = toolsListWithWrite({ allowWrite });
 
   let buf = "";
   process.stdin.setEncoding("utf8");
@@ -482,7 +592,7 @@ export async function startMcpServer({ root, logLevel = "info" } = {}) {
             const name = params?.name;
             const args = params?.arguments || {};
             if (!name || typeof name !== "string") throw new Error("Missing tool name");
-            const out = await handleToolCall(serverRoot, name, args, logger);
+            const out = await handleToolCall(serverRoot, name, args, logger, { allowWrite });
             reply(id, { content: [{ type: "text", text: out }] });
             return;
           }

@@ -1197,6 +1197,67 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   }
 });
 
+test("rmemo mcp --allow-write exposes write tools and can update repo memory", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-mcpw-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  const mcp = startNodeStdio([rmemoBin, "--root", tmp, "mcp", "--allow-write"]);
+
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "0" } }
+  });
+  mcp.writeLine({ jsonrpc: "2.0", method: "notifications/initialized", params: {} });
+  mcp.writeLine({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 3,
+    method: "tools/call",
+    params: { name: "rmemo_todo_add", arguments: { root: tmp, kind: "next", text: "Add MCP write tools" } }
+  });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 4,
+    method: "tools/call",
+    params: { name: "rmemo_log", arguments: { root: tmp, kind: "Note", text: "MCP write test" } }
+  });
+
+  await waitFor(() => {
+    const lines = parseJsonLines(mcp.getOut());
+    return lines.some((x) => x.id === 4) ? true : false;
+  });
+
+  const lines = parseJsonLines(mcp.getOut());
+  const list = lines.find((x) => x.id === 2);
+  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_todo_add"));
+  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_log"));
+
+  const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
+  assert.ok(todosMd.includes("Add MCP write tools"));
+
+  const journalDir = path.join(tmp, ".repo-memory", "journal");
+  const jFiles = (await fs.readdir(journalDir)).filter((x) => x.endsWith(".md"));
+  assert.ok(jFiles.length >= 1);
+  const j = await fs.readFile(path.join(journalDir, jFiles[0]), "utf8");
+  assert.ok(j.includes("MCP write test"));
+
+  mcp.closeIn();
+  try {
+    mcp.p.kill("SIGTERM");
+  } catch {
+    // ignore
+  }
+});
+
 test("rmemo embed build/search supports semantic search (mock provider)", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-embed-"));

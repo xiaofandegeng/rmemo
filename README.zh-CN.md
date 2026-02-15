@@ -241,6 +241,19 @@ rmemo mcp --root .
 
 它会暴露一组 tools（示例）：`rmemo_status`、`rmemo_context`、`rmemo_handoff`、`rmemo_pr`、`rmemo_rules`、`rmemo_todos`、`rmemo_search`。
 
+可选：开启写入 tools（出于安全默认关闭）：
+
+```bash
+rmemo mcp --root . --allow-write
+```
+
+写入 tools：
+- `rmemo_todo_add`
+- `rmemo_todo_done`
+- `rmemo_log`
+- `rmemo_sync`
+- `rmemo_embed_auto`
+
 ## 语义检索（Embeddings）
 
 构建本地 embeddings 索引（默认使用确定性的 `mock` provider）：
