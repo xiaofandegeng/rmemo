@@ -8,6 +8,10 @@ function sha256Hex(s) {
   return crypto.createHash("sha256").update(String(s || ""), "utf8").digest("hex");
 }
 
+function fileKey(kind, file) {
+  return `${kind}:${file}`;
+}
+
 function clampText(s, maxChars) {
   const t = String(s || "");
   if (t.length <= maxChars) return t;
@@ -240,6 +244,32 @@ export async function loadEmbeddingsIndex(root) {
   return await readJson(p);
 }
 
+export async function loadEmbeddingsMeta(root) {
+  const p = embeddingsMetaPath(root);
+  if (!(await fileExists(p))) return null;
+  return await readJson(p);
+}
+
+function sameConfig(a, b) {
+  if (!a || !b) return false;
+  const keys = [
+    "provider",
+    "model",
+    "dim",
+    "recentDays",
+    "maxChunksPerFile",
+    "maxCharsPerChunk",
+    "overlapChars",
+    "maxTotalChunks"
+  ];
+  for (const k of keys) {
+    if (String(a[k] ?? "") !== String(b[k] ?? "")) return false;
+  }
+  const ak = Array.isArray(a.kinds) ? a.kinds.join(",") : "";
+  const bk = Array.isArray(b.kinds) ? b.kinds.join(",") : "";
+  return ak === bk;
+}
+
 export async function buildEmbeddingsIndex(
   root,
   {
@@ -258,16 +288,73 @@ export async function buildEmbeddingsIndex(
 ) {
   const embedder = createEmbedder({ provider, dim, apiKey, model });
   const startedAt = new Date().toISOString();
-  const prev = force ? null : await loadEmbeddingsIndex(root);
+  const wantConfig = {
+    provider: embedder.provider,
+    model: embedder.model,
+    dim: embedder.provider === "mock" ? Number(embedder.dim) : undefined,
+    kinds,
+    recentDays,
+    maxChunksPerFile,
+    maxCharsPerChunk,
+    overlapChars,
+    maxTotalChunks
+  };
+
+  const prevMeta = force ? null : await loadEmbeddingsMeta(root);
+  const canReuse = sameConfig(prevMeta, wantConfig);
+  const prev = force || !canReuse ? null : await loadEmbeddingsIndex(root);
 
   const docList = await buildDocList(root, { kinds, recentDays });
+  const prevFiles = prev && prev.files && typeof prev.files === "object" ? prev.files : null;
+
+  const prevById = new Map();
+  if (prev && Array.isArray(prev.items)) {
+    for (const it of prev.items) prevById.set(it.id, it);
+  }
+
   const chunks = [];
+  const outItems = [];
+  const outFiles = {};
+  let reusedFiles = 0;
+  let reusedItems = 0;
   for (const d of docList) {
+    const fileRel = path.relative(root, d.abs).replace(/\\/g, "/");
+    const fk = fileKey(d.kind, fileRel);
+
+    let st = null;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      st = await fs.stat(d.abs);
+    } catch {
+      st = null;
+    }
+
+    // Fast path: if previous index has per-file metadata and file stats match, reuse without reading/chunking.
+    if (prevFiles && st && prevFiles[fk] && Number(prevFiles[fk].size) === Number(st.size) && Number(prevFiles[fk].mtimeMs) === Number(st.mtimeMs)) {
+      const ids = Array.isArray(prevFiles[fk].ids) ? prevFiles[fk].ids : [];
+      const keep = [];
+      for (const id of ids) {
+        const it = prevById.get(id);
+        if (!it || !it.vectorB64 || !it.textHash) continue;
+        keep.push(it);
+        if (outItems.length + keep.length >= maxTotalChunks) break;
+      }
+      if (keep.length) {
+        reusedFiles++;
+        reusedItems += keep.length;
+        outItems.push(...keep);
+        outFiles[fk] = { kind: d.kind, file: fileRel, size: st.size, mtimeMs: st.mtimeMs, ids: keep.map((x) => x.id) };
+        if (outItems.length >= maxTotalChunks) break;
+        continue;
+      }
+    }
+
+    // Slow path: read + chunk (still reuses per-chunk vectors by id+textHash later).
     // eslint-disable-next-line no-await-in-loop
     const text = await readText(d.abs, 2_000_000);
-    const fileRel = path.relative(root, d.abs).replace(/\\/g, "/");
     const fileHash = sha256Hex(text);
     const parts = chunkMarkdown(text, { maxChars: maxCharsPerChunk, overlapChars, maxChunks: maxChunksPerFile });
+    const ids = [];
     for (let i = 0; i < parts.length; i++) {
       const c = parts[i];
       const id = `${d.kind}:${fileRel}:${i + 1}:${c.startLine}-${c.endLine}`;
@@ -280,20 +367,18 @@ export async function buildEmbeddingsIndex(
         startLine: c.startLine,
         endLine: c.endLine,
         text: clampText(c.text, maxCharsPerChunk),
-        textHash
+        textHash,
+        size: st ? st.size : undefined,
+        mtimeMs: st ? st.mtimeMs : undefined
       });
-      if (chunks.length >= maxTotalChunks) break;
+      ids.push(id);
+      if (outItems.length + chunks.length >= maxTotalChunks) break;
     }
-    if (chunks.length >= maxTotalChunks) break;
-  }
-
-  const prevById = new Map();
-  if (prev && Array.isArray(prev.items)) {
-    for (const it of prev.items) prevById.set(it.id, it);
+    if (st) outFiles[fk] = { kind: d.kind, file: fileRel, size: st.size, mtimeMs: st.mtimeMs, ids };
+    if (outItems.length + chunks.length >= maxTotalChunks) break;
   }
 
   const toEmbed = [];
-  const outItems = [];
   for (const c of chunks) {
     const old = prevById.get(c.id);
     if (old && old.textHash === c.textHash && old.vectorB64) {
@@ -327,7 +412,15 @@ export async function buildEmbeddingsIndex(
     finishedAt: new Date().toISOString(),
     kinds,
     recentDays,
-    itemCount: outItems.length
+    maxChunksPerFile,
+    maxCharsPerChunk,
+    overlapChars,
+    maxTotalChunks,
+    itemCount: outItems.length,
+    reusedFiles,
+    reusedItems,
+    embeddedItems: toEmbed.length,
+    reusedFromPreviousIndex: canReuse
   };
 
   const index = {
@@ -336,6 +429,7 @@ export async function buildEmbeddingsIndex(
     provider: embedder.provider,
     model: embedder.model,
     dim: embedder.provider === "mock" ? Number(embedder.dim) : (outItems[0] ? decodeVector(outItems[0].vectorB64).length : 0),
+    files: outFiles,
     items: outItems
   };
 
@@ -393,4 +487,3 @@ export async function semanticSearch(root, { q, k = 8, minScore = 0.15 } = {}) {
     hits: hits.slice(0, Math.max(1, Math.min(50, Number(k || 8))))
   };
 }
-

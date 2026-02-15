@@ -1165,10 +1165,25 @@ test("rmemo embed build/search supports semantic search (mock provider)", async 
   }
 
   {
-    const r = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock"]);
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock", "--dim", "64"]);
     assert.equal(r.code, 0, r.err || r.out);
     assert.ok(await exists(path.join(tmp, ".repo-memory", "embeddings", "index.json")));
     assert.ok(await exists(path.join(tmp, ".repo-memory", "embeddings", "meta.json")));
+  }
+
+  // Rebuild with a different dim: should not reuse previous vectors and should update index dim.
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock", "--dim", "128"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const idx = JSON.parse(await fs.readFile(path.join(tmp, ".repo-memory", "embeddings", "index.json"), "utf8"));
+    assert.equal(idx.schema, 1);
+    assert.equal(idx.provider, "mock");
+    assert.equal(idx.dim, 128);
+    // Sanity: vectors should decode to 128 float32.
+    const first = idx.items && idx.items.find((x) => x.vectorB64);
+    assert.ok(first, "index should have vectors");
+    const buf = Buffer.from(first.vectorB64, "base64");
+    assert.equal(buf.byteLength / 4, 128);
   }
 
   {

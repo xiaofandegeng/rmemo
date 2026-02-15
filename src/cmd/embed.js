@@ -53,6 +53,10 @@ export async function cmdEmbed({ rest, flags }) {
         `- provider: ${r.meta.provider}`,
         `- model: ${r.meta.model}`,
         `- items: ${r.meta.itemCount}`,
+        `- reusedFromPreviousIndex: ${r.meta.reusedFromPreviousIndex ? "yes" : "no"}`,
+        `- reusedFiles: ${r.meta.reusedFiles || 0}`,
+        `- reusedItems: ${r.meta.reusedItems || 0}`,
+        `- embeddedItems: ${r.meta.embeddedItems || 0}`,
         `- kinds: ${(r.meta.kinds || []).join(", ")}`,
         `- recentDays: ${r.meta.recentDays}`
       ].join("\n") + "\n"
@@ -95,4 +99,3 @@ export async function cmdEmbed({ rest, flags }) {
   process.stdout.write(help() + "\n");
   process.exitCode = 1;
 }
-
