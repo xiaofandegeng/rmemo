@@ -21,6 +21,7 @@ import { ensureRepoMemory } from "./memory.js";
 import { generateContext } from "./context.js";
 import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
+import { semanticSearch } from "./embeddings.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -259,14 +260,17 @@ function toolsList() {
       },
       additionalProperties: false
     }),
-    tool("rmemo_search", "Search in rules/todos/context/manifest/journal for a keyword.", {
+    tool("rmemo_search", "Search repo memory. mode=keyword searches files; mode=semantic uses embeddings index.", {
       type: "object",
       properties: {
         root: rootProp,
         q: { type: "string" },
+        mode: { type: "string", enum: ["keyword", "semantic"], default: "keyword" },
         scope: { type: "string", default: "rules,todos,context,manifest,journal" },
         recentDays: { type: "number", default: 14 },
-        maxHits: { type: "number", default: 50 }
+        maxHits: { type: "number", default: 50 },
+        k: { type: "number", default: 8, description: "Top-k results for semantic search." },
+        minScore: { type: "number", default: 0.15, description: "Minimum cosine similarity for semantic search." }
       },
       required: ["q"],
       additionalProperties: false
@@ -369,6 +373,13 @@ async function handleToolCall(serverRoot, name, args, logger) {
 
   if (name === "rmemo_search") {
     const q = String(args?.q || "");
+    const mode = String(args?.mode || "keyword").toLowerCase();
+    if (mode === "semantic") {
+      const k = Number(args?.k || 8);
+      const minScore = Number(args?.minScore || 0.15);
+      const r = await semanticSearch(root, { q, k, minScore });
+      return JSON.stringify(r, null, 2);
+    }
     const scope = String(args?.scope || "rules,todos,context,manifest,journal");
     const recentDays = Number(args?.recentDays || 14);
     const maxHits = Number(args?.maxHits || 50);

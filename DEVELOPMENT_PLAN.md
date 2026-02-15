@@ -217,7 +217,31 @@ Done:
 Goals:
 - Provide the same capabilities over stdio for AI tools that support MCP.
 
-Proposed:
-- `rmemo mcp` exposing tools:
-  - status/context/handoff/pr/rules/todos
-  - search
+Done:
+- `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
+- Tools:
+  - `rmemo_status`
+  - `rmemo_context` (supports refresh)
+  - `rmemo_rules`
+  - `rmemo_todos` (md/json)
+  - `rmemo_handoff` (md/json, supports refresh)
+  - `rmemo_pr` (md/json, supports refresh)
+  - `rmemo_search` (keyword search)
+
+## v1.9 (Semantic Memory) (Planned)
+
+Goals:
+- Make "memory retrieval" work even when you don't remember the exact keyword.
+- Keep it local-first: build an embeddings index under `.repo-memory/` and search it.
+- Expose the same capability over CLI/HTTP/MCP.
+
+Planned:
+- `rmemo embed build`:
+  - Build `.repo-memory/embeddings/index.json`
+  - Provider options: `mock` (default, deterministic) and `openai` (optional)
+- `rmemo embed search <query>`:
+  - Return top-k matching chunks with scores and snippets
+- HTTP:
+  - `GET /search?mode=semantic&q=...` uses the embeddings index
+- MCP:
+  - Extend `rmemo_search` to support `mode=semantic`

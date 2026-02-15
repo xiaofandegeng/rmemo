@@ -21,6 +21,7 @@ import { cmdProfile } from "../src/cmd/profile.js";
 import { cmdSession } from "../src/cmd/session.js";
 import { cmdServe } from "../src/cmd/serve.js";
 import { cmdMcp } from "../src/cmd/mcp.js";
+import { cmdEmbed } from "../src/cmd/embed.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -94,6 +95,9 @@ try {
       break;
     case "mcp":
       await cmdMcp({ flags });
+      break;
+    case "embed":
+      await cmdEmbed({ rest, flags });
       break;
     case "help":
     case undefined:

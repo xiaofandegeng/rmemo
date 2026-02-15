@@ -18,6 +18,7 @@ import {
 import { parseTodos } from "./todos.js";
 import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
+import { semanticSearch } from "./embeddings.js";
 
 function json(res, code, obj) {
   const s = JSON.stringify(obj, null, 2) + "\n";
@@ -366,6 +367,17 @@ export async function startServe(root, opts = {}) {
       if (req.method === "GET" && url.pathname === "/search") {
         const q = String(url.searchParams.get("q") || "").trim();
         if (!q) return badRequest(res, "Missing q");
+        const mode = String(url.searchParams.get("mode") || "keyword").toLowerCase();
+
+        if (mode === "semantic") {
+          const k = Number(url.searchParams.get("k") || url.searchParams.get("maxHits") || 8);
+          const minScore = Number(url.searchParams.get("minScore") || url.searchParams.get("min-score") || 0.15);
+          const out = await semanticSearch(root, { q, k, minScore });
+          return json(res, 200, out);
+        }
+
+        if (mode !== "keyword") return badRequest(res, "mode must be keyword|semantic");
+
         const maxHits = Math.min(200, Math.max(1, Number(url.searchParams.get("maxHits") || 50)));
         const scope = String(url.searchParams.get("scope") || "rules,todos,context,manifest,journal").toLowerCase();
         const scopes = new Set(scope.split(",").map((s) => s.trim()).filter(Boolean));
@@ -437,4 +449,3 @@ export async function startServe(root, opts = {}) {
 
   return { server, host, port: actualPort, baseUrl, close };
 }
-

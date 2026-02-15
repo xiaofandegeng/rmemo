@@ -68,3 +68,15 @@ export function sessionsDir(root) {
 export function activeSessionPath(root) {
   return path.join(memDir(root), "session.json");
 }
+
+export function embeddingsDir(root) {
+  return path.join(memDir(root), "embeddings");
+}
+
+export function embeddingsIndexPath(root) {
+  return path.join(embeddingsDir(root), "index.json");
+}
+
+export function embeddingsMetaPath(root) {
+  return path.join(embeddingsDir(root), "meta.json");
+}

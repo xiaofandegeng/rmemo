@@ -72,6 +72,7 @@ node /path/to/rmemo/bin/rmemo.js --root /path/to/your-repo init
 - `.repo-memory/todos.md`: next steps and blockers (human-written)
 - `.repo-memory/journal/YYYY-MM-DD.md`: daily progress log (human-written)
 - `.repo-memory/context.md`: generated AI-ready context pack (generated)
+- `.repo-memory/embeddings/index.json`: embeddings index for semantic search (generated)
 
 ## Commands
 
@@ -89,13 +90,14 @@ rmemo start
 rmemo done
 rmemo handoff
 rmemo pr
-  rmemo watch
+rmemo watch
 rmemo ws
 rmemo template ls
 rmemo template apply <id>
 rmemo session
 rmemo serve
 rmemo mcp
+rmemo embed
 ```
 
 ## Sync AI Tool Instructions
@@ -206,6 +208,8 @@ Then fetch:
 - `GET /context`
 - `GET /rules`
 - `GET /todos?format=json`
+- `GET /search?q=...` (keyword search)
+- `GET /search?mode=semantic&q=...` (semantic search; requires `rmemo embed build`)
 
 ## MCP Server (stdio)
 
@@ -216,6 +220,23 @@ rmemo mcp --root .
 ```
 
 It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`.
+
+## Semantic Search (Embeddings)
+
+Build a local embeddings index (default: deterministic `mock` provider):
+
+```bash
+rmemo embed build
+rmemo embed search "auth token refresh"
+```
+
+Optional OpenAI provider:
+
+```bash
+export OPENAI_API_KEY=...
+rmemo embed build --provider openai --model text-embedding-3-small
+rmemo embed search "where is auth validated?"
+```
 
 ## Monorepo Workspaces
 

@@ -47,7 +47,7 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /rules, /rules.json, /todos\n`);
   process.stdout.write(`- GET /handoff, /pr\n`);
   process.stdout.write(`- GET /journal, /journal/YYYY-MM-DD.md\n`);
-  process.stdout.write(`- GET /search?q=...\n`);
+  process.stdout.write(`- GET /search?q=... (mode=keyword|semantic)\n`);
   if (allowRefresh) process.stdout.write(`- GET /handoff?refresh=1, /pr?refresh=1\n`);
   if (allowShutdown) process.stdout.write(`- POST /shutdown\n`);
 
@@ -62,4 +62,3 @@ export async function cmdServe({ flags }) {
   // Keep process alive.
   await new Promise(() => {});
 }
-

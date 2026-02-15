@@ -1143,3 +1143,42 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
     // ignore
   }
 });
+
+test("rmemo embed build/search supports semantic search (mock provider)", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-embed-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  await fs.writeFile(path.join(tmp, "api.md"), "Auth token is validated in middleware.\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // Make rules/todos mention a phrase we will query.
+  await fs.writeFile(path.join(tmp, ".repo-memory", "rules.md"), "# Rules\n- Always validate auth token.\n", "utf8");
+  await fs.writeFile(path.join(tmp, ".repo-memory", "todos.md"), "## Next\n- Add auth token refresh\n\n## Blockers\n- (none)\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "context"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(await exists(path.join(tmp, ".repo-memory", "embeddings", "index.json")));
+    assert.ok(await exists(path.join(tmp, ".repo-memory", "embeddings", "meta.json")));
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "search", "auth token", "--format", "json"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.equal(j.q, "auth token");
+    assert.ok(Array.isArray(j.hits));
+    assert.ok(j.hits.length > 0, "semantic search should return hits");
+    assert.ok(j.hits.some((h) => String(h.text || "").toLowerCase().includes("auth token")));
+  }
+});

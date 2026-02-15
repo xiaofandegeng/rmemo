@@ -79,6 +79,7 @@ Usage:
   rmemo session              Sessions: start -> note -> end for AI-ready handoff snapshots
   rmemo serve                Repo memory HTTP API (local-first, read-only by default)
   rmemo mcp                  MCP server over stdio (tools: status/context/handoff/pr/rules/todos/search)
+  rmemo embed                Build embeddings index and run semantic search (local-first)
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
@@ -123,6 +124,13 @@ Options:
   --no-sync                  For watch: do not run rmemo sync on refresh
   --only <list>              For ws batch: comma-separated subproject dirs to include
   --no-git                   Don't use git for scanning (fallback to filesystem walk)
+  --provider <mock|openai>   For embed build: embeddings provider (default: mock)
+  --model <id>               For embed build: embeddings model id (openai)
+  --api-key <key>            For embed build: override API key (openai)
+  --dim <n>                  For embed build: vector dim (mock only; default: 128)
+  --kinds <list>             For embed build: comma-separated kinds (rules,todos,context,journal,sessions,handoff,pr)
+  --min-score <n>            For embed search: minimum cosine similarity (default: 0.15)
+  --k <n>                    For embed search: top-k hits (default: 8)
 `;
   process.stdout.write(help.trimStart());
 }

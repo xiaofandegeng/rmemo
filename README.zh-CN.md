@@ -73,6 +73,7 @@ node /path/to/rmemo/bin/rmemo.js --root /path/to/your-repo init
 - `.repo-memory/todos.md`：下一步与阻塞（手写/命令追加）
 - `.repo-memory/journal/YYYY-MM-DD.md`：按天顺序记录进度（手写/命令追加）
 - `.repo-memory/context.md`：生成的 AI 上下文包（生成文件）
+- `.repo-memory/embeddings/index.json`：用于语义检索的 embeddings 索引（生成文件）
 
 ## 命令
 
@@ -88,18 +89,19 @@ rmemo start
 rmemo done
 rmemo handoff
 rmemo pr
-  rmemo watch
-  rmemo ws
-  rmemo todo add <text>
-  rmemo todo block <text>
-  rmemo todo ls
-  rmemo session
-  rmemo serve
-  rmemo mcp
-  rmemo context
-  rmemo print
-  rmemo template ls
-  rmemo template apply <id>
+rmemo watch
+rmemo ws
+rmemo todo add <text>
+rmemo todo block <text>
+rmemo todo ls
+rmemo session
+rmemo serve
+rmemo mcp
+rmemo embed
+rmemo context
+rmemo print
+rmemo template ls
+rmemo template apply <id>
 ```
 
 ## 同步到 AI 工具的“项目指令文件”
@@ -210,6 +212,8 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /context`
 - `GET /rules`
 - `GET /todos?format=json`
+- `GET /search?q=...`（关键字检索）
+- `GET /search?mode=semantic&q=...`（语义检索；需要先执行 `rmemo embed build`）
 
 ## MCP Server（stdio）
 
@@ -220,6 +224,23 @@ rmemo mcp --root .
 ```
 
 它会暴露一组 tools（示例）：`rmemo_status`、`rmemo_context`、`rmemo_handoff`、`rmemo_pr`、`rmemo_rules`、`rmemo_todos`、`rmemo_search`。
+
+## 语义检索（Embeddings）
+
+构建本地 embeddings 索引（默认使用确定性的 `mock` provider）：
+
+```bash
+rmemo embed build
+rmemo embed search "auth token refresh"
+```
+
+可选 OpenAI provider：
+
+```bash
+export OPENAI_API_KEY=...
+rmemo embed build --provider openai --model text-embedding-3-small
+rmemo embed search "鉴权在哪里做的？"
+```
 
 ## Monorepo 工作区（子项目）
 
