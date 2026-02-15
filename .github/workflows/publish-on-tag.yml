@@ -47,25 +47,12 @@ jobs:
           VERSION="${{ steps.vars.outputs.version }}"
           # Prefer CHANGELOG.md section for this version if present.
           if [ -f CHANGELOG.md ]; then
-            BODY="$(python3 - <<'PY'
-import re,sys
-tag=sys.argv[1]
-ver=sys.argv[2]
-try:
-  s=open("CHANGELOG.md","r",encoding="utf-8").read()
-except Exception:
-  sys.exit(1)
-def extract(header):
-  m=re.search(rf"^##\\s+{re.escape(header)}\\s*$", s, flags=re.M)
-  if not m: return ""
-  rest=s[m.end():]
-  n=re.search(r"^##\\s+", rest, flags=re.M)
-  body=(rest if not n else rest[:n.start()]).strip()
-  return body
-body=extract(ver) or extract(tag)
-print(body)
-PY
-" "$TAG" "$VERSION" 2>/dev/null || true)"
+            BODY="$(awk -v ver="$VERSION" '
+              BEGIN { in=0 }
+              $0 ~ ("^##[[:space:]]+" ver "([[:space:]]|$)") { in=1; next }
+              in && /^##[[:space:]]+/ { exit }
+              in { print }
+            ' CHANGELOG.md | sed -e 's/[[:space:]]*$//')"
           fi
 
           PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
