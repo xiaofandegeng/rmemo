@@ -227,6 +227,17 @@ Done:
    - Read tools: `rmemo_status`, `rmemo_context`, `rmemo_rules`, `rmemo_todos`, `rmemo_handoff`, `rmemo_pr`, `rmemo_search`, `rmemo_focus`
    - Write tools (disabled by default; enable with `--allow-write`):
      - `rmemo_todo_add`, `rmemo_todo_done`, `rmemo_log`, `rmemo_sync`, `rmemo_embed_auto`
+
+## v1.9 (Integrations + Doctor) (In Progress)
+
+Goals:
+- Reduce friction when integrating with IDEs/agents (especially MCP clients running with restricted PATH).
+- Provide a first-class way to debug install/version conflicts.
+
+Done:
+- Add `rmemo integrate` to output paste-ready MCP config snippets:
+  - `rmemo integrate antigravity` (JSON snippet for Antigravity raw config)
+- Add `rmemo doctor` to print diagnostics (node/bin/registry/config) and common fixes.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:
   - `rmemo_status`

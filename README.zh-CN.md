@@ -254,6 +254,19 @@ rmemo mcp --root . --allow-write
 - `rmemo_sync`
 - `rmemo_embed_auto`
 
+## 集成（MCP 配置片段）
+
+有些 IDE/Agent 需要你粘贴一段 JSON 片段来注册 MCP server（并且 GUI 环境里 PATH 可能不完整）。
+
+生成 Antigravity 配置片段（粘贴到 “View raw config”）：
+
+```bash
+rmemo integrate antigravity
+rmemo integrate antigravity --format json
+```
+
+如果你遇到 `Unknown command: mcp`，说明你全局安装的 `rmemo` 太旧；这个片段默认使用 `node` + `bin/rmemo.js` 绝对路径来绕过 PATH/版本冲突。
+
 ## 语义检索（Embeddings）
 
 构建本地 embeddings 索引（默认使用确定性的 `mock` provider）：

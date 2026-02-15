@@ -250,6 +250,19 @@ Write tools:
 - `rmemo_sync`
 - `rmemo_embed_auto`
 
+## Integrations (MCP Config Snippets)
+
+Some IDEs/agents require a JSON snippet to register MCP servers (and may run with a restricted PATH).
+
+Generate an Antigravity snippet (paste into "View raw config"):
+
+```bash
+rmemo integrate antigravity
+rmemo integrate antigravity --format json
+```
+
+If you hit `Unknown command: mcp`, your global `rmemo` is outdated. The snippet uses `node` + an absolute `bin/rmemo.js` path to avoid this.
+
 ## Semantic Search (Embeddings)
 
 Build a local embeddings index (default: deterministic `mock` provider):

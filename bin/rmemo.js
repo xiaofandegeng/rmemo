@@ -23,6 +23,8 @@ import { cmdServe } from "../src/cmd/serve.js";
 import { cmdMcp } from "../src/cmd/mcp.js";
 import { cmdEmbed } from "../src/cmd/embed.js";
 import { cmdFocus } from "../src/cmd/focus.js";
+import { cmdIntegrate } from "../src/cmd/integrate.js";
+import { cmdDoctor } from "../src/cmd/doctor.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -102,6 +104,12 @@ try {
       break;
     case "focus":
       await cmdFocus({ rest, flags });
+      break;
+    case "integrate":
+      await cmdIntegrate({ rest, flags });
+      break;
+    case "doctor":
+      await cmdDoctor({ flags });
       break;
     case "help":
     case undefined:
