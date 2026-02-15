@@ -135,8 +135,46 @@ jobs:
             core.info(`Updating release ${release_id} body (was empty)`);
             await github.rest.repos.updateRelease({ owner, repo, release_id, body });
 
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+      - name: Upload release assets (tgz)
+        uses: actions/github-script@v7
         with:
-          tag_name: ${{ steps.vars.outputs.tag }}
-          files: "*.tgz"
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const tag = "${{ steps.vars.outputs.tag }}";
+
+            const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+            const release_id = rel.data.id;
+
+            const files = fs.readdirSync(process.cwd()).filter((f) => f.endsWith(".tgz"));
+            if (!files.length) {
+              core.info("No .tgz files found to upload.");
+              return;
+            }
+
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, { owner, repo, release_id, per_page: 100 });
+            const byName = new Map(assets.map((a) => [a.name, a]));
+
+            for (const f of files) {
+              const existing = byName.get(f);
+              if (existing) {
+                core.info(`Deleting existing asset: ${f}`);
+                await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: existing.id });
+              }
+
+              const data = fs.readFileSync(path.join(process.cwd(), f));
+              core.info(`Uploading asset: ${f} (${data.length} bytes)`);
+              await github.rest.repos.uploadReleaseAsset({
+                owner,
+                repo,
+                release_id,
+                name: f,
+                data,
+                headers: {
+                  "content-type": "application/octet-stream",
+                  "content-length": data.length
+                }
+              });
+            }
