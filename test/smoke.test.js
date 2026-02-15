@@ -876,6 +876,56 @@ test("rmemo ws batch handoff generates handoff for all subprojects", async () =>
   assert.ok(await exists(path.join(tmp, "apps", "miniapp", ".repo-memory", "handoff.md")), true);
 });
 
+test("rmemo ws batch embed auto builds embeddings for all subprojects", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-ws-embed-"));
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "mono", private: true, workspaces: ["apps/*"] }, null, 2) + "\n",
+    "utf8"
+  );
+
+  const apps = ["apps/a", "apps/b"];
+  for (const d of apps) {
+    const abs = path.join(tmp, d);
+    await fs.mkdir(abs, { recursive: true });
+    await fs.writeFile(path.join(abs, "package.json"), JSON.stringify({ name: d.replace("/", "-"), private: true }, null, 2) + "\n", "utf8");
+    // init repo-memory files for each subproject
+    // eslint-disable-next-line no-await-in-loop
+    const r = await runNode([rmemoBin, "--root", abs, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    // enable embeddings via config
+    const cfgPath = path.join(abs, ".repo-memory", "config.json");
+    const cfg = JSON.parse(await fs.readFile(cfgPath, "utf8"));
+    cfg.embed = { enabled: true, provider: "mock", dim: 32, kinds: ["rules", "todos"] };
+    await fs.writeFile(cfgPath, JSON.stringify(cfg, null, 2) + "\n", "utf8");
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "ws", "batch", "embed"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  for (const d of apps) {
+    const idx = path.join(tmp, d, ".repo-memory", "embeddings", "index.json");
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal(await exists(idx), true, `embeddings index should exist: ${d}`);
+  }
+
+  // Check mode should pass when nothing changed.
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "ws", "batch", "embed", "--check"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  // Modify one workspace => check should fail (exit 2).
+  await fs.appendFile(path.join(tmp, "apps/a", ".repo-memory", "rules.md"), "\n- changed\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "ws", "batch", "embed", "--check"]);
+    assert.equal(r.code, 2);
+  }
+});
+
 test("rmemo profile ls/describe/apply works", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-profile-"));

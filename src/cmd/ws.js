@@ -7,12 +7,14 @@ import { cmdStatus } from "./status.js";
 import { cmdHandoff } from "./handoff.js";
 import { cmdPr } from "./pr.js";
 import { cmdSync } from "./sync.js";
+import { cmdEmbed } from "./embed.js";
 import { ensureRepoMemory } from "../core/memory.js";
 import { wsSummaryPath } from "../lib/paths.js";
 import { generateHandoff } from "../core/handoff.js";
 import { generatePr } from "../core/pr.js";
 import { syncAiInstructions } from "../core/sync.js";
 import { refreshRepoMemory } from "../core/watch.js";
+import { embedAuto } from "../core/embed_auto.js";
 
 function isNumberLike(s) {
   return /^[0-9]+$/.test(String(s || ""));
@@ -30,17 +32,19 @@ function wsHelp() {
   return [
     "Usage:",
     "  rmemo ws ls",
-    "  rmemo ws batch <start|status|handoff|pr|sync> [--only <dirs>] [--format <md|json>]",
+    "  rmemo ws batch <start|status|handoff|pr|sync|embed> [--only <dirs>] [--format <md|json>]",
     "  rmemo ws start <n|dir>",
     "  rmemo ws status <n|dir>",
     "  rmemo ws handoff <n|dir>",
     "  rmemo ws pr <n|dir> [--base <ref>]",
     "  rmemo ws sync <n|dir> [--targets ...]",
+    "  rmemo ws embed <n|dir> <auto|build|search> [...args]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
     "- <n> refers to the index printed by `rmemo ws ls`.",
-    "- For batch: `--only` is a comma-separated list of subproject dirs (e.g. apps/admin-web,apps/miniapp)."
+    "- For batch: `--only` is a comma-separated list of subproject dirs (e.g. apps/admin-web,apps/miniapp).",
+    "- For batch embed: use `--check` to audit (non-zero if any workspace is out of date)."
   ].join("\n");
 }
 
@@ -104,7 +108,7 @@ function renderBatchJson({ root, cmd, results }) {
   return JSON.stringify({ schema: 1, root, generatedAt: new Date().toISOString(), cmd, results }, null, 2) + "\n";
 }
 
-async function runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd, base, format, maxChanges, onlyDirs }) {
+async function runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd, base, format, maxChanges, onlyDirs, check }) {
   const { manifest } = await scanRepo(root, { maxFiles, preferGit });
   const spsAll = Array.isArray(manifest?.subprojects) ? manifest.subprojects : [];
   const sps = onlyDirs && onlyDirs.length ? spsAll.filter((x) => onlyDirs.includes(x.dir)) : spsAll;
@@ -136,6 +140,14 @@ async function runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd,
         // eslint-disable-next-line no-await-in-loop
         await refreshRepoMemory(wsRoot, { preferGit, maxFiles, snipLines, recentDays, sync: true });
         results.push({ dir: sp.dir, ok: true, outMd: null, outJson: null });
+      } else if (cmd === "embed") {
+        // eslint-disable-next-line no-await-in-loop
+        const r = await embedAuto(wsRoot, { checkOnly: !!check });
+        if (!r.ok) {
+          results.push({ dir: sp.dir, ok: false, error: r.reason ? String(r.reason) : "out_of_date", outMd: null, outJson: null });
+        } else {
+          results.push({ dir: sp.dir, ok: true, outMd: null, outJson: null, note: r.skipped ? `skipped:${r.reason}` : "rebuilt" });
+        }
       } else if (cmd === "status") {
         // No file output; treat as ok and let user run per-workspace if needed.
         results.push({ dir: sp.dir, ok: true, outMd: null, outJson: null, note: "use ws status <n|dir> for output" });
@@ -163,6 +175,7 @@ export async function cmdWs({ rest, flags }) {
   const maxChanges = Number(flags["max-changes"] || 200);
   const onlyDirs = splitList(flags.only || "");
   const base = flags.base ? String(flags.base) : "";
+  const check = !!flags.check;
 
   if (!sub || sub === "help") {
     process.stdout.write(wsHelp() + "\n");
@@ -185,8 +198,12 @@ export async function cmdWs({ rest, flags }) {
       process.exitCode = 2;
       return;
     }
-    const r = await runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd, base, format, maxChanges, onlyDirs });
+    const r = await runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd, base, format, maxChanges, onlyDirs, check });
     process.stdout.write(r.output);
+    if (cmd === "embed" && check) {
+      const anyBad = Array.isArray(r.results) && r.results.some((x) => !x.ok);
+      if (anyBad) process.exitCode = 2;
+    }
     return;
   }
 
@@ -218,6 +235,17 @@ export async function cmdWs({ rest, flags }) {
     case "sync":
       await cmdSync({ flags: nextFlags });
       return;
+    case "embed": {
+      const embedRest = rest.slice(2); // ["auto"|"build"|"search", ...]
+      if (!embedRest.length) {
+        process.stderr.write("Missing embed subcommand.\n\n");
+        process.stderr.write(wsHelp() + "\n");
+        process.exitCode = 2;
+        return;
+      }
+      await cmdEmbed({ rest: embedRest, flags: nextFlags });
+      return;
+    }
     default:
       process.stderr.write(`Unknown subcommand: ws ${sub}\n\n`);
       process.stderr.write(wsHelp() + "\n");
