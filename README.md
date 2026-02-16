@@ -207,6 +207,7 @@ Then fetch:
 - `GET /ui` (local dashboard)
 - `GET /events` (SSE stream; for live updates)
 - `GET /events/export?format=json|md&limit=200` (export recent events)
+- `GET /diagnostics/export?format=json|md` (status + watch + events bundle)
 - `GET /watch` (watch runtime status)
 - `GET /status?format=json`
 - `GET /context`

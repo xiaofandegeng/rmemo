@@ -11,6 +11,7 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/focus?q="));
   assert.ok(html.includes("/events"));
   assert.ok(html.includes("/events/export"));
+  assert.ok(html.includes("/diagnostics/export"));
   assert.ok(html.includes("/refresh"));
   assert.ok(html.includes("/watch"));
   // Should not embed tokens.

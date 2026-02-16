@@ -90,6 +90,32 @@ function eventToMdLine(e) {
   return `- [${at}] ${type}${reason}${d}${files}${err}`;
 }
 
+async function buildDiagnostics(root, { events, watchState, limitEvents = 200, recentDays = 7, snipLines = 120 } = {}) {
+  const status = await buildStatus(root, { format: "json", mode: "full", recentDays, snipLines });
+  const hist = (events?.history?.() || []).slice(-Math.min(2000, Math.max(1, Number(limitEvents || 200))));
+  const watch = {
+    enabled: !!watchState?.enabled,
+    intervalMs: watchState?.intervalMs ?? null,
+    sync: watchState?.sync ?? null,
+    embed: watchState?.embed ?? null,
+    runtime: {
+      clients: events?.size?.() ?? 0,
+      lastOkAt: watchState?.lastOkAt || null,
+      lastErrAt: watchState?.lastErrAt || null,
+      lastErr: watchState?.lastErr || null,
+      lastRefresh: watchState?.lastRefresh || null
+    }
+  };
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    watch,
+    status,
+    events: hist
+  };
+}
+
 export function createEventsBus({ max = 200 } = {}) {
   const clients = new Set();
   const history = [];
@@ -447,6 +473,47 @@ export function createServeHandler(root, opts = {}) {
         if (format === "md") {
           const lines = ["# Events", "", `- root: ${root}`, `- count: ${hist.length}`, ""];
           for (const e of hist) lines.push(eventToMdLine(e));
+          lines.push("");
+          return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
+        }
+        return badRequest(res, "format must be json|md");
+      }
+
+      if (req.method === "GET" && url.pathname === "/diagnostics/export") {
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        const limitEvents = Number(url.searchParams.get("limitEvents") || 200);
+        const recentDays = Number(url.searchParams.get("recentDays") || 7);
+        const snipLines = Number(url.searchParams.get("snipLines") || 120);
+        const d = await buildDiagnostics(root, { events, watchState, limitEvents, recentDays, snipLines });
+        if (format === "json") return json(res, 200, { ok: true, ...d });
+        if (format === "md") {
+          const lines = [];
+          lines.push("# Diagnostics");
+          lines.push("");
+          lines.push(`- generatedAt: ${d.generatedAt}`);
+          lines.push(`- root: ${d.root}`);
+          lines.push(`- events: ${d.events.length}`);
+          lines.push("");
+          lines.push("## Watch");
+          lines.push(`- enabled: ${d.watch.enabled}`);
+          lines.push(`- intervalMs: ${d.watch.intervalMs}`);
+          lines.push(`- sync: ${d.watch.sync}`);
+          lines.push(`- embed: ${d.watch.embed}`);
+          lines.push(`- clients: ${d.watch.runtime.clients}`);
+          if (d.watch.runtime.lastOkAt) lines.push(`- lastOkAt: ${d.watch.runtime.lastOkAt}`);
+          if (d.watch.runtime.lastErrAt) lines.push(`- lastErrAt: ${d.watch.runtime.lastErrAt}`);
+          if (d.watch.runtime.lastErr) lines.push(`- lastErr: ${d.watch.runtime.lastErr}`);
+          if (d.watch.runtime.lastRefresh?.durationMs !== undefined) lines.push(`- lastRefresh.durationMs: ${d.watch.runtime.lastRefresh.durationMs}`);
+          if (d.watch.runtime.lastRefresh?.stats?.fileCount !== undefined) lines.push(`- lastRefresh.fileCount: ${d.watch.runtime.lastRefresh.stats.fileCount}`);
+          lines.push("");
+          lines.push("## Status Snapshot");
+          lines.push(`- title: ${d.status.title || ""}`);
+          lines.push(`- repoHints: ${(d.status.manifest?.repoHints || []).join(", ")}`);
+          lines.push(`- nextTodos: ${Array.isArray(d.status.todos?.next) ? d.status.todos.next.length : 0}`);
+          lines.push(`- blockers: ${Array.isArray(d.status.todos?.blockers) ? d.status.todos.blockers.length : 0}`);
+          lines.push("");
+          lines.push("## Events");
+          for (const e of d.events) lines.push(eventToMdLine(e));
           lines.push("");
           return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
         }

@@ -145,6 +145,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <div class="row">
                   <button class="btn secondary" id="exportEventsJson">Export JSON</button>
                   <button class="btn secondary" id="exportEventsMd">Export MD</button>
+                  <button class="btn secondary" id="exportDiagJson">Diag JSON</button>
+                  <button class="btn secondary" id="exportDiagMd">Diag MD</button>
                 </div>
                 <div style="height: 8px;"></div>
                 <pre id="live" style="max-height: 160px;"></pre>
@@ -404,6 +406,22 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Events Export";
         msg("OK");
       }
+
+      async function exportDiagnostics(format) {
+        err(""); msg("Exporting diagnostics...");
+        const p = "/diagnostics/export?format=" + encodeURIComponent(format) + "&limitEvents=200";
+        if (format === "json") {
+          const j = await apiFetch(p, { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        } else {
+          const t = await apiFetch(p, { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        }
+        qs("#title").textContent = "Diagnostics Export";
+        msg("OK");
+      }
       async function doSearch() {
         err(""); msg("Searching...");
         const q = (qs("#q").value || "").trim();
@@ -568,6 +586,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadWatch").addEventListener("click", () => loadWatch().catch(() => {}));
       qs("#exportEventsJson").addEventListener("click", () => exportEvents("json").catch((e) => { err(String(e)); msg(""); }));
       qs("#exportEventsMd").addEventListener("click", () => exportEvents("md").catch((e) => { err(String(e)); msg(""); }));
+      qs("#exportDiagJson").addEventListener("click", () => exportDiagnostics("json").catch((e) => { err(String(e)); msg(""); }));
+      qs("#exportDiagMd").addEventListener("click", () => exportDiagnostics("md").catch((e) => { err(String(e)); msg(""); }));
       qs("#startWatch").addEventListener("click", () => apiPost("/watch/start", {
         intervalMs: Number((qs("#watchInterval").value || "").trim() || 2000),
         sync: !!qs("#watchSync").checked,

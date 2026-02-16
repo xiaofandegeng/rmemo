@@ -251,6 +251,7 @@ Done:
 - Add watch controls: `POST /watch/start`, `POST /watch/stop`.
 - Add one-shot refresh trigger: `POST /refresh`.
 - Add events export: `GET /events/export?format=json|md&limit=...`.
+- Add diagnostics bundle export: `GET /diagnostics/export?format=json|md` (status + watch + events).
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

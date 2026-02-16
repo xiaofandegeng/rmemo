@@ -217,6 +217,36 @@ test("serve handler: /events/export supports json and md", async () => {
   assert.ok(mdExport.body.includes("refresh:ok"));
 });
 
+test("serve handler: /diagnostics/export supports json and md", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
+  await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
+  const events = createEventsBus();
+  events.emit({ type: "refresh:ok", reason: "test", durationMs: 33, stats: { fileCount: 5 } });
+  const watchState = {
+    enabled: true,
+    intervalMs: 2000,
+    sync: true,
+    embed: false,
+    lastOkAt: new Date().toISOString(),
+    lastErrAt: null,
+    lastErr: null,
+    lastRefresh: { durationMs: 33, stats: { fileCount: 5 } }
+  };
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", events, watchState });
+
+  const jsonDiag = await run(handler, { method: "GET", url: "/diagnostics/export?format=json&token=t" });
+  assert.equal(jsonDiag.status, 200);
+  assert.ok(jsonDiag.body.includes("\"watch\""));
+  assert.ok(jsonDiag.body.includes("\"status\""));
+  assert.ok(jsonDiag.body.includes("\"events\""));
+
+  const mdDiag = await run(handler, { method: "GET", url: "/diagnostics/export?format=md&token=t" });
+  assert.equal(mdDiag.status, 200);
+  assert.ok(mdDiag.body.includes("# Diagnostics"));
+  assert.ok(mdDiag.body.includes("## Watch"));
+  assert.ok(mdDiag.body.includes("## Events"));
+});
+
 test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWrite + token)", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
   await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
