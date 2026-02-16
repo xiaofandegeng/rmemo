@@ -138,6 +138,7 @@ Options:
   --api-key <key>            For embed build: override API key (openai)
   --dim <n>                  For embed build: vector dim (mock only; default: 128)
   --kinds <list>             For embed build: comma-separated kinds (rules,todos,context,journal,sessions,handoff,pr)
+  --format <md|json>         For embed status/search: output format
   --min-score <n>            For embed search: minimum cosine similarity (default: 0.15)
   --k <n>                    For embed search: top-k hits (default: 8)
 `;

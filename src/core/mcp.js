@@ -22,10 +22,11 @@ import { ensureRepoMemory } from "./memory.js";
 import { generateContext } from "./context.js";
 import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
-import { semanticSearch } from "./embeddings.js";
+import { buildEmbeddingsIndex, defaultEmbeddingConfig, semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
 import { syncAiInstructions } from "./sync.js";
-import { embedAuto } from "./embed_auto.js";
+import { embedAuto, readEmbedConfig } from "./embed_auto.js";
+import { getEmbedStatus } from "./embed_status.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -193,6 +194,12 @@ function tool(name, description, inputSchema) {
   return { name, description, inputSchema };
 }
 
+function parseKindsList(v) {
+  if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean);
+  if (typeof v === "string") return v.split(",").map((x) => x.trim()).filter(Boolean);
+  return [];
+}
+
 function toolsList() {
   const rootProp = {
     type: "string",
@@ -294,6 +301,14 @@ function toolsList() {
       },
       required: ["q"],
       additionalProperties: false
+    }),
+    tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        checkUpToDate: { type: "boolean", default: true }
+      },
+      additionalProperties: false
     })
   ];
 
@@ -355,6 +370,28 @@ function toolsListWithWrite({ allowWrite } = {}) {
     tool("rmemo_embed_auto", "Run embed auto (reads .repo-memory/config.json) to build embeddings if enabled.", {
       type: "object",
       properties: { root: rootProp },
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_build", "Build embeddings index now (uses config if enabled, unless overridden).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        force: { type: "boolean", default: false },
+        useConfig: { type: "boolean", default: true },
+        provider: { type: "string", enum: ["mock", "openai"] },
+        model: { type: "string" },
+        apiKey: { type: "string" },
+        dim: { type: "number" },
+        kinds: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
+          description: "Comma-separated or array: rules,todos,context,journal,sessions,handoff,pr"
+        },
+        recentDays: { type: "number" },
+        maxChunksPerFile: { type: "number" },
+        maxCharsPerChunk: { type: "number" },
+        overlapChars: { type: "number" },
+        maxTotalChunks: { type: "number" }
+      },
       additionalProperties: false
     })
   ]);
@@ -484,6 +521,12 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite } = {
     return format === "json" ? JSON.stringify(r.json, null, 2) : r.markdown;
   }
 
+  if (name === "rmemo_embed_status") {
+    const checkUpToDate = args?.checkUpToDate !== false;
+    const r = await getEmbedStatus(root, { checkUpToDate });
+    return JSON.stringify(r, null, 2);
+  }
+
   if (name === "rmemo_todo_add") {
     requireWrite();
     const kind = String(args?.kind || "next").toLowerCase();
@@ -526,6 +569,37 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite } = {
     requireWrite();
     const r = await embedAuto(root, { checkOnly: false });
     return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_embed_build") {
+    requireWrite();
+    const force = !!args?.force;
+    const useConfig = args?.useConfig !== false;
+    let cfg = null;
+    if (useConfig) {
+      const c = await readEmbedConfig(root);
+      if (c.enabled && c.embed) cfg = { ...c.embed };
+    }
+    if (!cfg) cfg = { ...defaultEmbeddingConfig() };
+
+    if (args?.provider !== undefined) cfg.provider = String(args.provider);
+    if (args?.model !== undefined) cfg.model = String(args.model);
+    if (args?.apiKey !== undefined) cfg.apiKey = String(args.apiKey);
+    if (args?.dim !== undefined) cfg.dim = Number(args.dim);
+    if (args?.kinds !== undefined) {
+      const kinds = parseKindsList(args.kinds);
+      if (!kinds.length) throw new Error("kinds must be a non-empty list/string when provided");
+      cfg.kinds = kinds;
+    }
+    if (args?.recentDays !== undefined) cfg.recentDays = Number(args.recentDays);
+    if (args?.maxChunksPerFile !== undefined) cfg.maxChunksPerFile = Number(args.maxChunksPerFile);
+    if (args?.maxCharsPerChunk !== undefined) cfg.maxCharsPerChunk = Number(args.maxCharsPerChunk);
+    if (args?.overlapChars !== undefined) cfg.overlapChars = Number(args.overlapChars);
+    if (args?.maxTotalChunks !== undefined) cfg.maxTotalChunks = Number(args.maxTotalChunks);
+    cfg.force = force;
+
+    const built = await buildEmbeddingsIndex(root, cfg);
+    return JSON.stringify({ ok: true, result: { meta: built.meta } }, null, 2);
   }
 
   logger.warn(`Unknown tool call: ${name}`);

@@ -252,6 +252,10 @@ Done:
 - Add one-shot refresh trigger: `POST /refresh`.
 - Add events export: `GET /events/export?format=json|md&limit=...`.
 - Add diagnostics bundle export: `GET /diagnostics/export?format=json|md` (status + watch + events).
+- Add embeddings operations surface:
+  - `rmemo embed status` (CLI health/status summary)
+  - `GET /embed/status?format=json|md`
+  - `POST /embed/build` (trigger build from config or overrides)
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:
@@ -262,6 +266,8 @@ Done:
   - `rmemo_handoff` (md/json, supports refresh)
   - `rmemo_pr` (md/json, supports refresh)
   - `rmemo_search` (keyword search)
+  - `rmemo_embed_status` (index/config/up-to-date status)
+  - `rmemo_embed_build` (write tool; requires `--allow-write`)
 
 ## v1.9 (Semantic Memory) (Planned)
 

@@ -2,11 +2,13 @@ import { resolveRoot } from "../lib/paths.js";
 import { exitWithError } from "../lib/io.js";
 import { buildEmbeddingsIndex, embeddingsUpToDate, semanticSearch } from "../core/embeddings.js";
 import { embedAuto } from "../core/embed_auto.js";
+import { getEmbedStatus } from "../core/embed_status.js";
 
 function help() {
   return [
     "Usage:",
     "  rmemo embed build [--provider mock|openai] [--kinds <list>]",
+    "  rmemo embed status [--format md|json]",
     "  rmemo embed auto [--check]",
     "  rmemo embed search <query> [--k <n>] [--min-score <n>] [--format md|json]",
     "",
@@ -17,6 +19,7 @@ function help() {
     "Examples:",
     "  rmemo embed build",
     "  rmemo embed build --provider openai --model text-embedding-3-small",
+    "  rmemo embed status --format json",
     "  rmemo embed auto",
     "  rmemo embed search \"where is auth token validated?\"",
     ""
@@ -96,6 +99,37 @@ export async function cmdEmbed({ rest, flags }) {
     }
     process.stderr.write(`FAIL: embeddings out of date (${r.reason}${r.file ? `: ${r.file}` : ""})\n`);
     process.exitCode = 1;
+    return;
+  }
+
+  if (sub === "status") {
+    const format = flags.format ? String(flags.format).toLowerCase() : "md";
+    if (format !== "md" && format !== "json") return exitWithError("format must be md|json");
+    const r = await getEmbedStatus(root, { checkUpToDate: true });
+    if (format === "json") {
+      process.stdout.write(JSON.stringify(r, null, 2) + "\n");
+      return;
+    }
+    const lines = [];
+    lines.push("# Embeddings Status\n");
+    lines.push(`- root: ${r.root}`);
+    lines.push(`- status: ${r.status}`);
+    lines.push(`- config.enabled: ${r.config.enabled ? "yes" : "no"} (${r.config.reason})`);
+    lines.push(`- index.exists: ${r.index.exists ? "yes" : "no"} (items=${r.index.itemCount}, files=${r.index.fileCount})`);
+    lines.push(`- provider: ${r.index.provider || "-"}`);
+    lines.push(`- model: ${r.index.model || "-"}`);
+    lines.push(`- dim: ${r.index.dim || "-"}`);
+    if (r.index.generatedAt) lines.push(`- generatedAt: ${r.index.generatedAt}`);
+    lines.push("");
+    lines.push("## Up To Date");
+    if (!r.upToDate) lines.push("- check: skipped");
+    else lines.push(`- ok: ${r.upToDate.ok ? "yes" : "no"}${r.upToDate.reason ? ` (${r.upToDate.reason})` : ""}${r.upToDate.file ? `: ${r.upToDate.file}` : ""}`);
+    if (r.errors?.length) {
+      lines.push("");
+      lines.push("## Errors");
+      for (const e of r.errors) lines.push(`- ${e}`);
+    }
+    process.stdout.write(lines.join("\n").trimEnd() + "\n");
     return;
   }
 

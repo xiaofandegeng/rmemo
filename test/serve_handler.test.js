@@ -247,6 +247,40 @@ test("serve handler: /diagnostics/export supports json and md", async () => {
   assert.ok(mdDiag.body.includes("## Events"));
 });
 
+test("serve handler: /embed/status and /embed/build work", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
+  await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
+  await fs.mkdir(path.join(root, "src"), { recursive: true });
+  await fs.writeFile(path.join(root, "src", "index.js"), "console.log('hi')\n", "utf8");
+
+  const ro = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: false, events: createEventsBus() });
+  const s0 = await run(ro, { method: "GET", url: "/embed/status?format=json&token=t" });
+  assert.equal(s0.status, 200);
+  assert.ok(s0.body.includes("\"status\""));
+
+  const denied = await run(ro, { method: "POST", url: "/embed/build?token=t", bodyObj: {} });
+  assert.equal(denied.status, 400);
+  assert.ok(denied.body.includes("Write not allowed"));
+
+  const rw = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events: createEventsBus() });
+  const b = await run(rw, {
+    method: "POST",
+    url: "/embed/build?token=t",
+    bodyObj: { provider: "mock", dim: 32, kinds: ["rules", "todos", "context"], recentDays: 7 }
+  });
+  assert.equal(b.status, 200);
+  assert.ok(b.body.includes("\"meta\""));
+
+  const s1 = await run(rw, { method: "GET", url: "/embed/status?format=json&token=t" });
+  assert.equal(s1.status, 200);
+  assert.ok(s1.body.includes("\"index\""));
+  assert.ok(s1.body.includes("\"itemCount\""));
+
+  const smd = await run(rw, { method: "GET", url: "/embed/status?format=md&token=t" });
+  assert.equal(smd.status, 200);
+  assert.ok(smd.body.includes("# Embeddings Status"));
+});
+
 test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWrite + token)", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
   await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
@@ -277,7 +311,7 @@ test("serve handler: POST /watch/start and /watch/stop control watch state", asy
   await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
 
   const events = createEventsBus();
-  const watchState = { enabled: false, intervalMs: 2000, sync: true, embed: false, lastOkAt: null, lastErrAt: null, lastErr: null };
+  const watchState = { enabled: false, intervalMs: 2000, sync: true, embed: false, lastOkAt: null, lastErrAt: null, lastErr: null, lastRefresh: null };
   const watchCtl = createWatchController(root, { events, watchState });
 
   const handler = createServeHandler(root, {

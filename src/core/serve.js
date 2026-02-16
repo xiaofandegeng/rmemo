@@ -18,13 +18,14 @@ import {
 import { parseTodos } from "./todos.js";
 import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
-import { semanticSearch } from "./embeddings.js";
+import { buildEmbeddingsIndex, defaultEmbeddingConfig, semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
 import { renderUiHtml } from "./ui.js";
 import { addTodoBlocker, addTodoNext, removeTodoBlockerByIndex, removeTodoNextByIndex } from "./todos.js";
 import { appendJournalEntry } from "./journal.js";
 import { syncAiInstructions } from "./sync.js";
-import { embedAuto } from "./embed_auto.js";
+import { embedAuto, readEmbedConfig } from "./embed_auto.js";
+import { getEmbedStatus } from "./embed_status.js";
 import { refreshRepoMemory, watchRepo } from "./watch.js";
 
 function json(res, code, obj) {
@@ -291,6 +292,12 @@ function clampLines(s, maxLines) {
   const lines = String(s || "").split("\n");
   if (lines.length <= maxLines) return String(s || "").trimEnd();
   return lines.slice(0, maxLines).join("\n").trimEnd() + "\n[...truncated]";
+}
+
+function parseKindsList(v) {
+  if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean);
+  if (typeof v === "string") return v.split(",").map((x) => x.trim()).filter(Boolean);
+  return [];
 }
 
 async function buildStatus(root, { format = "json", mode = "full", snipLines = 120, recentDays = 7 } = {}) {
@@ -656,6 +663,64 @@ export function createServeHandler(root, opts = {}) {
         if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
         const r = await embedAuto(root, { checkOnly: false });
         return json(res, 200, { ok: true, result: r });
+      }
+
+      if (req.method === "GET" && url.pathname === "/embed/status") {
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const r = await getEmbedStatus(root, { checkUpToDate: true });
+        if (format === "json") return json(res, 200, r);
+        const lines = [];
+        lines.push("# Embeddings Status");
+        lines.push("");
+        lines.push(`- root: ${r.root}`);
+        lines.push(`- status: ${r.status}`);
+        lines.push(`- config.enabled: ${r.config.enabled ? "yes" : "no"} (${r.config.reason})`);
+        lines.push(`- index.exists: ${r.index.exists ? "yes" : "no"} (items=${r.index.itemCount}, files=${r.index.fileCount})`);
+        lines.push(`- provider: ${r.index.provider || "-"}`);
+        lines.push(`- model: ${r.index.model || "-"}`);
+        lines.push(`- dim: ${r.index.dim || "-"}`);
+        if (r.index.generatedAt) lines.push(`- generatedAt: ${r.index.generatedAt}`);
+        lines.push("");
+        lines.push("## Up To Date");
+        if (!r.upToDate) lines.push("- check: skipped");
+        else lines.push(`- ok: ${r.upToDate.ok ? "yes" : "no"}${r.upToDate.reason ? ` (${r.upToDate.reason})` : ""}${r.upToDate.file ? `: ${r.upToDate.file}` : ""}`);
+        lines.push("");
+        return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "POST" && url.pathname === "/embed/build") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+
+        const force = !!body.force;
+        const useConfig = body.useConfig !== false;
+        let args = null;
+        if (useConfig) {
+          const cfg = await readEmbedConfig(root);
+          if (cfg.enabled && cfg.embed) args = { ...cfg.embed };
+        }
+        if (!args) args = { ...defaultEmbeddingConfig() };
+
+        if (body.provider !== undefined) args.provider = String(body.provider);
+        if (body.model !== undefined) args.model = String(body.model);
+        if (body.apiKey !== undefined) args.apiKey = String(body.apiKey);
+        if (body.dim !== undefined) args.dim = Number(body.dim);
+        if (body.kinds !== undefined) {
+          const kinds = parseKindsList(body.kinds);
+          if (!kinds.length) return badRequest(res, "kinds must be a non-empty list/string when provided");
+          args.kinds = kinds;
+        }
+        if (body.recentDays !== undefined) args.recentDays = Number(body.recentDays);
+        if (body.maxChunksPerFile !== undefined) args.maxChunksPerFile = Number(body.maxChunksPerFile);
+        if (body.maxCharsPerChunk !== undefined) args.maxCharsPerChunk = Number(body.maxCharsPerChunk);
+        if (body.overlapChars !== undefined) args.overlapChars = Number(body.overlapChars);
+        if (body.maxTotalChunks !== undefined) args.maxTotalChunks = Number(body.maxTotalChunks);
+        args.force = force;
+
+        const built = await buildEmbeddingsIndex(root, args);
+        return json(res, 200, { ok: true, result: { meta: built.meta } });
       }
 
       if (req.method === "GET" && url.pathname === "/status") {

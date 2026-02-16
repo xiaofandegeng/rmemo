@@ -1167,10 +1167,16 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
     method: "tools/call",
     params: { name: "rmemo_search", arguments: { root: tmp, q: "Rules", scope: "context" } }
   });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 5,
+    method: "tools/call",
+    params: { name: "rmemo_embed_status", arguments: { root: tmp } }
+  });
 
   await waitFor(() => {
     const lines = parseJsonLines(mcp.getOut());
-    return lines.some((x) => x.id === 4) ? true : false;
+    return lines.some((x) => x.id === 5) ? true : false;
   });
 
   const lines = parseJsonLines(mcp.getOut());
@@ -1188,6 +1194,11 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   const searchJson = JSON.parse(search.result.content[0].text);
   assert.equal(searchJson.schema, 1);
   assert.ok(Array.isArray(searchJson.hits));
+
+  const embStatus = lines.find((x) => x.id === 5);
+  const embStatusJson = JSON.parse(embStatus.result.content[0].text);
+  assert.equal(embStatusJson.schema, 1);
+  assert.ok(typeof embStatusJson.status === "string");
 
   mcp.closeIn();
   try {
@@ -1323,6 +1334,15 @@ test("rmemo embed build/search supports semantic search (mock provider)", async 
     assert.ok(Array.isArray(j.hits));
     assert.ok(j.hits.length > 0, "semantic search should return hits");
     assert.ok(j.hits.some((h) => String(h.text || "").toLowerCase().includes("auth token")));
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "status", "--format", "json"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.ok(j.index && j.index.exists);
+    assert.ok(typeof j.status === "string");
   }
 });
 

@@ -208,6 +208,7 @@ Then fetch:
 - `GET /events` (SSE stream; for live updates)
 - `GET /events/export?format=json|md&limit=200` (export recent events)
 - `GET /diagnostics/export?format=json|md` (status + watch + events bundle)
+- `GET /embed/status?format=json|md` (embeddings health/status)
 - `GET /watch` (watch runtime status)
 - `GET /status?format=json`
 - `GET /context`
@@ -239,6 +240,7 @@ Write endpoints:
 - `POST /log {text, kind?}`
 - `POST /sync`
 - `POST /embed/auto`
+- `POST /embed/build {force?,useConfig?,provider?,model?,dim?,kinds?...}`
 
 ## MCP Server (stdio)
 
@@ -248,7 +250,7 @@ If your AI tool supports MCP, you can run:
 rmemo mcp --root .
 ```
 
-It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`.
+It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`, `rmemo_embed_status`.
 
 Optional: enable write tools (safety: disabled by default):
 
@@ -262,6 +264,7 @@ Write tools:
 - `rmemo_log`
 - `rmemo_sync`
 - `rmemo_embed_auto`
+- `rmemo_embed_build`
 
 ## Integrations (MCP Config Snippets)
 
@@ -298,6 +301,7 @@ Build a local embeddings index (default: deterministic `mock` provider):
 ```bash
 rmemo embed build
 rmemo embed search "auth token refresh"
+rmemo embed status --format json
 ```
 
 Optional OpenAI provider:
