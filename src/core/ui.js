@@ -360,6 +360,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <input id="wsFromId" type="text" placeholder="snapshot from id" style="width: 280px;" />
                 <input id="wsToId" type="text" placeholder="snapshot to id" style="width: 280px;" />
                 <button class="btn secondary" id="doWsCompare">WS Compare</button>
+                <button class="btn secondary" id="doWsReport">WS Report</button>
               </div>
               <div class="hint">Use existing query + mode above; outputs aggregated JSON from <span style="font-family: var(--mono)">/ws/list</span> and <span style="font-family: var(--mono)">/ws/focus</span>.</div>
             </div>
@@ -617,6 +618,28 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         setTab("json");
         msg("OK");
         qs("#title").textContent = "Workspace Compare";
+      }
+
+      async function doWsReport() {
+        err(""); msg("Generating workspace drift report...");
+        const from = (qs("#wsFromId").value || "").trim();
+        const to = (qs("#wsToId").value || "").trim();
+        const tab = qs("#out").dataset.tab || "json";
+        const fmt = tab === "md" ? "md" : "json";
+        let p = "/ws/focus/report?format=" + encodeURIComponent(fmt);
+        if (from) p += "&from=" + encodeURIComponent(from);
+        if (to) p += "&to=" + encodeURIComponent(to);
+        if (fmt === "md") {
+          const t = await apiFetch(p, { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        } else {
+          const j = await apiFetch(p, { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        }
+        msg("OK");
+        qs("#title").textContent = "Workspace Drift Report";
       }
 
       async function addTodo() {
@@ -1091,6 +1114,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#doWsFocus").addEventListener("click", () => doWsFocus().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsSnapshots").addEventListener("click", () => loadWsSnapshots().catch((e) => { err(String(e)); msg(""); }));
       qs("#doWsCompare").addEventListener("click", () => doWsCompare().catch((e) => { err(String(e)); msg(""); }));
+      qs("#doWsReport").addEventListener("click", () => doWsReport().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

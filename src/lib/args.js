@@ -136,6 +136,7 @@ Options:
   --compare-latest           For ws batch focus: compare with latest saved snapshot
   --tag <name>               For ws batch focus --save: snapshot tag label
   --limit <n>                For ws focus-history list: max snapshots to print (default: 20)
+  --max-items <n>            For ws focus-history report: max change items in markdown/json top list
   --no-git                   Don't use git for scanning (fallback to filesystem walk)
   --provider <mock|openai>   For embed build: embeddings provider (default: mock)
   --model <id>               For embed build: embeddings model id (openai)

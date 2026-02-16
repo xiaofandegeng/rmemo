@@ -360,6 +360,17 @@ Done:
   - MCP:
     - `rmemo_ws_focus_snapshots`
     - `rmemo_ws_focus_compare`
+- Workspace intelligence v6 (focus drift report):
+  - Build report from snapshots with change classification and impact ranking
+  - CLI:
+    - `rmemo ws focus-history report [<fromId> <toId>] [--format md|json] [--max-items <n>]`
+    - if snapshot ids are omitted, compare latest two snapshots automatically
+  - HTTP:
+    - `GET /ws/focus/report?from=<id>&to=<id>&format=json|md&maxItems=<n>`
+  - MCP:
+    - `rmemo_ws_focus_report`
+  - UI:
+    - `WS Report` button (uses selected output tab as md/json format)
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

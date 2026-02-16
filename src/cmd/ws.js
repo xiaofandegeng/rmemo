@@ -13,6 +13,7 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  generateWorkspaceFocusReport,
   listWorkspaceFocusSnapshots,
   saveWorkspaceFocusSnapshot
 } from "../core/workspaces.js";
@@ -51,6 +52,7 @@ function wsHelp() {
     "  rmemo ws batch focus <query> [--mode semantic|keyword] [--format md|json]",
     "  rmemo ws focus-history list [--limit <n>]",
     "  rmemo ws focus-history compare <fromId> <toId>",
+    "  rmemo ws focus-history report [<fromId> <toId>] [--format md|json]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -58,7 +60,7 @@ function wsHelp() {
     "- For batch: `--only` is a comma-separated list of subproject dirs (e.g. apps/admin-web,apps/miniapp).",
     "- For batch embed: use `--check` to audit (non-zero if any workspace is out of date).",
     "- For batch focus: use `--save` to write snapshot; `--compare-latest` to compare with latest saved snapshot.",
-    "- Use `ws focus-history list|compare` to inspect workspace focus trend."
+    "- Use `ws focus-history list|compare|report` to inspect workspace focus trend."
   ].join("\n");
 }
 
@@ -418,6 +420,18 @@ export async function cmdWs({ rest, flags }) {
         }
         lines.push("");
         process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    if (op === "report") {
+      const fromId = String(rest[2] || "").trim();
+      const toId = String(rest[3] || "").trim();
+      const maxItems = Number(flags["max-items"] || 50);
+      const r = await generateWorkspaceFocusReport(root, { fromId, toId, maxItems });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(r.json, null, 2) + "\n");
+      } else {
+        process.stdout.write(r.markdown);
       }
       return;
     }

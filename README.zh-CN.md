@@ -230,6 +230,7 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /ws/focus?q=...&mode=semantic|keyword`（跨子项目聚合 focus 检索；支持 `save=1`、`compareLatest=1`、`tag=...`）
 - `GET /ws/focus/snapshots?limit=20`（workspace focus 快照历史）
 - `GET /ws/focus/compare?from=<id>&to=<id>`（对比两个 workspace focus 快照）
+- `GET /ws/focus/report?from=<id>&to=<id>&format=json|md`（workspace 漂移报告；不传 id 时默认对比最近两次快照）
 
 可选：开启写入操作（必须设置 token）：
 
@@ -313,6 +314,7 @@ rmemo mcp --root . --allow-write
 - `rmemo_ws_focus`
 - `rmemo_ws_focus_snapshots`
 - `rmemo_ws_focus_compare`
+- `rmemo_ws_focus_report`
 
 ## 集成（MCP 配置片段）
 
@@ -376,6 +378,8 @@ rmemo ws batch pr --base origin/main
 rmemo ws batch focus "auth token refresh" --mode keyword --format json
 rmemo ws batch focus "auth token refresh" --mode keyword --format json --save --compare-latest --tag daily
 rmemo ws focus-history list --format json
+rmemo ws focus-history report --format md
+rmemo ws focus-history report <fromId> <toId> --format json --max-items 20
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 

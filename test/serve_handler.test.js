@@ -633,4 +633,27 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   assert.equal(cmpJson.schema, 1);
   assert.ok(cmpJson.diff);
   assert.ok(Array.isArray(cmpJson.diff.changes));
+
+  const report = await run(
+    handler,
+    {
+      method: "GET",
+      url: `/ws/focus/report?token=t&format=json&from=${encodeURIComponent(focusJson.snapshot.id)}&to=${encodeURIComponent(focusJson2.snapshot.id)}&maxItems=5`
+    }
+  );
+  assert.equal(report.status, 200);
+  const reportJson = JSON.parse(report.body);
+  assert.equal(reportJson.schema, 1);
+  assert.ok(reportJson.summary);
+  assert.ok(Array.isArray(reportJson.topChanges));
+
+  const reportMd = await run(
+    handler,
+    {
+      method: "GET",
+      url: `/ws/focus/report?token=t&format=md&from=${encodeURIComponent(focusJson.snapshot.id)}&to=${encodeURIComponent(focusJson2.snapshot.id)}`
+    }
+  );
+  assert.equal(reportMd.status, 200);
+  assert.ok(reportMd.body.includes("# Workspace Focus Drift Report"));
 });

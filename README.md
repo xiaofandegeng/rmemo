@@ -226,6 +226,7 @@ Then fetch:
 - `GET /ws/focus?q=...&mode=semantic|keyword` (cross-workspace aggregated focus results; supports `save=1`, `compareLatest=1`, `tag=...`)
 - `GET /ws/focus/snapshots?limit=20` (workspace focus snapshot history)
 - `GET /ws/focus/compare?from=<id>&to=<id>` (compare two workspace focus snapshots)
+- `GET /ws/focus/report?from=<id>&to=<id>&format=json|md` (workspace drift report; omit ids to use latest two snapshots)
 
 Optional: enable write actions (token required):
 
@@ -309,6 +310,7 @@ Read tool:
 - `rmemo_ws_focus`
 - `rmemo_ws_focus_snapshots`
 - `rmemo_ws_focus_compare`
+- `rmemo_ws_focus_report`
 
 ## Integrations (MCP Config Snippets)
 
@@ -372,6 +374,8 @@ rmemo ws batch pr --base origin/main
 rmemo ws batch focus "auth token refresh" --mode keyword --format json
 rmemo ws batch focus "auth token refresh" --mode keyword --format json --save --compare-latest --tag daily
 rmemo ws focus-history list --format json
+rmemo ws focus-history report --format md
+rmemo ws focus-history report <fromId> <toId> --format json --max-items 20
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 

@@ -32,6 +32,7 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  generateWorkspaceFocusReport,
   listWorkspaceFocusSnapshots,
   listWorkspaces,
   saveWorkspaceFocusSnapshot
@@ -364,6 +365,17 @@ function toolsList() {
         toId: { type: "string" }
       },
       required: ["fromId", "toId"],
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_report", "Generate workspace-focus drift report (json or markdown) from two snapshots (or latest two).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        fromId: { type: "string" },
+        toId: { type: "string" },
+        format: { type: "string", enum: ["json", "md"], default: "json" },
+        maxItems: { type: "number", default: 50 }
+      },
       additionalProperties: false
     }),
     tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
@@ -836,6 +848,16 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     if (!fromId || !toId) throw new Error("Missing fromId/toId");
     const r = await compareWorkspaceFocusSnapshots(root, { fromId, toId });
     return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_report") {
+    const fromId = String(args?.fromId || "").trim();
+    const toId = String(args?.toId || "").trim();
+    const format = String(args?.format || "json").toLowerCase();
+    const maxItems = args?.maxItems !== undefined ? Number(args.maxItems) : 50;
+    const r = await generateWorkspaceFocusReport(root, { fromId, toId, maxItems });
+    if (format === "md") return r.markdown;
+    return JSON.stringify(r.json, null, 2);
   }
 
   if (name === "rmemo_embed_status") {

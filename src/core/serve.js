@@ -32,6 +32,7 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  generateWorkspaceFocusReport,
   listWorkspaceFocusSnapshots,
   listWorkspaces,
   saveWorkspaceFocusSnapshot
@@ -1324,6 +1325,17 @@ export function createServeHandler(root, opts = {}) {
         if (!fromId || !toId) return badRequest(res, "Missing from/to snapshot ids");
         const out = await compareWorkspaceFocusSnapshots(root, { fromId, toId });
         return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/report") {
+        const fromId = String(url.searchParams.get("from") || "").trim();
+        const toId = String(url.searchParams.get("to") || "").trim();
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        const maxItems = Number(url.searchParams.get("maxItems") || 50);
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const out = await generateWorkspaceFocusReport(root, { fromId, toId, maxItems });
+        if (format === "md") return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
+        return json(res, 200, out.json);
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {

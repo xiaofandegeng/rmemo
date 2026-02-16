@@ -1087,6 +1087,19 @@ test("rmemo ws focus snapshots can be saved, listed and compared", async () => {
   assert.equal(cmpJson.schema, 1);
   assert.ok(cmpJson.diff);
   assert.ok(Array.isArray(cmpJson.diff.changes));
+
+  const reportJson = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "focus-history", "report", j1.snapshot.id, j2.snapshot.id, "--max-items", "5"]);
+  assert.equal(reportJson.code, 0, reportJson.err || reportJson.out);
+  const reportJ = JSON.parse(reportJson.out);
+  assert.equal(reportJ.schema, 1);
+  assert.ok(reportJ.summary);
+  assert.ok(Array.isArray(reportJ.topChanges));
+  assert.ok(reportJ.topChanges.length >= 1);
+
+  const reportMd = await runNode([rmemoBin, "--root", tmp, "ws", "focus-history", "report", j1.snapshot.id, j2.snapshot.id, "--format", "md"]);
+  assert.equal(reportMd.code, 0, reportMd.err || reportMd.out);
+  assert.ok(reportMd.out.includes("# Workspace Focus Drift Report"));
+  assert.ok(reportMd.out.includes("## Summary"));
 });
 
 test("rmemo profile ls/describe/apply works", async () => {
@@ -1436,6 +1449,7 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_snapshots"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_compare"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_report"));
 
     const wsList = lines.find((x) => x.id === 3);
     const wsListJson = JSON.parse(wsList.result.content[0].text);
@@ -1489,6 +1503,23 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     assert.equal(wsCmpJson.schema, 1);
     assert.ok(wsCmpJson.diff);
     assert.equal(wsCmpJson.diff.changedCount, 0);
+
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 7,
+      method: "tools/call",
+      params: { name: "rmemo_ws_focus_report", arguments: { root: tmp, fromId: sid, toId: sid, format: "json", maxItems: 5 } }
+    });
+    await waitFor(() => {
+      const lines3 = parseJsonLines(mcp.getOut());
+      return lines3.some((x) => x.id === 7);
+    });
+    const lines3 = parseJsonLines(mcp.getOut());
+    const wsRpt = lines3.find((x) => x.id === 7);
+    const wsRptJson = JSON.parse(wsRpt.result.content[0].text);
+    assert.equal(wsRptJson.schema, 1);
+    assert.ok(wsRptJson.summary);
+    assert.ok(Array.isArray(wsRptJson.topChanges));
   } finally {
     mcp.closeIn();
     try {

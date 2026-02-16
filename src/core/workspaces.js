@@ -136,6 +136,14 @@ async function readWsFocusIndex(root) {
   }
 }
 
+async function pickLatestTwoSnapshotIds(root) {
+  const index = await readWsFocusIndex(root);
+  const a = index.snapshots[0]?.id || "";
+  const b = index.snapshots[1]?.id || "";
+  if (!a || !b) return null;
+  return { fromId: b, toId: a };
+}
+
 function reportSummaryForIndex(report) {
   return {
     total: Number(report?.summary?.total || 0),
@@ -255,5 +263,105 @@ export async function compareWorkspaceFocusWithLatest(root, report) {
     from: { id: prev.id, createdAt: prev.createdAt, tag: prev.tag, q: prev.report?.q || "", mode: prev.report?.mode || "" },
     to: { id: null, createdAt: new Date().toISOString(), tag: null, q: report?.q || "", mode: report?.mode || "" },
     diff: compareFocusReports(prev.report || {}, report || {})
+  };
+}
+
+function summarizeChange(c) {
+  const prev = c?.previous || null;
+  const cur = c?.current || null;
+  const delta = Number(c?.deltaHits || 0);
+  if (!prev && cur) return "added";
+  if (prev && !cur) return "removed";
+  if (prev && cur && prev.ok && !cur.ok) return "regressed:error";
+  if (prev && cur && !prev.ok && cur.ok) return "recovered";
+  if (delta > 0) return "up";
+  if (delta < 0) return "down";
+  return "unchanged";
+}
+
+function scoreChange(c) {
+  const t = summarizeChange(c);
+  if (t === "regressed:error") return 100;
+  if (t === "added") return 40;
+  if (t === "removed") return 30;
+  const delta = Math.abs(Number(c?.deltaHits || 0));
+  return Math.min(80, delta * 10);
+}
+
+function markdownFromReport(r, { maxItems = 50 } = {}) {
+  const lines = [];
+  lines.push("# Workspace Focus Drift Report\n");
+  lines.push(`Generated: ${r.generatedAt}\n`);
+  lines.push(`From: ${r.from.id} (${r.from.createdAt})`);
+  lines.push(`To: ${r.to.id} (${r.to.createdAt})\n`);
+  lines.push(`Query: "${r.query || ""}"`);
+  lines.push(`Mode: ${r.mode || ""}\n`);
+  lines.push("## Summary\n");
+  lines.push(`- changedCount: ${r.summary.changedCount}`);
+  lines.push(`- increased: ${r.summary.increased}`);
+  lines.push(`- decreased: ${r.summary.decreased}`);
+  lines.push(`- regressedErrors: ${r.summary.regressedErrors}`);
+  lines.push(`- recovered: ${r.summary.recovered}`);
+  lines.push(`- added: ${r.summary.added}`);
+  lines.push(`- removed: ${r.summary.removed}\n`);
+  lines.push("## Top Drift\n");
+  const top = Array.isArray(r.topChanges) ? r.topChanges.slice(0, Math.max(1, Number(maxItems || 50))) : [];
+  if (!top.length) {
+    lines.push("- (no drift)\n");
+    return lines.join("\n");
+  }
+  for (const c of top) {
+    lines.push(`- ${c.dir}: ${c.changeType} prev=${c.previous?.hits ?? "-"} -> cur=${c.current?.hits ?? "-"} (delta=${c.deltaHits}, score=${c.impactScore})`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+export async function generateWorkspaceFocusReport(root, { fromId = "", toId = "", maxItems = 50 } = {}) {
+  let from = String(fromId || "").trim();
+  let to = String(toId || "").trim();
+  if (!from || !to) {
+    const pair = await pickLatestTwoSnapshotIds(root);
+    if (!pair) throw new Error("need_at_least_two_snapshots");
+    from = pair.fromId;
+    to = pair.toId;
+  }
+  const cmp = await compareWorkspaceFocusSnapshots(root, { fromId: from, toId: to });
+  const raw = Array.isArray(cmp?.diff?.changes) ? cmp.diff.changes : [];
+  const norm = raw.map((c) => {
+    const changeType = summarizeChange(c);
+    return {
+      ...c,
+      changeType,
+      impactScore: scoreChange(c)
+    };
+  });
+  const ranked = norm
+    .slice()
+    .sort((a, b) => Number(b.impactScore || 0) - Number(a.impactScore || 0) || Math.abs(Number(b.deltaHits || 0)) - Math.abs(Number(a.deltaHits || 0)));
+  const summary = {
+    changedCount: norm.length,
+    increased: norm.filter((x) => x.changeType === "up").length,
+    decreased: norm.filter((x) => x.changeType === "down").length,
+    regressedErrors: norm.filter((x) => x.changeType === "regressed:error").length,
+    recovered: norm.filter((x) => x.changeType === "recovered").length,
+    added: norm.filter((x) => x.changeType === "added").length,
+    removed: norm.filter((x) => x.changeType === "removed").length
+  };
+  const report = {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    query: cmp?.to?.q || "",
+    mode: cmp?.to?.mode || "",
+    from: cmp.from,
+    to: cmp.to,
+    summary,
+    topChanges: ranked.slice(0, Math.max(1, Number(maxItems || 50))),
+    changes: norm
+  };
+  return {
+    json: report,
+    markdown: markdownFromReport(report, { maxItems })
   };
 }
