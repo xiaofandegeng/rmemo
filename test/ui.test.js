@@ -18,7 +18,14 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("embedParallelism"));
   assert.ok(html.includes("embedBatchDelayMs"));
   assert.ok(html.includes("/embed/jobs"));
+  assert.ok(html.includes("/embed/jobs/config"));
+  assert.ok(html.includes("embedPriority"));
+  assert.ok(html.includes("embedMaxRetries"));
+  assert.ok(html.includes("embedRetryDelayMs"));
+  assert.ok(html.includes("embedJobsMaxConcurrent"));
   assert.ok(html.includes("embed:job:progress"));
+  assert.ok(html.includes("embed:job:retry"));
+  assert.ok(html.includes("embed:jobs:config"));
   assert.ok(html.includes("embed:build:progress"));
   assert.ok(html.includes("/refresh"));
   assert.ok(html.includes("/watch"));

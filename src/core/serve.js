@@ -765,6 +765,23 @@ export function createServeHandler(root, opts = {}) {
         return json(res, 200, { ok: true, ...out });
       }
 
+      if (req.method === "GET" && url.pathname === "/embed/jobs/config") {
+        const cfg = embedJobs?.getConfig?.() || { maxConcurrent: 1 };
+        return json(res, 200, { ok: true, config: cfg });
+      }
+
+      if (req.method === "POST" && url.pathname === "/embed/jobs/config") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        try {
+          const cfg = embedJobs?.setConfig?.({ maxConcurrent: body.maxConcurrent });
+          return json(res, 200, { ok: true, config: cfg || { maxConcurrent: 1 } });
+        } catch (e) {
+          return badRequest(res, e?.message || String(e));
+        }
+      }
+
       if (req.method === "POST" && url.pathname === "/embed/jobs") {
         if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
         const body = await readBodyJsonOr400(req, res);
@@ -789,10 +806,16 @@ export function createServeHandler(root, opts = {}) {
         if (body.batchDelayMs !== undefined) args.batchDelayMs = Number(body.batchDelayMs);
         if (body.force !== undefined) args.force = !!body.force;
 
-        const job = embedJobs?.enqueue?.(args, {
-          trigger: String(body.trigger || "api"),
-          reason: String(body.reason || "")
-        });
+        const job = embedJobs?.enqueue?.(
+          args,
+          {
+            trigger: String(body.trigger || "api"),
+            reason: String(body.reason || ""),
+            priority: String(body.priority || "normal"),
+            maxRetries: body.maxRetries !== undefined ? Number(body.maxRetries) : 1,
+            retryDelayMs: body.retryDelayMs !== undefined ? Number(body.retryDelayMs) : 1000
+          }
+        );
         return json(res, 200, { ok: true, job });
       }
 

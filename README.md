@@ -211,6 +211,7 @@ Then fetch:
 - `GET /embed/status?format=json|md` (embeddings health/status)
 - `GET /embed/plan?format=json|md` (preview reuse/embed actions before build)
 - `GET /embed/jobs`, `GET /embed/jobs/:id` (background embeddings jobs)
+- `GET /embed/jobs/config` (job scheduler config)
 - `GET /watch` (watch runtime status)
 - `GET /status?format=json`
 - `GET /context`
@@ -244,7 +245,9 @@ Write endpoints:
 - `POST /embed/auto`
 - `POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}`
   - emits SSE events: `embed:build:start`, `embed:build:progress`, `embed:build:ok`, `embed:build:err`
+  - job orchestration events: `embed:job:queued`, `embed:job:start`, `embed:job:retry`, `embed:job:ok`, `embed:job:err`, `embed:job:canceled`
 - `POST /embed/jobs {provider?,model?,dim?,parallelism?,batchDelayMs?,...}` (enqueue async build)
+- `POST /embed/jobs/config {maxConcurrent}` (set scheduler concurrency cap)
 - `POST /embed/jobs/:id/cancel`
 
 ## MCP Server (stdio)
@@ -272,6 +275,7 @@ Write tools:
 - `rmemo_embed_build`
 - `rmemo_embed_job_enqueue`
 - `rmemo_embed_job_cancel`
+- `rmemo_embed_jobs_config`
 
 Read tool:
 - `rmemo_embed_jobs`

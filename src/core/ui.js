@@ -231,6 +231,15 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                   <div class="row">
                     <input id="embedParallelism" type="text" placeholder="parallelism (mock)" style="width: 180px;" />
                     <input id="embedBatchDelayMs" type="text" placeholder="batchDelayMs (openai)" style="width: 200px;" />
+                    <input id="embedPriority" type="text" placeholder="priority low|normal|high" style="width: 200px;" />
+                    <input id="embedMaxRetries" type="text" placeholder="maxRetries" style="width: 120px;" />
+                    <input id="embedRetryDelayMs" type="text" placeholder="retryDelayMs" style="width: 140px;" />
+                  </div>
+                  <div style="height: 8px;"></div>
+                  <div class="row">
+                    <input id="embedJobsMaxConcurrent" type="text" placeholder="jobs maxConcurrent (1-8)" style="width: 220px;" />
+                    <button class="btn secondary" id="loadEmbedJobsConfig">Jobs Config</button>
+                    <button class="btn secondary" id="saveEmbedJobsConfig">Save Jobs Config</button>
                     <input id="cancelEmbedJobId" type="text" placeholder="cancel job id" style="width: 220px;" />
                     <button class="btn secondary" id="cancelEmbedJob">Cancel Job</button>
                   </div>
@@ -556,14 +565,42 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         err(""); msg("Enqueueing embed build job...");
         const p = Number((qs("#embedParallelism").value || "").trim());
         const d = Number((qs("#embedBatchDelayMs").value || "").trim());
+        const mr = Number((qs("#embedMaxRetries").value || "").trim());
+        const rd = Number((qs("#embedRetryDelayMs").value || "").trim());
+        const pr = (qs("#embedPriority").value || "").trim().toLowerCase();
         const body = {};
         if (Number.isFinite(p) && p > 0) body.parallelism = p;
         if (Number.isFinite(d) && d >= 0) body.batchDelayMs = d;
+        if (Number.isFinite(mr) && mr >= 0) body.maxRetries = mr;
+        if (Number.isFinite(rd) && rd >= 0) body.retryDelayMs = rd;
+        if (pr) body.priority = pr;
         const j = await apiPost("/embed/jobs", body);
         out(JSON.stringify(j, null, 2));
         setTab("json");
         msg("OK");
         qs("#title").textContent = "Embed Job Enqueued";
+      }
+
+      async function loadEmbedJobsConfig() {
+        err(""); msg("Loading jobs config...");
+        const j = await apiFetch("/embed/jobs/config", { accept: "application/json", json: true });
+        const n = Number(j && j.config && j.config.maxConcurrent);
+        if (Number.isFinite(n) && n > 0) qs("#embedJobsMaxConcurrent").value = String(n);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Jobs Config";
+      }
+
+      async function saveEmbedJobsConfig() {
+        err(""); msg("Saving jobs config...");
+        const n = Number((qs("#embedJobsMaxConcurrent").value || "").trim());
+        if (!Number.isFinite(n) || n < 1) return msg("Invalid maxConcurrent.");
+        const j = await apiPost("/embed/jobs/config", { maxConcurrent: n });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Jobs Config";
       }
 
       async function loadEmbedJobs() {
@@ -668,6 +705,9 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("embed:job:progress", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:progress"); }
         });
+        evt.addEventListener("embed:job:retry", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:retry"); }
+        });
         evt.addEventListener("embed:job:ok", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:ok"); }
         });
@@ -676,6 +716,10 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         });
         evt.addEventListener("embed:job:canceled", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:canceled"); }
+        });
+        evt.addEventListener("embed:jobs:config", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:config"); }
+          loadEmbedJobsConfig().catch(() => {});
         });
       }
 
@@ -698,6 +742,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#doEmbedBuild").addEventListener("click", () => doEmbedBuild().catch((e) => { err(String(e)); msg(""); }));
       qs("#enqueueEmbedJob").addEventListener("click", () => enqueueEmbedJob().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadEmbedJobs").addEventListener("click", () => loadEmbedJobs().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadEmbedJobsConfig").addEventListener("click", () => loadEmbedJobsConfig().catch((e) => { err(String(e)); msg(""); }));
+      qs("#saveEmbedJobsConfig").addEventListener("click", () => saveEmbedJobsConfig().catch((e) => { err(String(e)); msg(""); }));
       qs("#cancelEmbedJob").addEventListener("click", () => cancelEmbedJob().catch((e) => { err(String(e)); msg(""); }));
       qs("#doRefreshRepo").addEventListener("click", () => doRefreshRepo().catch((e) => { err(String(e)); msg(""); }));
       qs("#startEvents").addEventListener("click", () => startEvents());

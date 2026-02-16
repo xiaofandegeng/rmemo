@@ -316,15 +316,37 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
   assert.equal(before.status, 200);
   assert.ok(before.body.includes("\"queued\""));
 
+  const cfg0 = await run(handler, { method: "GET", url: "/embed/jobs/config?token=t" });
+  assert.equal(cfg0.status, 200);
+  assert.ok(cfg0.body.includes("\"maxConcurrent\""));
+
+  const cfgSet = await run(handler, { method: "POST", url: "/embed/jobs/config?token=t", bodyObj: { maxConcurrent: 2 } });
+  assert.equal(cfgSet.status, 200);
+  assert.ok(cfgSet.body.includes("\"maxConcurrent\": 2"));
+
+  const cfgBad = await run(handler, { method: "POST", url: "/embed/jobs/config?token=t", bodyObj: { maxConcurrent: 99 } });
+  assert.equal(cfgBad.status, 400);
+
   const enq = await run(handler, {
     method: "POST",
     url: "/embed/jobs?token=t",
-    bodyObj: { provider: "mock", dim: 32, kinds: ["rules", "todos", "context"], recentDays: 7, parallelism: 2 }
+    bodyObj: {
+      provider: "mock",
+      dim: 32,
+      kinds: ["rules", "todos", "context"],
+      recentDays: 7,
+      parallelism: 2,
+      priority: "high",
+      maxRetries: 2,
+      retryDelayMs: 50
+    }
   });
   assert.equal(enq.status, 200);
   const enqJson = JSON.parse(enq.body);
   assert.equal(enqJson.ok, true);
   assert.ok(enqJson.job && enqJson.job.id);
+  assert.equal(enqJson.job.priority, "high");
+  assert.equal(enqJson.job.maxRetries, 2);
   const jobId = enqJson.job.id;
 
   await waitFor(async () => {

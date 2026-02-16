@@ -410,7 +410,10 @@ function toolsListWithWrite({ allowWrite } = {}) {
           description: "Comma-separated or array: rules,todos,context,journal,sessions,handoff,pr"
         },
         recentDays: { type: "number" },
-        force: { type: "boolean", default: false }
+        force: { type: "boolean", default: false },
+        priority: { type: "string", enum: ["low", "normal", "high"], default: "normal" },
+        maxRetries: { type: "number", default: 1 },
+        retryDelayMs: { type: "number", default: 1000 }
       },
       additionalProperties: false
     }),
@@ -441,6 +444,14 @@ function toolsListWithWrite({ allowWrite } = {}) {
         maxCharsPerChunk: { type: "number" },
         overlapChars: { type: "number" },
         maxTotalChunks: { type: "number" }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_config", "Get/set background embed jobs config (max concurrent workers).", {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["get", "set"], default: "get" },
+        maxConcurrent: { type: "number", description: "Used when action=set; range [1,8]." }
       },
       additionalProperties: false
     })
@@ -682,7 +693,13 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     }
     if (args?.recentDays !== undefined) params.recentDays = Number(args.recentDays);
     if (args?.force !== undefined) params.force = !!args.force;
-    const job = embedJobs?.enqueue?.(params, { trigger: "mcp", reason: "tool" });
+    const job = embedJobs?.enqueue?.(params, {
+      trigger: "mcp",
+      reason: "tool",
+      priority: String(args?.priority || "normal"),
+      maxRetries: args?.maxRetries !== undefined ? Number(args.maxRetries) : 1,
+      retryDelayMs: args?.retryDelayMs !== undefined ? Number(args.retryDelayMs) : 1000
+    });
     return JSON.stringify({ ok: true, job }, null, 2);
   }
 
@@ -697,6 +714,17 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
   if (name === "rmemo_embed_jobs") {
     const s = embedJobs?.status?.() || { schema: 1, generatedAt: new Date().toISOString(), active: null, queued: [], history: [] };
     return JSON.stringify(s, null, 2);
+  }
+
+  if (name === "rmemo_embed_jobs_config") {
+    const action = String(args?.action || "get").toLowerCase();
+    if (action === "get") {
+      const cfg = embedJobs?.getConfig?.() || { maxConcurrent: 1 };
+      return JSON.stringify({ ok: true, config: cfg }, null, 2);
+    }
+    requireWrite();
+    const cfg = embedJobs?.setConfig?.({ maxConcurrent: Number(args?.maxConcurrent) }) || { maxConcurrent: 1 };
+    return JSON.stringify({ ok: true, config: cfg }, null, 2);
   }
 
   logger.warn(`Unknown tool call: ${name}`);

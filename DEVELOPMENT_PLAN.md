@@ -263,6 +263,8 @@ Done:
   - Background embeddings job queue:
     - `POST /embed/jobs`, `GET /embed/jobs`, `GET /embed/jobs/:id`, `POST /embed/jobs/:id/cancel`
     - SSE events: `embed:job:queued|start|progress|ok|err|canceled`
+    - Scheduler config: `GET/POST /embed/jobs/config {maxConcurrent}`
+    - Orchestration policy: `priority` + `maxRetries/retryDelayMs` + error classification (`auth/rate_limit/network/config/runtime`)
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:
@@ -277,6 +279,7 @@ Done:
   - `rmemo_embed_plan` (preview next build actions)
   - `rmemo_embed_build` (write tool; requires `--allow-write`)
   - `rmemo_embed_jobs` / `rmemo_embed_job_enqueue` / `rmemo_embed_job_cancel` (MCP process-local queue)
+  - `rmemo_embed_jobs_config` (get/set queue concurrency)
 
 ## v1.9 (Semantic Memory) (Planned)
 

@@ -1258,16 +1258,13 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     jsonrpc: "2.0",
     id: 5,
     method: "tools/call",
-    params: {
-      name: "rmemo_embed_job_enqueue",
-      arguments: { root: tmp, provider: "mock", dim: 32, kinds: ["rules", "todos", "context"], parallelism: 2 }
-    }
+    params: { name: "rmemo_embed_jobs", arguments: {} }
   });
   mcp.writeLine({
     jsonrpc: "2.0",
     id: 6,
     method: "tools/call",
-    params: { name: "rmemo_embed_jobs", arguments: {} }
+    params: { name: "rmemo_embed_jobs_config", arguments: { action: "set", maxConcurrent: 2 } }
   });
 
   await waitFor(() => {
@@ -1281,6 +1278,7 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_log"));
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_job_enqueue"));
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs"));
+  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_config"));
 
   const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
   assert.ok(todosMd.includes("Add MCP write tools"));
@@ -1291,7 +1289,7 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
   const j = await fs.readFile(path.join(journalDir, jFiles[0]), "utf8");
   assert.ok(j.includes("MCP write test"));
 
-  const jobs = lines.find((x) => x.id === 6);
+  const jobs = lines.find((x) => x.id === 5);
   const jobsJson = JSON.parse(jobs.result.content[0].text);
   assert.equal(jobsJson.schema, 1);
   assert.ok(
@@ -1299,6 +1297,11 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       (Array.isArray(jobsJson.queued) && jobsJson.queued.length >= 0) ||
       (Array.isArray(jobsJson.history) && jobsJson.history.length >= 0)
   );
+
+  const cfg = lines.find((x) => x.id === 6);
+  const cfgJson = JSON.parse(cfg.result.content[0].text);
+  assert.equal(cfgJson.ok, true);
+  assert.equal(cfgJson.config.maxConcurrent, 2);
 
   mcp.closeIn();
   try {
