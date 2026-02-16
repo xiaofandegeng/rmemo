@@ -358,8 +358,10 @@ rmemo ws ls
 rmemo ws start 1
 rmemo ws handoff apps/admin-web
 rmemo ws pr apps/admin-web --base origin/main
+rmemo ws focus apps/admin-web "auth token refresh" --mode keyword
 rmemo ws batch handoff
 rmemo ws batch pr --base origin/main
+rmemo ws batch focus "auth token refresh" --mode keyword --format json
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 

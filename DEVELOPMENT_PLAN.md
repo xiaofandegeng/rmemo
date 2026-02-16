@@ -326,6 +326,13 @@ Done:
       - `embed:jobs:benchmark:skip`
     - UI:
       - auto-adopt config inputs and one-click benchmark+adopt action
+- Workspace intelligence v2 (cross-workspace focus orchestration):
+  - New command:
+    - `rmemo ws focus <workspace> <query>`
+    - `rmemo ws batch focus <query>`
+  - Support `--mode semantic|keyword` and `--format md|json`
+  - Batch output includes per-workspace hit count + top hit summary
+  - Persist batch summary to `.repo-memory/ws.md` for next-day handoff context
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

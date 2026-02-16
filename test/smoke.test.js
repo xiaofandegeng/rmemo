@@ -926,6 +926,80 @@ test("rmemo ws batch embed auto builds embeddings for all subprojects", async ()
   }
 });
 
+test("rmemo ws focus runs focus for one workspace", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-ws-focus-"));
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "mono", private: true, workspaces: ["apps/*"] }, null, 2) + "\n",
+    "utf8"
+  );
+
+  const wsDir = path.join(tmp, "apps", "admin-web");
+  await fs.mkdir(wsDir, { recursive: true });
+  await fs.writeFile(path.join(wsDir, "package.json"), JSON.stringify({ name: "admin-web", private: true }, null, 2) + "\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", wsDir, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  await fs.appendFile(path.join(wsDir, ".repo-memory", "rules.md"), "\n- auth token refresh must be documented.\n", "utf8");
+
+  const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "ws", "focus", "apps/admin-web", "auth token", "--mode", "keyword"]);
+  assert.equal(r.code, 0, r.err || r.out);
+  assert.ok(r.out.includes("# Focus"));
+  assert.ok(r.out.toLowerCase().includes("auth token"));
+});
+
+test("rmemo ws batch focus aggregates focus results across workspaces", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-ws-batch-focus-"));
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "mono", private: true, workspaces: ["apps/*"] }, null, 2) + "\n",
+    "utf8"
+  );
+
+  const apps = ["apps/a", "apps/b"];
+  for (const d of apps) {
+    const abs = path.join(tmp, d);
+    await fs.mkdir(abs, { recursive: true });
+    await fs.writeFile(path.join(abs, "package.json"), JSON.stringify({ name: d.replace("/", "-"), private: true }, null, 2) + "\n", "utf8");
+    // eslint-disable-next-line no-await-in-loop
+    const r = await runNode([rmemoBin, "--root", abs, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    // eslint-disable-next-line no-await-in-loop
+    await fs.appendFile(path.join(abs, ".repo-memory", "rules.md"), "\n- api auth token flow is tracked here.\n", "utf8");
+  }
+
+  const r = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--no-git",
+    "--format",
+    "json",
+    "--mode",
+    "keyword",
+    "--no-status",
+    "ws",
+    "batch",
+    "focus",
+    "auth token flow"
+  ]);
+  assert.equal(r.code, 0, r.err || r.out);
+  const j = JSON.parse(r.out);
+  assert.equal(j.schema, 1);
+  assert.equal(j.cmd, "focus");
+  assert.ok(Array.isArray(j.results));
+  assert.equal(j.results.length, 2);
+  assert.ok(j.results.every((x) => x.ok === true));
+  assert.ok(j.results.every((x) => Number(x.hits || 0) >= 1));
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "ws.md")), true);
+});
+
 test("rmemo profile ls/describe/apply works", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-profile-"));

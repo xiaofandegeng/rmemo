@@ -8,6 +8,7 @@ import { cmdHandoff } from "./handoff.js";
 import { cmdPr } from "./pr.js";
 import { cmdSync } from "./sync.js";
 import { cmdEmbed } from "./embed.js";
+import { generateFocus } from "../core/focus.js";
 import { ensureRepoMemory } from "../core/memory.js";
 import { wsSummaryPath } from "../lib/paths.js";
 import { generateHandoff } from "../core/handoff.js";
@@ -39,6 +40,8 @@ function wsHelp() {
     "  rmemo ws pr <n|dir> [--base <ref>]",
     "  rmemo ws sync <n|dir> [--targets ...]",
     "  rmemo ws embed <n|dir> <auto|build|search> [...args]",
+    "  rmemo ws focus <n|dir> <query> [--mode semantic|keyword] [--format md|json]",
+    "  rmemo ws batch focus <query> [--mode semantic|keyword] [--format md|json]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -95,6 +98,31 @@ function renderBatchMd({ root, cmd, results }) {
   lines.push(`Generated: ${new Date().toISOString()}\n`);
   lines.push(`Command: ${cmd}\n`);
   lines.push("");
+  if (cmd === "focus") {
+    lines.push("## Focus Summary\n");
+    for (const r of results) {
+      const status = r.ok ? "OK" : "ERR";
+      if (!r.ok) {
+        lines.push(`- ${status} ${r.dir}${r.error ? ` (${r.error})` : ""}`);
+        continue;
+      }
+      const head = `- ${status} ${r.dir}: hits=${Number(r.hits || 0)} mode=${r.mode || "-"}`;
+      const top = r.top || null;
+      if (!top) {
+        lines.push(head);
+        continue;
+      }
+      const loc =
+        top.startLine !== null && top.startLine !== undefined
+          ? `${top.file}:${top.startLine}-${top.endLine ?? top.startLine}`
+          : `${top.file}:${top.line ?? "?"}`;
+      const score = top.score !== null && top.score !== undefined ? ` score=${top.score}` : "";
+      lines.push(`${head} top=${loc}${score}`);
+    }
+    lines.push("");
+    return lines.join("\n").trimEnd() + "\n";
+  }
+
   for (const r of results) {
     const status = r.ok ? "OK" : "ERR";
     const out = [r.outMd, r.outJson].filter(Boolean).map((x) => `\`${x}\``).join(" ");
@@ -108,7 +136,25 @@ function renderBatchJson({ root, cmd, results }) {
   return JSON.stringify({ schema: 1, root, generatedAt: new Date().toISOString(), cmd, results }, null, 2) + "\n";
 }
 
-async function runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd, base, format, maxChanges, onlyDirs, check }) {
+async function runBatch({
+  root,
+  preferGit,
+  maxFiles,
+  snipLines,
+  recentDays,
+  cmd,
+  base,
+  format,
+  maxChanges,
+  onlyDirs,
+  check,
+  query,
+  focusMode,
+  k,
+  minScore,
+  maxHits,
+  includeStatus
+}) {
   const { manifest } = await scanRepo(root, { maxFiles, preferGit });
   const spsAll = Array.isArray(manifest?.subprojects) ? manifest.subprojects : [];
   const sps = onlyDirs && onlyDirs.length ? spsAll.filter((x) => onlyDirs.includes(x.dir)) : spsAll;
@@ -148,6 +194,36 @@ async function runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd,
         } else {
           results.push({ dir: sp.dir, ok: true, outMd: null, outJson: null, note: r.skipped ? `skipped:${r.reason}` : "rebuilt" });
         }
+      } else if (cmd === "focus") {
+        // eslint-disable-next-line no-await-in-loop
+        const r = await generateFocus(wsRoot, {
+          q: query,
+          mode: focusMode,
+          format: "json",
+          k,
+          minScore,
+          maxHits,
+          recentDays,
+          includeStatus
+        });
+        const hits = Array.isArray(r?.json?.search?.hits) ? r.json.search.hits : [];
+        const top = hits[0] || null;
+        results.push({
+          dir: sp.dir,
+          ok: true,
+          mode: String(r?.json?.search?.mode || focusMode || "semantic"),
+          hits: hits.length,
+          top: top
+            ? {
+                file: top.file,
+                text: String(top.text || "").slice(0, 160),
+                score: top.score ?? null,
+                line: top.line ?? null,
+                startLine: top.startLine ?? null,
+                endLine: top.endLine ?? null
+              }
+            : null
+        });
       } else if (cmd === "status") {
         // No file output; treat as ok and let user run per-workspace if needed.
         results.push({ dir: sp.dir, ok: true, outMd: null, outJson: null, note: "use ws status <n|dir> for output" });
@@ -176,6 +252,11 @@ export async function cmdWs({ rest, flags }) {
   const onlyDirs = splitList(flags.only || "");
   const base = flags.base ? String(flags.base) : "";
   const check = !!flags.check;
+  const focusMode = String(flags.mode || "semantic").toLowerCase();
+  const k = flags.k !== undefined ? Number(flags.k) : 8;
+  const minScore = flags["min-score"] !== undefined ? Number(flags["min-score"]) : 0.15;
+  const maxHits = flags["max-hits"] !== undefined ? Number(flags["max-hits"]) : 50;
+  const includeStatus = flags["no-status"] ? false : true;
 
   if (!sub || sub === "help") {
     process.stdout.write(wsHelp() + "\n");
@@ -192,13 +273,38 @@ export async function cmdWs({ rest, flags }) {
 
   if (sub === "batch") {
     const cmd = String(rest[1] || "").trim();
+    const query = String(rest.slice(2).join(" ") || "").trim();
     if (!cmd) {
       process.stderr.write("Missing batch command.\n\n");
       process.stderr.write(wsHelp() + "\n");
       process.exitCode = 2;
       return;
     }
-    const r = await runBatch({ root, preferGit, maxFiles, snipLines, recentDays, cmd, base, format, maxChanges, onlyDirs, check });
+    if (cmd === "focus" && !query) {
+      process.stderr.write("Missing query for `ws batch focus`.\n\n");
+      process.stderr.write(wsHelp() + "\n");
+      process.exitCode = 2;
+      return;
+    }
+    const r = await runBatch({
+      root,
+      preferGit,
+      maxFiles,
+      snipLines,
+      recentDays,
+      cmd,
+      base,
+      format,
+      maxChanges,
+      onlyDirs,
+      check,
+      query,
+      focusMode,
+      k,
+      minScore,
+      maxHits,
+      includeStatus
+    });
     process.stdout.write(r.output);
     if (cmd === "embed" && check) {
       const anyBad = Array.isArray(r.results) && r.results.some((x) => !x.ok);
@@ -244,6 +350,19 @@ export async function cmdWs({ rest, flags }) {
         return;
       }
       await cmdEmbed({ rest: embedRest, flags: nextFlags });
+      return;
+    }
+    case "focus": {
+      const q = String(rest.slice(2).join(" ") || "").trim();
+      if (!q) {
+        process.stderr.write("Missing query for `ws focus`.\n\n");
+        process.stderr.write(wsHelp() + "\n");
+        process.exitCode = 2;
+        return;
+      }
+      const r = await generateFocus(wsRoot, { q, mode: focusMode, format, k, minScore, maxHits, recentDays, includeStatus });
+      if (format === "json") process.stdout.write(JSON.stringify(r.json, null, 2) + "\n");
+      else process.stdout.write(r.markdown);
       return;
     }
     default:
