@@ -232,6 +232,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                     <input id="embedParallelism" type="text" placeholder="parallelism (mock)" style="width: 180px;" />
                     <input id="embedBatchDelayMs" type="text" placeholder="batchDelayMs (openai)" style="width: 200px;" />
                     <input id="embedPriority" type="text" placeholder="priority low|normal|high" style="width: 200px;" />
+                    <input id="embedRetryTemplate" type="text" placeholder="retryTemplate conservative|balanced|aggressive" style="width: 280px;" />
                     <input id="embedMaxRetries" type="text" placeholder="maxRetries" style="width: 120px;" />
                     <input id="embedRetryDelayMs" type="text" placeholder="retryDelayMs" style="width: 140px;" />
                   </div>
@@ -242,6 +243,19 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                     <button class="btn secondary" id="saveEmbedJobsConfig">Save Jobs Config</button>
                     <input id="cancelEmbedJobId" type="text" placeholder="cancel job id" style="width: 220px;" />
                     <button class="btn secondary" id="cancelEmbedJob">Cancel Job</button>
+                  </div>
+                  <div style="height: 8px;"></div>
+                  <div class="row">
+                    <input id="retryEmbedJobId" type="text" placeholder="retry source job id" style="width: 220px;" />
+                    <button class="btn secondary" id="retryEmbedJob">Retry Job</button>
+                    <input id="retryFailedLimit" type="text" placeholder="retry failed limit" style="width: 140px;" />
+                    <input id="embedFailureClass" type="text" placeholder="errorClass filter" style="width: 180px;" />
+                    <button class="btn secondary" id="loadEmbedFailures">Failures</button>
+                    <button class="btn secondary" id="retryFailedEmbedJobs">Retry Failed</button>
+                  </div>
+                  <div style="height: 8px;"></div>
+                  <div class="row">
+                    <input id="embedClusterKey" type="text" placeholder="clusterKey filter (optional)" style="min-width: 280px; flex: 1;" />
                   </div>
 
                   <div style="height: 10px;"></div>
@@ -568,12 +582,14 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         const mr = Number((qs("#embedMaxRetries").value || "").trim());
         const rd = Number((qs("#embedRetryDelayMs").value || "").trim());
         const pr = (qs("#embedPriority").value || "").trim().toLowerCase();
+        const rt = (qs("#embedRetryTemplate").value || "").trim().toLowerCase();
         const body = {};
         if (Number.isFinite(p) && p > 0) body.parallelism = p;
         if (Number.isFinite(d) && d >= 0) body.batchDelayMs = d;
         if (Number.isFinite(mr) && mr >= 0) body.maxRetries = mr;
         if (Number.isFinite(rd) && rd >= 0) body.retryDelayMs = rd;
         if (pr) body.priority = pr;
+        if (rt === "conservative" || rt === "balanced" || rt === "aggressive") body.retryTemplate = rt;
         const j = await apiPost("/embed/jobs", body);
         out(JSON.stringify(j, null, 2));
         setTab("json");
@@ -586,6 +602,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         const j = await apiFetch("/embed/jobs/config", { accept: "application/json", json: true });
         const n = Number(j && j.config && j.config.maxConcurrent);
         if (Number.isFinite(n) && n > 0) qs("#embedJobsMaxConcurrent").value = String(n);
+        const rt = String((j && j.config && j.config.retryTemplate) || "");
+        if (rt) qs("#embedRetryTemplate").value = rt;
         out(JSON.stringify(j, null, 2));
         setTab("json");
         msg("OK");
@@ -596,7 +614,12 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         err(""); msg("Saving jobs config...");
         const n = Number((qs("#embedJobsMaxConcurrent").value || "").trim());
         if (!Number.isFinite(n) || n < 1) return msg("Invalid maxConcurrent.");
-        const j = await apiPost("/embed/jobs/config", { maxConcurrent: n });
+        const retryTemplate = (qs("#embedRetryTemplate").value || "").trim().toLowerCase();
+        const body = { maxConcurrent: n };
+        if (retryTemplate === "conservative" || retryTemplate === "balanced" || retryTemplate === "aggressive") {
+          body.retryTemplate = retryTemplate;
+        }
+        const j = await apiPost("/embed/jobs/config", body);
         out(JSON.stringify(j, null, 2));
         setTab("json");
         msg("OK");
@@ -621,6 +644,58 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         setTab("json");
         msg("OK");
         qs("#title").textContent = "Embed Job Cancel";
+      }
+
+      async function retryEmbedJob() {
+        err(""); msg("Retrying embed job...");
+        const id = (qs("#retryEmbedJobId").value || "").trim();
+        if (!id) return msg("Missing source job id.");
+        const pr = (qs("#embedPriority").value || "").trim().toLowerCase();
+        const rt = (qs("#embedRetryTemplate").value || "").trim().toLowerCase();
+        const body = {};
+        if (pr) body.priority = pr;
+        if (rt === "conservative" || rt === "balanced" || rt === "aggressive") body.retryTemplate = rt;
+        const j = await apiPost("/embed/jobs/" + encodeURIComponent(id) + "/retry", body);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Job Retry";
+      }
+
+      async function loadEmbedFailures() {
+        err(""); msg("Loading embed failures...");
+        const limit = Number((qs("#retryFailedLimit").value || "").trim());
+        const errorClass = (qs("#embedFailureClass").value || "").trim();
+        let path = "/embed/jobs/failures";
+        const ps = [];
+        if (Number.isFinite(limit) && limit > 0) ps.push("limit=" + encodeURIComponent(String(limit)));
+        if (errorClass) ps.push("errorClass=" + encodeURIComponent(errorClass));
+        if (ps.length) path += "?" + ps.join("&");
+        const j = await apiFetch(path, { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Failures";
+      }
+
+      async function retryFailedEmbedJobs() {
+        err(""); msg("Retrying failed embed jobs...");
+        const limit = Number((qs("#retryFailedLimit").value || "").trim());
+        const errorClass = (qs("#embedFailureClass").value || "").trim();
+        const clusterKey = (qs("#embedClusterKey").value || "").trim();
+        const pr = (qs("#embedPriority").value || "").trim().toLowerCase();
+        const rt = (qs("#embedRetryTemplate").value || "").trim().toLowerCase();
+        const body = {};
+        if (Number.isFinite(limit) && limit > 0) body.limit = limit;
+        if (errorClass) body.errorClass = errorClass;
+        if (clusterKey) body.clusterKey = clusterKey;
+        if (pr) body.priority = pr;
+        if (rt === "conservative" || rt === "balanced" || rt === "aggressive") body.retryTemplate = rt;
+        const j = await apiPost("/embed/jobs/retry-failed", body);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Retry Failed";
       }
 
       async function doRefreshRepo() {
@@ -717,6 +792,12 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("embed:job:canceled", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:canceled"); }
         });
+        evt.addEventListener("embed:job:requeued", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:requeued"); }
+        });
+        evt.addEventListener("embed:jobs:retry-failed", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:retry-failed"); }
+        });
         evt.addEventListener("embed:jobs:config", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:config"); }
           loadEmbedJobsConfig().catch(() => {});
@@ -745,6 +826,9 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadEmbedJobsConfig").addEventListener("click", () => loadEmbedJobsConfig().catch((e) => { err(String(e)); msg(""); }));
       qs("#saveEmbedJobsConfig").addEventListener("click", () => saveEmbedJobsConfig().catch((e) => { err(String(e)); msg(""); }));
       qs("#cancelEmbedJob").addEventListener("click", () => cancelEmbedJob().catch((e) => { err(String(e)); msg(""); }));
+      qs("#retryEmbedJob").addEventListener("click", () => retryEmbedJob().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadEmbedFailures").addEventListener("click", () => loadEmbedFailures().catch((e) => { err(String(e)); msg(""); }));
+      qs("#retryFailedEmbedJobs").addEventListener("click", () => retryFailedEmbedJobs().catch((e) => { err(String(e)); msg(""); }));
       qs("#doRefreshRepo").addEventListener("click", () => doRefreshRepo().catch((e) => { err(String(e)); msg(""); }));
       qs("#startEvents").addEventListener("click", () => startEvents());
       qs("#stopEvents").addEventListener("click", () => stopEvents());

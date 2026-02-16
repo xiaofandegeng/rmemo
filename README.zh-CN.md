@@ -215,6 +215,7 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /embed/status?format=json|md`（embeddings 健康/状态）
 - `GET /embed/plan?format=json|md`（构建前预演：复用/重算哪些文件）
 - `GET /embed/jobs`、`GET /embed/jobs/:id`（后台 embeddings 任务）
+- `GET /embed/jobs/failures?limit=20&errorClass=config`（失败任务聚类，便于治理）
 - `GET /embed/jobs/config`（任务调度配置）
 - `GET /watch`（watch 运行状态）
 - `GET /status?format=json`
@@ -249,10 +250,12 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 - `POST /embed/auto`
 - `POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}`
   - 会推送 SSE 事件：`embed:build:start`、`embed:build:progress`、`embed:build:ok`、`embed:build:err`
-  - 任务编排事件：`embed:job:queued`、`embed:job:start`、`embed:job:retry`、`embed:job:ok`、`embed:job:err`、`embed:job:canceled`
+  - 任务编排事件：`embed:job:queued`、`embed:job:start`、`embed:job:retry`、`embed:job:ok`、`embed:job:err`、`embed:job:canceled`、`embed:job:requeued`、`embed:jobs:retry-failed`
 - `POST /embed/jobs {provider?,model?,dim?,parallelism?,batchDelayMs?,...}`（异步排队构建）
-- `POST /embed/jobs/config {maxConcurrent}`（设置并发上限）
+- `POST /embed/jobs/config {maxConcurrent,retryTemplate?,defaultPriority?}`（设置并发与默认重试策略）
 - `POST /embed/jobs/:id/cancel`
+- `POST /embed/jobs/:id/retry {priority?,retryTemplate?}`（一键重试单个失败/取消任务）
+- `POST /embed/jobs/retry-failed {limit?,errorClass?,clusterKey?,priority?,retryTemplate?}`（批量重试失败任务）
 
 ## MCP Server（stdio）
 
@@ -280,9 +283,12 @@ rmemo mcp --root . --allow-write
 - `rmemo_embed_job_enqueue`
 - `rmemo_embed_job_cancel`
 - `rmemo_embed_jobs_config`
+- `rmemo_embed_job_retry`
+- `rmemo_embed_jobs_retry_failed`
 
 读取 tool：
 - `rmemo_embed_jobs`
+- `rmemo_embed_jobs_failures`
 
 ## 集成（MCP 配置片段）
 

@@ -1264,12 +1264,24 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     jsonrpc: "2.0",
     id: 6,
     method: "tools/call",
-    params: { name: "rmemo_embed_jobs_config", arguments: { action: "set", maxConcurrent: 2 } }
+    params: { name: "rmemo_embed_jobs_config", arguments: { action: "set", maxConcurrent: 2, retryTemplate: "aggressive" } }
+  });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 7,
+    method: "tools/call",
+    params: { name: "rmemo_embed_jobs_failures", arguments: { limit: 10 } }
+  });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 8,
+    method: "tools/call",
+    params: { name: "rmemo_embed_jobs_retry_failed", arguments: { limit: 2 } }
   });
 
   await waitFor(() => {
     const lines = parseJsonLines(mcp.getOut());
-    return lines.some((x) => x.id === 6) ? true : false;
+    return lines.some((x) => x.id === 8) ? true : false;
   });
 
   const lines = parseJsonLines(mcp.getOut());
@@ -1278,7 +1290,9 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_log"));
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_job_enqueue"));
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs"));
+  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_failures"));
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_config"));
+  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_retry_failed"));
 
   const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
   assert.ok(todosMd.includes("Add MCP write tools"));
@@ -1302,6 +1316,17 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
   const cfgJson = JSON.parse(cfg.result.content[0].text);
   assert.equal(cfgJson.ok, true);
   assert.equal(cfgJson.config.maxConcurrent, 2);
+  assert.equal(cfgJson.config.retryTemplate, "aggressive");
+
+  const failures = lines.find((x) => x.id === 7);
+  const failuresJson = JSON.parse(failures.result.content[0].text);
+  assert.equal(failuresJson.ok, true);
+  assert.ok(Array.isArray(failuresJson.failures));
+
+  const retryFailed = lines.find((x) => x.id === 8);
+  const retryFailedJson = JSON.parse(retryFailed.result.content[0].text);
+  assert.equal(retryFailedJson.ok, true);
+  assert.ok(retryFailedJson.result);
 
   mcp.closeIn();
   try {

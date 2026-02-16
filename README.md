@@ -211,6 +211,7 @@ Then fetch:
 - `GET /embed/status?format=json|md` (embeddings health/status)
 - `GET /embed/plan?format=json|md` (preview reuse/embed actions before build)
 - `GET /embed/jobs`, `GET /embed/jobs/:id` (background embeddings jobs)
+- `GET /embed/jobs/failures?limit=20&errorClass=config` (failed-job clustering for governance)
 - `GET /embed/jobs/config` (job scheduler config)
 - `GET /watch` (watch runtime status)
 - `GET /status?format=json`
@@ -245,10 +246,12 @@ Write endpoints:
 - `POST /embed/auto`
 - `POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}`
   - emits SSE events: `embed:build:start`, `embed:build:progress`, `embed:build:ok`, `embed:build:err`
-  - job orchestration events: `embed:job:queued`, `embed:job:start`, `embed:job:retry`, `embed:job:ok`, `embed:job:err`, `embed:job:canceled`
+  - job orchestration events: `embed:job:queued`, `embed:job:start`, `embed:job:retry`, `embed:job:ok`, `embed:job:err`, `embed:job:canceled`, `embed:job:requeued`, `embed:jobs:retry-failed`
 - `POST /embed/jobs {provider?,model?,dim?,parallelism?,batchDelayMs?,...}` (enqueue async build)
-- `POST /embed/jobs/config {maxConcurrent}` (set scheduler concurrency cap)
+- `POST /embed/jobs/config {maxConcurrent,retryTemplate?,defaultPriority?}` (set scheduler concurrency + default retry policy)
 - `POST /embed/jobs/:id/cancel`
+- `POST /embed/jobs/:id/retry {priority?,retryTemplate?}` (one-click retry one failed/canceled job)
+- `POST /embed/jobs/retry-failed {limit?,errorClass?,clusterKey?,priority?,retryTemplate?}` (bulk retry)
 
 ## MCP Server (stdio)
 
@@ -276,9 +279,12 @@ Write tools:
 - `rmemo_embed_job_enqueue`
 - `rmemo_embed_job_cancel`
 - `rmemo_embed_jobs_config`
+- `rmemo_embed_job_retry`
+- `rmemo_embed_jobs_retry_failed`
 
 Read tool:
 - `rmemo_embed_jobs`
+- `rmemo_embed_jobs_failures`
 
 ## Integrations (MCP Config Snippets)
 

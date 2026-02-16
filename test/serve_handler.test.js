@@ -319,10 +319,16 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
   const cfg0 = await run(handler, { method: "GET", url: "/embed/jobs/config?token=t" });
   assert.equal(cfg0.status, 200);
   assert.ok(cfg0.body.includes("\"maxConcurrent\""));
+  assert.ok(cfg0.body.includes("\"retryTemplate\""));
 
-  const cfgSet = await run(handler, { method: "POST", url: "/embed/jobs/config?token=t", bodyObj: { maxConcurrent: 2 } });
+  const cfgSet = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs/config?token=t",
+    bodyObj: { maxConcurrent: 2, retryTemplate: "aggressive", defaultPriority: "high" }
+  });
   assert.equal(cfgSet.status, 200);
   assert.ok(cfgSet.body.includes("\"maxConcurrent\": 2"));
+  assert.ok(cfgSet.body.includes("\"retryTemplate\": \"aggressive\""));
 
   const cfgBad = await run(handler, { method: "POST", url: "/embed/jobs/config?token=t", bodyObj: { maxConcurrent: 99 } });
   assert.equal(cfgBad.status, 400);
@@ -364,6 +370,41 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
 
   const missingCancel = await run(handler, { method: "POST", url: "/embed/jobs/does-not-exist/cancel?token=t", bodyObj: {} });
   assert.equal(missingCancel.status, 404);
+
+  const bad = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs?token=t",
+    bodyObj: {
+      provider: "not-supported-provider",
+      dim: 32,
+      priority: "low",
+      retryTemplate: "conservative"
+    }
+  });
+  assert.equal(bad.status, 200);
+  const badJobId = JSON.parse(bad.body).job.id;
+
+  await waitFor(async () => {
+    const s = await run(handler, { method: "GET", url: "/embed/jobs?token=t" });
+    const j = JSON.parse(s.body);
+    return Array.isArray(j.history) && j.history.some((x) => x.id === badJobId && x.status === "error");
+  });
+
+  const oneRetry = await run(handler, { method: "POST", url: `/embed/jobs/${encodeURIComponent(badJobId)}/retry?token=t`, bodyObj: { priority: "high" } });
+  assert.equal(oneRetry.status, 200);
+  assert.ok(oneRetry.body.includes("\"ok\": true"));
+
+  const failures = await run(handler, { method: "GET", url: "/embed/jobs/failures?token=t&limit=10" });
+  assert.equal(failures.status, 200);
+  assert.ok(failures.body.includes("\"failures\""));
+
+  const retryFailed = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs/retry-failed?token=t",
+    bodyObj: { limit: 2, errorClass: "config", retryTemplate: "balanced" }
+  });
+  assert.equal(retryFailed.status, 200);
+  assert.ok(retryFailed.body.includes("\"retried\""));
 });
 
 test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWrite + token)", async () => {

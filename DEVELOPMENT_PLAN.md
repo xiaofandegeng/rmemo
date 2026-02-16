@@ -265,6 +265,13 @@ Done:
     - SSE events: `embed:job:queued|start|progress|ok|err|canceled`
     - Scheduler config: `GET/POST /embed/jobs/config {maxConcurrent}`
     - Orchestration policy: `priority` + `maxRetries/retryDelayMs` + error classification (`auth/rate_limit/network/config/runtime`)
+  - Task governance v2 for embed jobs:
+    - Retry templates (`conservative|balanced|aggressive`) + configurable default template/priority
+    - Adaptive retry policy fields (`fixed|exponential`, `maxDelayMs`, `backoffMultiplier`, `jitterRatio`)
+    - Failure clustering API (`GET /embed/jobs/failures`) for repeated-error analysis
+    - One-click retry APIs: `POST /embed/jobs/:id/retry`, `POST /embed/jobs/retry-failed`
+    - MCP governance tools: `rmemo_embed_jobs_failures`, `rmemo_embed_job_retry`, `rmemo_embed_jobs_retry_failed`
+    - UI governance panel actions: failures view + retry single/batch
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

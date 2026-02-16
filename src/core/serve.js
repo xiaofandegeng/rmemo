@@ -766,8 +766,9 @@ export function createServeHandler(root, opts = {}) {
       }
 
       if (req.method === "GET" && url.pathname === "/embed/jobs/config") {
-        const cfg = embedJobs?.getConfig?.() || { maxConcurrent: 1 };
-        return json(res, 200, { ok: true, config: cfg });
+        const cfg = embedJobs?.getConfig?.() || { maxConcurrent: 1, retryTemplate: "balanced", defaultPriority: "normal" };
+        const templates = embedJobs?.retryTemplates?.() || {};
+        return json(res, 200, { ok: true, config: cfg, retryTemplates: templates });
       }
 
       if (req.method === "POST" && url.pathname === "/embed/jobs/config") {
@@ -775,11 +776,23 @@ export function createServeHandler(root, opts = {}) {
         const body = await readBodyJsonOr400(req, res);
         if (!body) return;
         try {
-          const cfg = embedJobs?.setConfig?.({ maxConcurrent: body.maxConcurrent });
-          return json(res, 200, { ok: true, config: cfg || { maxConcurrent: 1 } });
+          const cfg = embedJobs?.setConfig?.({
+            maxConcurrent: body.maxConcurrent,
+            retryTemplate: body.retryTemplate,
+            defaultPriority: body.defaultPriority
+          });
+          const templates = embedJobs?.retryTemplates?.() || {};
+          return json(res, 200, { ok: true, config: cfg || { maxConcurrent: 1 }, retryTemplates: templates });
         } catch (e) {
           return badRequest(res, e?.message || String(e));
         }
+      }
+
+      if (req.method === "GET" && url.pathname === "/embed/jobs/failures") {
+        const limit = url.searchParams.get("limit") !== null ? Number(url.searchParams.get("limit")) : 20;
+        const errorClass = String(url.searchParams.get("errorClass") || "");
+        const clusters = embedJobs?.getFailureClusters?.({ limit, errorClass }) || [];
+        return json(res, 200, { ok: true, schema: 1, generatedAt: new Date().toISOString(), failures: clusters });
       }
 
       if (req.method === "POST" && url.pathname === "/embed/jobs") {
@@ -813,10 +826,29 @@ export function createServeHandler(root, opts = {}) {
             reason: String(body.reason || ""),
             priority: String(body.priority || "normal"),
             maxRetries: body.maxRetries !== undefined ? Number(body.maxRetries) : 1,
-            retryDelayMs: body.retryDelayMs !== undefined ? Number(body.retryDelayMs) : 1000
+            retryDelayMs: body.retryDelayMs !== undefined ? Number(body.retryDelayMs) : 1000,
+            retryTemplate: body.retryTemplate !== undefined ? String(body.retryTemplate) : undefined,
+            retryStrategy: body.retryStrategy !== undefined ? String(body.retryStrategy) : undefined,
+            maxDelayMs: body.maxDelayMs !== undefined ? Number(body.maxDelayMs) : undefined,
+            backoffMultiplier: body.backoffMultiplier !== undefined ? Number(body.backoffMultiplier) : undefined,
+            jitterRatio: body.jitterRatio !== undefined ? Number(body.jitterRatio) : undefined
           }
         );
         return json(res, 200, { ok: true, job });
+      }
+
+      if (req.method === "POST" && url.pathname === "/embed/jobs/retry-failed") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const r = embedJobs?.retryFailed?.({
+          limit: body.limit !== undefined ? Number(body.limit) : 5,
+          errorClass: body.errorClass !== undefined ? String(body.errorClass) : "",
+          clusterKey: body.clusterKey !== undefined ? String(body.clusterKey) : "",
+          priority: body.priority !== undefined ? String(body.priority) : undefined,
+          retryTemplate: body.retryTemplate !== undefined ? String(body.retryTemplate) : undefined
+        });
+        return json(res, 200, { ok: true, result: r || { ok: true, retried: [] } });
       }
 
       const jobM = req.method === "GET" ? url.pathname.match(/^\/embed\/jobs\/([^/]+)$/) : null;
@@ -825,6 +857,26 @@ export function createServeHandler(root, opts = {}) {
         const job = embedJobs?.getJob?.(id);
         if (!job) return notFound(res, "embed job not found");
         return json(res, 200, { ok: true, job });
+      }
+
+      const retryM = req.method === "POST" ? url.pathname.match(/^\/embed\/jobs\/([^/]+)\/retry$/) : null;
+      if (retryM) {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const id = decodeURIComponent(retryM[1] || "");
+        const r = embedJobs?.retryJob?.(id, {
+          priority: body.priority !== undefined ? String(body.priority) : undefined,
+          retryTemplate: body.retryTemplate !== undefined ? String(body.retryTemplate) : undefined,
+          retryStrategy: body.retryStrategy !== undefined ? String(body.retryStrategy) : undefined,
+          maxRetries: body.maxRetries !== undefined ? Number(body.maxRetries) : undefined,
+          retryDelayMs: body.retryDelayMs !== undefined ? Number(body.retryDelayMs) : undefined,
+          maxDelayMs: body.maxDelayMs !== undefined ? Number(body.maxDelayMs) : undefined,
+          backoffMultiplier: body.backoffMultiplier !== undefined ? Number(body.backoffMultiplier) : undefined,
+          jitterRatio: body.jitterRatio !== undefined ? Number(body.jitterRatio) : undefined
+        });
+        if (!r?.ok) return badRequest(res, r?.error || "retry failed");
+        return json(res, 200, { ok: true, result: r });
       }
 
       const cancelM = req.method === "POST" ? url.pathname.match(/^\/embed\/jobs\/([^/]+)\/cancel$/) : null;

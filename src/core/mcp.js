@@ -332,6 +332,14 @@ function toolsList() {
       type: "object",
       properties: {},
       additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_failures", "Get clustered failed embedding jobs (errorClass + signature).", {
+      type: "object",
+      properties: {
+        limit: { type: "number", default: 20 },
+        errorClass: { type: "string", description: "Optional filter: auth|rate_limit|network|config|runtime|unknown" }
+      },
+      additionalProperties: false
     })
   ];
 
@@ -412,8 +420,13 @@ function toolsListWithWrite({ allowWrite } = {}) {
         recentDays: { type: "number" },
         force: { type: "boolean", default: false },
         priority: { type: "string", enum: ["low", "normal", "high"], default: "normal" },
+        retryTemplate: { type: "string", enum: ["conservative", "balanced", "aggressive"], default: "balanced" },
+        retryStrategy: { type: "string", enum: ["fixed", "exponential"] },
         maxRetries: { type: "number", default: 1 },
-        retryDelayMs: { type: "number", default: 1000 }
+        retryDelayMs: { type: "number", default: 1000 },
+        maxDelayMs: { type: "number" },
+        backoffMultiplier: { type: "number" },
+        jitterRatio: { type: "number" }
       },
       additionalProperties: false
     }),
@@ -451,7 +464,30 @@ function toolsListWithWrite({ allowWrite } = {}) {
       type: "object",
       properties: {
         action: { type: "string", enum: ["get", "set"], default: "get" },
-        maxConcurrent: { type: "number", description: "Used when action=set; range [1,8]." }
+        maxConcurrent: { type: "number", description: "Used when action=set; range [1,8]." },
+        retryTemplate: { type: "string", enum: ["conservative", "balanced", "aggressive"] },
+        defaultPriority: { type: "string", enum: ["low", "normal", "high"] }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_job_retry", "Retry one failed/canceled embedding job by source job id.", {
+      type: "object",
+      properties: {
+        jobId: { type: "string" },
+        priority: { type: "string", enum: ["low", "normal", "high"] },
+        retryTemplate: { type: "string", enum: ["conservative", "balanced", "aggressive"] }
+      },
+      required: ["jobId"],
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_retry_failed", "Bulk retry failed embedding jobs with optional filters.", {
+      type: "object",
+      properties: {
+        limit: { type: "number", default: 5 },
+        errorClass: { type: "string" },
+        clusterKey: { type: "string" },
+        priority: { type: "string", enum: ["low", "normal", "high"] },
+        retryTemplate: { type: "string", enum: ["conservative", "balanced", "aggressive"] }
       },
       additionalProperties: false
     })
@@ -697,8 +733,13 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       trigger: "mcp",
       reason: "tool",
       priority: String(args?.priority || "normal"),
+      retryTemplate: args?.retryTemplate !== undefined ? String(args.retryTemplate) : undefined,
+      retryStrategy: args?.retryStrategy !== undefined ? String(args.retryStrategy) : undefined,
       maxRetries: args?.maxRetries !== undefined ? Number(args.maxRetries) : 1,
-      retryDelayMs: args?.retryDelayMs !== undefined ? Number(args.retryDelayMs) : 1000
+      retryDelayMs: args?.retryDelayMs !== undefined ? Number(args.retryDelayMs) : 1000,
+      maxDelayMs: args?.maxDelayMs !== undefined ? Number(args.maxDelayMs) : undefined,
+      backoffMultiplier: args?.backoffMultiplier !== undefined ? Number(args.backoffMultiplier) : undefined,
+      jitterRatio: args?.jitterRatio !== undefined ? Number(args.jitterRatio) : undefined
     });
     return JSON.stringify({ ok: true, job }, null, 2);
   }
@@ -716,15 +757,52 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     return JSON.stringify(s, null, 2);
   }
 
+  if (name === "rmemo_embed_jobs_failures") {
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const errorClass = args?.errorClass !== undefined ? String(args.errorClass) : "";
+    const failures = embedJobs?.getFailureClusters?.({ limit, errorClass }) || [];
+    return JSON.stringify({ ok: true, schema: 1, generatedAt: new Date().toISOString(), failures }, null, 2);
+  }
+
   if (name === "rmemo_embed_jobs_config") {
     const action = String(args?.action || "get").toLowerCase();
     if (action === "get") {
-      const cfg = embedJobs?.getConfig?.() || { maxConcurrent: 1 };
-      return JSON.stringify({ ok: true, config: cfg }, null, 2);
+      const cfg = embedJobs?.getConfig?.() || { maxConcurrent: 1, retryTemplate: "balanced", defaultPriority: "normal" };
+      const retryTemplates = embedJobs?.retryTemplates?.() || {};
+      return JSON.stringify({ ok: true, config: cfg, retryTemplates }, null, 2);
     }
     requireWrite();
-    const cfg = embedJobs?.setConfig?.({ maxConcurrent: Number(args?.maxConcurrent) }) || { maxConcurrent: 1 };
-    return JSON.stringify({ ok: true, config: cfg }, null, 2);
+    const cfg = embedJobs?.setConfig?.({
+      maxConcurrent: args?.maxConcurrent !== undefined ? Number(args.maxConcurrent) : undefined,
+      retryTemplate: args?.retryTemplate !== undefined ? String(args.retryTemplate) : undefined,
+      defaultPriority: args?.defaultPriority !== undefined ? String(args.defaultPriority) : undefined
+    }) || { maxConcurrent: 1 };
+    const retryTemplates = embedJobs?.retryTemplates?.() || {};
+    return JSON.stringify({ ok: true, config: cfg, retryTemplates }, null, 2);
+  }
+
+  if (name === "rmemo_embed_job_retry") {
+    requireWrite();
+    const jobId = String(args?.jobId || "").trim();
+    if (!jobId) throw new Error("Missing jobId");
+    const r = embedJobs?.retryJob?.(jobId, {
+      priority: args?.priority !== undefined ? String(args.priority) : undefined,
+      retryTemplate: args?.retryTemplate !== undefined ? String(args.retryTemplate) : undefined
+    }) || { ok: false, error: "job_not_found" };
+    if (!r.ok) throw new Error(r.error || "retry failed");
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_embed_jobs_retry_failed") {
+    requireWrite();
+    const r = embedJobs?.retryFailed?.({
+      limit: args?.limit !== undefined ? Number(args.limit) : 5,
+      errorClass: args?.errorClass !== undefined ? String(args.errorClass) : "",
+      clusterKey: args?.clusterKey !== undefined ? String(args.clusterKey) : "",
+      priority: args?.priority !== undefined ? String(args.priority) : undefined,
+      retryTemplate: args?.retryTemplate !== undefined ? String(args.retryTemplate) : undefined
+    }) || { ok: true, retried: [] };
+    return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 
   logger.warn(`Unknown tool call: ${name}`);
