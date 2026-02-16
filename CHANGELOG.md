@@ -19,6 +19,14 @@ All notable changes to this project will be documented in this file.
 - Add `rmemo serve` to expose repo memory over local HTTP (read-only by default, supports token auth).
 - Add `rmemo embed` to build a local embeddings index and support semantic search (CLI/HTTP/MCP).
 
+## [0.26.0](https://github.com/xiaofandegeng/rmemo/compare/v0.25.0...v0.26.0) (2026-02-16)
+
+
+### Features
+
+* add workspace focus snapshots and drift comparison ([853fd5f](https://github.com/xiaofandegeng/rmemo/commit/853fd5f26dfd1f4c9721cced021a16cfecded172))
+* **ws:** add workspace focus drift report across CLI/HTTP/MCP/UI ([8739f94](https://github.com/xiaofandegeng/rmemo/commit/8739f941a61809f36e76e070993ddd9292e70699))
+
 ## [0.25.0](https://github.com/xiaofandegeng/rmemo/compare/v0.24.0...v0.25.0) (2026-02-16)
 
 
