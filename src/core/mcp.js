@@ -551,7 +551,10 @@ function toolsListWithWrite({ allowWrite } = {}) {
         governanceFailureRateHigh: { type: "number" },
         governanceCooldownMs: { type: "number" },
         governanceAutoScaleConcurrency: { type: "boolean" },
-        governanceAutoSwitchTemplate: { type: "boolean" }
+        governanceAutoSwitchTemplate: { type: "boolean" },
+        benchmarkAutoAdoptEnabled: { type: "boolean" },
+        benchmarkAutoAdoptMinScore: { type: "number" },
+        benchmarkAutoAdoptMinGap: { type: "number" }
       },
       additionalProperties: false
     }),
@@ -569,6 +572,27 @@ function toolsListWithWrite({ allowWrite } = {}) {
         source: { type: "string", default: "mcp" }
       },
       required: ["versionId"],
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_governance_benchmark_adopt", "Benchmark governance candidates and adopt top candidate when threshold gates pass.", {
+      type: "object",
+      properties: {
+        source: { type: "string", default: "mcp" },
+        mode: { type: "string", enum: ["recommend", "apply_top"], default: "apply_top" },
+        assumeNoCooldown: { type: "boolean", default: true },
+        windowSizes: { type: "array", items: { type: "number" } },
+        candidates: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              patch: { type: "object" }
+            },
+            additionalProperties: true
+          }
+        }
+      },
       additionalProperties: false
     })
   ]);
@@ -953,7 +977,10 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       governanceFailureRateHigh: args?.governanceFailureRateHigh,
       governanceCooldownMs: args?.governanceCooldownMs,
       governanceAutoScaleConcurrency: args?.governanceAutoScaleConcurrency,
-      governanceAutoSwitchTemplate: args?.governanceAutoSwitchTemplate
+      governanceAutoSwitchTemplate: args?.governanceAutoSwitchTemplate,
+      benchmarkAutoAdoptEnabled: args?.benchmarkAutoAdoptEnabled,
+      benchmarkAutoAdoptMinScore: args?.benchmarkAutoAdoptMinScore,
+      benchmarkAutoAdoptMinGap: args?.benchmarkAutoAdoptMinGap
     }) || {};
     const report = embedJobs?.getGovernanceReport?.() || null;
     return JSON.stringify({ ok: true, config, report }, null, 2);
@@ -974,6 +1001,27 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const source = args?.source !== undefined ? String(args.source) : "mcp";
     const r = embedJobs?.rollbackPolicyVersion?.(versionId, { source }) || { ok: false, error: "governance_not_available" };
     if (!r.ok) throw new Error(r.error || "rollback failed");
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_embed_jobs_governance_benchmark_adopt") {
+    requireWrite();
+    const candidates = Array.isArray(args?.candidates)
+      ? args.candidates.map((x, i) => ({ name: String(x?.name || `candidate_${i + 1}`), patch: { ...(x?.patch || {}) } }))
+      : undefined;
+    const windowSizes = Array.isArray(args?.windowSizes) ? args.windowSizes.map((x) => Number(x)) : undefined;
+    const benchmark = embedJobs?.benchmarkGovernance?.({
+      candidates,
+      windowSizes,
+      mode: args?.mode !== undefined ? String(args.mode) : "apply_top",
+      assumeNoCooldown: args?.assumeNoCooldown !== undefined ? !!args.assumeNoCooldown : true
+    }) || null;
+    const source = args?.source !== undefined ? String(args.source) : "mcp";
+    const r = embedJobs?.adoptBenchmarkRecommendation?.({
+      benchmarkResult: benchmark,
+      source
+    }) || { ok: false, error: "governance_not_available" };
+    if (!r.ok) throw new Error(r.error || "benchmark adopt failed");
     return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 

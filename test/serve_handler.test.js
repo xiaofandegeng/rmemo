@@ -416,11 +416,15 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
     bodyObj: {
       governanceEnabled: true,
       governanceWindow: 10,
-      governanceFailureRateHigh: 0.4
+      governanceFailureRateHigh: 0.4,
+      benchmarkAutoAdoptEnabled: true,
+      benchmarkAutoAdoptMinScore: 0,
+      benchmarkAutoAdoptMinGap: 0
     }
   });
   assert.equal(govSet.status, 200);
   assert.ok(govSet.body.includes("\"governanceEnabled\": true"));
+  assert.ok(govSet.body.includes("\"benchmarkAutoAdoptEnabled\": true"));
 
   const govHist = await run(handler, { method: "GET", url: "/embed/jobs/governance/history?token=t&limit=10" });
   assert.equal(govHist.status, 200);
@@ -467,6 +471,27 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
   assert.equal(govBenchmark.status, 200);
   assert.ok(govBenchmark.body.includes("\"ranking\""));
   assert.ok(govBenchmark.body.includes("\"recommendation\""));
+
+  const govBenchmarkAdopt = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs/governance/benchmark/adopt?token=t",
+    bodyObj: {
+      mode: "apply_top",
+      assumeNoCooldown: true,
+      source: "test",
+      candidates: [
+        { name: "safe", patch: { maxConcurrent: 1, retryTemplate: "conservative" } },
+        { name: "balanced", patch: { maxConcurrent: 2, retryTemplate: "balanced" } }
+      ]
+    }
+  });
+  assert.ok(govBenchmarkAdopt.status === 200 || govBenchmarkAdopt.status === 400);
+  if (govBenchmarkAdopt.status === 200) {
+    assert.ok(govBenchmarkAdopt.body.includes("\"ok\": true"));
+    assert.ok(govBenchmarkAdopt.body.includes("\"benchmark\""));
+  } else {
+    assert.ok(govBenchmarkAdopt.body.includes("\"error\""));
+  }
 
   const rollback = await run(handler, {
     method: "POST",

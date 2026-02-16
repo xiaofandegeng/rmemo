@@ -263,8 +263,14 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                       <input id="govEnabled" type="checkbox" />
                       <span class="hint" style="margin:0;">governance enabled</span>
                     </label>
+                    <label style="display:flex; gap:6px; align-items:center;">
+                      <input id="govBenchmarkAutoAdoptEnabled" type="checkbox" />
+                      <span class="hint" style="margin:0;">benchmark auto adopt</span>
+                    </label>
                     <input id="govWindow" type="text" placeholder="gov window (jobs)" style="width: 180px;" />
                     <input id="govFailureRateHigh" type="text" placeholder="gov failure threshold (0~1)" style="width: 220px;" />
+                    <input id="govBenchmarkMinScore" type="text" placeholder="benchmark min score (0~100)" style="width: 220px;" />
+                    <input id="govBenchmarkMinGap" type="text" placeholder="benchmark min gap (0~50)" style="width: 200px;" />
                     <select id="govSimMode">
                       <option value="recommend" selected>simulate: recommend</option>
                       <option value="apply_top">simulate: apply_top</option>
@@ -277,6 +283,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                     <button class="btn secondary" id="loadEmbedGovernanceHistory">Gov History</button>
                     <button class="btn secondary" id="simulateEmbedGovernance">Simulate</button>
                     <button class="btn secondary" id="benchmarkEmbedGovernance">Benchmark</button>
+                    <button class="btn secondary" id="benchmarkAdoptEmbedGovernance">Benchmark + Adopt</button>
                     <button class="btn secondary" id="saveEmbedGovernance">Save Governance</button>
                     <button class="btn secondary" id="applyEmbedGovernance">Apply Top Suggestion</button>
                   </div>
@@ -731,8 +738,11 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         const j = await apiFetch("/embed/jobs/governance", { accept: "application/json", json: true });
         const cfg = (j && j.report && j.report.config) || {};
         if (cfg.governanceEnabled !== undefined) qs("#govEnabled").checked = !!cfg.governanceEnabled;
+        if (cfg.benchmarkAutoAdoptEnabled !== undefined) qs("#govBenchmarkAutoAdoptEnabled").checked = !!cfg.benchmarkAutoAdoptEnabled;
         if (cfg.governanceWindow !== undefined) qs("#govWindow").value = String(cfg.governanceWindow);
         if (cfg.governanceFailureRateHigh !== undefined) qs("#govFailureRateHigh").value = String(cfg.governanceFailureRateHigh);
+        if (cfg.benchmarkAutoAdoptMinScore !== undefined) qs("#govBenchmarkMinScore").value = String(cfg.benchmarkAutoAdoptMinScore);
+        if (cfg.benchmarkAutoAdoptMinGap !== undefined) qs("#govBenchmarkMinGap").value = String(cfg.benchmarkAutoAdoptMinGap);
         out(JSON.stringify(j, null, 2));
         setTab("json");
         msg("OK");
@@ -743,11 +753,16 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         err(""); msg("Saving governance config...");
         const windowN = Number((qs("#govWindow").value || "").trim());
         const fr = Number((qs("#govFailureRateHigh").value || "").trim());
+        const minScore = Number((qs("#govBenchmarkMinScore").value || "").trim());
+        const minGap = Number((qs("#govBenchmarkMinGap").value || "").trim());
         const body = {
-          governanceEnabled: !!qs("#govEnabled").checked
+          governanceEnabled: !!qs("#govEnabled").checked,
+          benchmarkAutoAdoptEnabled: !!qs("#govBenchmarkAutoAdoptEnabled").checked
         };
         if (Number.isFinite(windowN) && windowN > 0) body.governanceWindow = windowN;
         if (Number.isFinite(fr) && fr > 0 && fr <= 1) body.governanceFailureRateHigh = fr;
+        if (Number.isFinite(minScore) && minScore >= 0 && minScore <= 100) body.benchmarkAutoAdoptMinScore = minScore;
+        if (Number.isFinite(minGap) && minGap >= 0 && minGap <= 50) body.benchmarkAutoAdoptMinGap = minGap;
         const j = await apiPost("/embed/jobs/governance/config", body);
         out(JSON.stringify(j, null, 2));
         setTab("json");
@@ -797,6 +812,20 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         setTab("json");
         msg("OK");
         qs("#title").textContent = "Embed Governance Benchmark";
+      }
+
+      async function benchmarkAdoptEmbedGovernance() {
+        err(""); msg("Benchmarking and adopting top candidate...");
+        const body = {
+          mode: qs("#govBenchMode").value || "apply_top",
+          assumeNoCooldown: true,
+          source: "ui"
+        };
+        const j = await apiPost("/embed/jobs/governance/benchmark/adopt", body);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Governance Benchmark Adopt";
       }
 
       async function loadEmbedGovernanceHistory() {
@@ -940,6 +969,15 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
           loadEmbedGovernanceHistory().catch(() => {});
           loadEmbedJobsConfig().catch(() => {});
         });
+        evt.addEventListener("embed:jobs:benchmark:adopt", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:benchmark:adopt"); }
+          loadEmbedGovernance().catch(() => {});
+          loadEmbedGovernanceHistory().catch(() => {});
+          loadEmbedJobsConfig().catch(() => {});
+        });
+        evt.addEventListener("embed:jobs:benchmark:skip", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:benchmark:skip"); }
+        });
         evt.addEventListener("embed:jobs:config", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:config"); }
           loadEmbedJobsConfig().catch(() => {});
@@ -975,6 +1013,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadEmbedGovernanceHistory").addEventListener("click", () => loadEmbedGovernanceHistory().catch((e) => { err(String(e)); msg(""); }));
       qs("#simulateEmbedGovernance").addEventListener("click", () => simulateEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#benchmarkEmbedGovernance").addEventListener("click", () => benchmarkEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
+      qs("#benchmarkAdoptEmbedGovernance").addEventListener("click", () => benchmarkAdoptEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#saveEmbedGovernance").addEventListener("click", () => saveEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#applyEmbedGovernance").addEventListener("click", () => applyEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#rollbackEmbedGovernance").addEventListener("click", () => rollbackEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));

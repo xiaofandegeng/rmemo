@@ -262,6 +262,7 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 - `POST /embed/jobs/governance/apply`（立即应用当前最佳治理建议）
 - `POST /embed/jobs/governance/simulate`（治理策略 dry-run / 影响预估）
 - `POST /embed/jobs/governance/benchmark`（多策略回放基准测试与排序）
+- `POST /embed/jobs/governance/benchmark/adopt`（基准回放后，按阈值自动采纳最优候选）
 - `POST /embed/jobs/governance/rollback {versionId}`（按版本回滚治理策略）
 
 ## MCP Server（stdio）
@@ -295,6 +296,7 @@ rmemo mcp --root . --allow-write
 - `rmemo_embed_jobs_governance_config`
 - `rmemo_embed_jobs_governance_apply`
 - `rmemo_embed_jobs_governance_rollback`
+- `rmemo_embed_jobs_governance_benchmark_adopt`
 
 读取 tool：
 - `rmemo_embed_jobs`

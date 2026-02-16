@@ -825,7 +825,10 @@ export function createServeHandler(root, opts = {}) {
             governanceFailureRateHigh: body.governanceFailureRateHigh,
             governanceCooldownMs: body.governanceCooldownMs,
             governanceAutoScaleConcurrency: body.governanceAutoScaleConcurrency,
-            governanceAutoSwitchTemplate: body.governanceAutoSwitchTemplate
+            governanceAutoSwitchTemplate: body.governanceAutoSwitchTemplate,
+            benchmarkAutoAdoptEnabled: body.benchmarkAutoAdoptEnabled,
+            benchmarkAutoAdoptMinScore: body.benchmarkAutoAdoptMinScore,
+            benchmarkAutoAdoptMinGap: body.benchmarkAutoAdoptMinGap
           });
           const report = embedJobs?.getGovernanceReport?.() || null;
           return json(res, 200, { ok: true, config: cfg || {}, report });
@@ -889,6 +892,33 @@ export function createServeHandler(root, opts = {}) {
             assumeNoCooldown: body.assumeNoCooldown !== undefined ? !!body.assumeNoCooldown : true
           });
           return json(res, 200, { ok: true, result: r || null });
+        } catch (e) {
+          return badRequest(res, e?.message || String(e));
+        }
+      }
+
+      if (req.method === "POST" && url.pathname === "/embed/jobs/governance/benchmark/adopt") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        try {
+          const candidates = Array.isArray(body.candidates)
+            ? body.candidates.map((x, i) => ({
+                name: String(x?.name || `candidate_${i + 1}`),
+                patch: { ...(x?.patch || {}) }
+              }))
+            : undefined;
+          const windowSizes = Array.isArray(body.windowSizes) ? body.windowSizes.map((x) => Number(x)) : undefined;
+          const benchmark = embedJobs?.benchmarkGovernance?.({
+            candidates,
+            windowSizes,
+            mode: body.mode !== undefined ? String(body.mode) : "apply_top",
+            assumeNoCooldown: body.assumeNoCooldown !== undefined ? !!body.assumeNoCooldown : true
+          });
+          const source = body.source !== undefined ? String(body.source) : "api";
+          const r = embedJobs?.adoptBenchmarkRecommendation?.({ benchmarkResult: benchmark, source }) || { ok: false, error: "benchmark_adopt_not_available" };
+          if (!r.ok) return badRequest(res, r.error || "benchmark adopt failed");
+          return json(res, 200, { ok: true, result: r });
         } catch (e) {
           return badRequest(res, e?.message || String(e));
         }

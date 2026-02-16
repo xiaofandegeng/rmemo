@@ -258,6 +258,7 @@ Write endpoints:
 - `POST /embed/jobs/governance/apply` (apply top governance recommendation now)
 - `POST /embed/jobs/governance/simulate` (dry-run governance recommendations / apply impact)
 - `POST /embed/jobs/governance/benchmark` (replay benchmark across policy candidates/windows)
+- `POST /embed/jobs/governance/benchmark/adopt` (benchmark then adopt top candidate if score/gap gates pass)
 - `POST /embed/jobs/governance/rollback {versionId}` (rollback to a governance policy version)
 
 ## MCP Server (stdio)
@@ -291,6 +292,7 @@ Write tools:
 - `rmemo_embed_jobs_governance_config`
 - `rmemo_embed_jobs_governance_apply`
 - `rmemo_embed_jobs_governance_rollback`
+- `rmemo_embed_jobs_governance_benchmark_adopt`
 
 Read tool:
 - `rmemo_embed_jobs`

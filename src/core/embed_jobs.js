@@ -46,7 +46,10 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     governanceFailureRateHigh: 0.5,
     governanceCooldownMs: 60_000,
     governanceAutoScaleConcurrency: true,
-    governanceAutoSwitchTemplate: true
+    governanceAutoSwitchTemplate: true,
+    benchmarkAutoAdoptEnabled: false,
+    benchmarkAutoAdoptMinScore: 70,
+    benchmarkAutoAdoptMinGap: 4
   };
   const governance = {
     lastEvaluatedAt: null,
@@ -247,7 +250,10 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
       governanceFailureRateHigh: cfg.governanceFailureRateHigh,
       governanceCooldownMs: cfg.governanceCooldownMs,
       governanceAutoScaleConcurrency: cfg.governanceAutoScaleConcurrency,
-      governanceAutoSwitchTemplate: cfg.governanceAutoSwitchTemplate
+      governanceAutoSwitchTemplate: cfg.governanceAutoSwitchTemplate,
+      benchmarkAutoAdoptEnabled: cfg.benchmarkAutoAdoptEnabled,
+      benchmarkAutoAdoptMinScore: cfg.benchmarkAutoAdoptMinScore,
+      benchmarkAutoAdoptMinGap: cfg.benchmarkAutoAdoptMinGap
     };
   }
 
@@ -289,6 +295,17 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     }
     if (partial.governanceAutoScaleConcurrency !== undefined) next.governanceAutoScaleConcurrency = !!partial.governanceAutoScaleConcurrency;
     if (partial.governanceAutoSwitchTemplate !== undefined) next.governanceAutoSwitchTemplate = !!partial.governanceAutoSwitchTemplate;
+    if (partial.benchmarkAutoAdoptEnabled !== undefined) next.benchmarkAutoAdoptEnabled = !!partial.benchmarkAutoAdoptEnabled;
+    if (partial.benchmarkAutoAdoptMinScore !== undefined) {
+      const n = Number(partial.benchmarkAutoAdoptMinScore);
+      if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error("benchmarkAutoAdoptMinScore must be in [0,100]");
+      next.benchmarkAutoAdoptMinScore = n;
+    }
+    if (partial.benchmarkAutoAdoptMinGap !== undefined) {
+      const n = Number(partial.benchmarkAutoAdoptMinGap);
+      if (!Number.isFinite(n) || n < 0 || n > 50) throw new Error("benchmarkAutoAdoptMinGap must be in [0,50]");
+      next.benchmarkAutoAdoptMinGap = n;
+    }
     const changedKeys = Object.keys(next).filter((k) => next[k] !== base[k]);
     return { next, changedKeys };
   }
@@ -507,6 +524,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     history.unshift(j);
     while (history.length > maxHistory) history.pop();
     maybeRunAutoGovernance();
+    maybeRunAutoBenchmarkAdopt();
   }
 
   async function runNext() {
@@ -879,6 +897,14 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     return { score, reliability, penalty, throughput, templateBias, actionBonus };
   }
 
+  function defaultBenchmarkCandidates() {
+    return [
+      { name: "safe-conservative", patch: { maxConcurrent: 1, retryTemplate: "conservative", governanceWindow: 20 } },
+      { name: "balanced-default", patch: { maxConcurrent: 2, retryTemplate: "balanced", governanceWindow: 20 } },
+      { name: "throughput-aggressive", patch: { maxConcurrent: 3, retryTemplate: "aggressive", governanceWindow: 20 } }
+    ];
+  }
+
   function benchmarkGovernance({
     candidates = [],
     windowSizes = [],
@@ -890,11 +916,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
       .map((x) => Number(x))
       .filter((x) => Number.isFinite(x) && x >= 5 && x <= 200)
       .map((x) => Math.floor(x));
-    const defaultCandidates = [
-      { name: "safe-conservative", patch: { maxConcurrent: 1, retryTemplate: "conservative", governanceWindow: 20 } },
-      { name: "balanced-default", patch: { maxConcurrent: 2, retryTemplate: "balanced", governanceWindow: 20 } },
-      { name: "throughput-aggressive", patch: { maxConcurrent: 3, retryTemplate: "aggressive", governanceWindow: 20 } }
-    ];
+    const defaultCandidates = defaultBenchmarkCandidates();
     const inputCandidates = Array.isArray(candidates) && candidates.length ? candidates : defaultCandidates;
     const normalized = inputCandidates.map((c, i) => ({
       name: String(c?.name || `candidate_${i + 1}`),
@@ -919,6 +941,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
         });
         rows.push({
           candidate: c.name,
+          candidatePatch: { ...c.patch },
           window: w,
           score: Number(sc.score.toFixed(3)),
           scoreBreakdown: sc,
@@ -931,7 +954,14 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     }
     const grouped = new Map();
     for (const r of rows) {
-      const old = grouped.get(r.candidate) || { candidate: r.candidate, runs: [], meanScore: 0, minScore: Number.POSITIVE_INFINITY, maxScore: Number.NEGATIVE_INFINITY };
+      const old = grouped.get(r.candidate) || {
+        candidate: r.candidate,
+        candidatePatch: { ...(r.candidatePatch || {}) },
+        runs: [],
+        meanScore: 0,
+        minScore: Number.POSITIVE_INFINITY,
+        maxScore: Number.NEGATIVE_INFINITY
+      };
       old.runs.push(r);
       old.meanScore = old.runs.reduce((s, x) => s + Number(x.score || 0), 0) / old.runs.length;
       old.minScore = Math.min(old.minScore, Number(r.score || 0));
@@ -955,11 +985,56 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
       recommendation: best
         ? {
             candidate: best.candidate,
+            candidatePatch: best.candidatePatch || {},
             meanScore: best.meanScore,
             rationale: `best meanScore=${best.meanScore}, range=[${best.minScore}, ${best.maxScore}] over ${best.runs.length} replay windows`
           }
         : null
     };
+  }
+
+  function adoptBenchmarkRecommendation({ benchmarkResult, source = "manual" } = {}) {
+    const bench = benchmarkResult || benchmarkGovernance({});
+    const rec = bench?.recommendation || null;
+    if (!rec) return { ok: false, error: "no_benchmark_recommendation", benchmark: bench };
+    const sorted = Array.isArray(bench.ranking) ? bench.ranking : [];
+    const second = sorted.length > 1 ? sorted[1] : null;
+    const score = Number(rec.meanScore || 0);
+    const gap = second ? score - Number(second.meanScore || 0) : score;
+    if (score < Number(config.benchmarkAutoAdoptMinScore || 0)) {
+      return { ok: false, error: "adopt_score_too_low", score, minScore: config.benchmarkAutoAdoptMinScore, gap, benchmark: bench };
+    }
+    if (gap < Number(config.benchmarkAutoAdoptMinGap || 0)) {
+      return { ok: false, error: "adopt_gap_too_low", score, gap, minGap: config.benchmarkAutoAdoptMinGap, benchmark: bench };
+    }
+    const patch = { ...(rec.candidatePatch || {}) };
+    if (!Object.keys(patch).length) return { ok: false, error: "empty_candidate_patch", benchmark: bench };
+    const cfg = setConfig(patch, { source: `benchmark:${source}`, reason: `benchmark_adopt:${rec.candidate}` });
+    const action = {
+      at: now(),
+      source: `benchmark:${source}`,
+      candidate: rec.candidate,
+      score,
+      gap,
+      patch,
+      config: cfg
+    };
+    events?.emit?.({ type: "embed:jobs:benchmark:adopt", ...action });
+    return { ok: true, action, benchmark: bench };
+  }
+
+  function maybeRunAutoBenchmarkAdopt() {
+    if (!config.benchmarkAutoAdoptEnabled) return;
+    const bench = benchmarkGovernance({ mode: "apply_top", assumeNoCooldown: true });
+    const r = adoptBenchmarkRecommendation({ benchmarkResult: bench, source: "auto" });
+    if (!r.ok) {
+      events?.emit?.({
+        type: "embed:jobs:benchmark:skip",
+        reason: r.error || "no_action",
+        score: r.score ?? null,
+        gap: r.gap ?? null
+      });
+    }
   }
 
   // Seed first version snapshot after controller bootstrap.
@@ -976,6 +1051,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     getGovernanceReport,
     simulateGovernance,
     benchmarkGovernance,
+    adoptBenchmarkRecommendation,
     listPolicyVersions,
     retryJob,
     retryFailed,

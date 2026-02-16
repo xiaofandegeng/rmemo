@@ -311,6 +311,21 @@ Done:
     - Produce score ranking + recommendation (with rationale)
     - MCP benchmark tool: `rmemo_embed_jobs_governance_benchmark`
     - UI benchmark controls and result panel
+  - Task governance v7 (benchmark auto-adopt + threshold gates):
+    - Config extensions:
+      - `benchmarkAutoAdoptEnabled`
+      - `benchmarkAutoAdoptMinScore`
+      - `benchmarkAutoAdoptMinGap`
+    - API:
+      - `POST /embed/jobs/governance/benchmark/adopt`
+    - MCP:
+      - `rmemo_embed_jobs_governance_benchmark_adopt`
+      - `rmemo_embed_jobs_governance_config` supports benchmark auto-adopt fields
+    - Events:
+      - `embed:jobs:benchmark:adopt`
+      - `embed:jobs:benchmark:skip`
+    - UI:
+      - auto-adopt config inputs and one-click benchmark+adopt action
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:
