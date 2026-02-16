@@ -19,6 +19,14 @@ All notable changes to this project will be documented in this file.
 - Add `rmemo serve` to expose repo memory over local HTTP (read-only by default, supports token auth).
 - Add `rmemo embed` to build a local embeddings index and support semantic search (CLI/HTTP/MCP).
 
+## [0.23.0](https://github.com/xiaofandegeng/rmemo/compare/v0.22.0...v0.23.0) (2026-02-16)
+
+
+### Features
+
+* add cross-workspace focus for monorepo orchestration ([77a402b](https://github.com/xiaofandegeng/rmemo/commit/77a402b934b029a2475693bab8bbe567c2dcae98))
+* add governance benchmark auto-adopt across API MCP and UI ([e03ea18](https://github.com/xiaofandegeng/rmemo/commit/e03ea1867dea8e71c3a89e0eb9fdc207c3eeb562))
+
 ## [0.22.0](https://github.com/xiaofandegeng/rmemo/compare/v0.21.0...v0.22.0) (2026-02-16)
 
 
