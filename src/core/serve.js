@@ -681,6 +681,10 @@ export function createServeHandler(root, opts = {}) {
         lines.push(`- model: ${r.index.model || "-"}`);
         lines.push(`- dim: ${r.index.dim || "-"}`);
         if (r.index.generatedAt) lines.push(`- generatedAt: ${r.index.generatedAt}`);
+        lines.push(`- parallelism: ${r.meta.parallelism || 1}`);
+        lines.push(`- batchSize: ${r.meta.batchSize || "-"}`);
+        lines.push(`- totalBatches: ${r.meta.totalBatches || 0}`);
+        lines.push(`- elapsedMs: ${r.meta.elapsedMs || 0}`);
         lines.push("");
         lines.push("## Up To Date");
         if (!r.upToDate) lines.push("- check: skipped");
@@ -717,10 +721,35 @@ export function createServeHandler(root, opts = {}) {
         if (body.maxCharsPerChunk !== undefined) args.maxCharsPerChunk = Number(body.maxCharsPerChunk);
         if (body.overlapChars !== undefined) args.overlapChars = Number(body.overlapChars);
         if (body.maxTotalChunks !== undefined) args.maxTotalChunks = Number(body.maxTotalChunks);
+        if (body.parallelism !== undefined) args.parallelism = Number(body.parallelism);
+        if (body.parallel !== undefined) args.parallelism = Number(body.parallel);
+        if (body.batchDelayMs !== undefined) args.batchDelayMs = Number(body.batchDelayMs);
         args.force = force;
-
-        const built = await buildEmbeddingsIndex(root, args);
-        return json(res, 200, { ok: true, result: { meta: built.meta } });
+        events?.emit?.({
+          type: "embed:build:start",
+          provider: args.provider || "mock",
+          parallelism: args.parallelism ?? null,
+          batchDelayMs: args.batchDelayMs ?? null
+        });
+        try {
+          const built = await buildEmbeddingsIndex(root, {
+            ...args,
+            onProgress: (p) => events?.emit?.({ type: "embed:build:progress", ...p })
+          });
+          events?.emit?.({
+            type: "embed:build:ok",
+            provider: built.meta.provider,
+            model: built.meta.model,
+            embeddedItems: built.meta.embeddedItems,
+            reusedItems: built.meta.reusedItems,
+            totalBatches: built.meta.totalBatches,
+            elapsedMs: built.meta.elapsedMs
+          });
+          return json(res, 200, { ok: true, result: { meta: built.meta } });
+        } catch (e) {
+          events?.emit?.({ type: "embed:build:err", error: e?.message || String(e) });
+          throw e;
+        }
       }
 
       if (req.method === "GET" && url.pathname === "/embed/plan") {
@@ -730,10 +759,18 @@ export function createServeHandler(root, opts = {}) {
         const model = String(url.searchParams.get("model") || "");
         const dim = Number(url.searchParams.get("dim") || 128);
         const recentDays = url.searchParams.get("recentDays") !== null ? Number(url.searchParams.get("recentDays")) : undefined;
+        const parallelism =
+          url.searchParams.get("parallelism") !== null
+            ? Number(url.searchParams.get("parallelism"))
+            : (url.searchParams.get("parallel") !== null ? Number(url.searchParams.get("parallel")) : undefined);
+        const batchDelayMs =
+          url.searchParams.get("batchDelayMs") !== null
+            ? Number(url.searchParams.get("batchDelayMs"))
+            : (url.searchParams.get("batch-delay-ms") !== null ? Number(url.searchParams.get("batch-delay-ms")) : undefined);
         const kindsRaw = url.searchParams.get("kinds");
         const kinds = kindsRaw ? parseKindsList(kindsRaw) : undefined;
 
-        const r = await planEmbeddingsBuild(root, { provider, model, dim, kinds, recentDays });
+        const r = await planEmbeddingsBuild(root, { provider, model, dim, kinds, recentDays, parallelism, batchDelayMs });
         if (format === "json") return json(res, 200, r);
         const lines = [];
         lines.push("# Embeddings Build Plan");

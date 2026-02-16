@@ -225,6 +225,11 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                     <button class="btn secondary" id="loadEmbedPlan">Embed Plan</button>
                     <button class="btn secondary" id="doEmbedBuild">Embed Build</button>
                   </div>
+                  <div style="height: 8px;"></div>
+                  <div class="row">
+                    <input id="embedParallelism" type="text" placeholder="parallelism (mock)" style="width: 180px;" />
+                    <input id="embedBatchDelayMs" type="text" placeholder="batchDelayMs (openai)" style="width: 200px;" />
+                  </div>
 
                   <div style="height: 10px;"></div>
 
@@ -517,7 +522,12 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
 
       async function loadEmbedPlan() {
         err(""); msg("Planning embeddings build...");
-        const j = await apiFetch("/embed/plan?format=json", { accept: "application/json", json: true });
+        const p = Number((qs("#embedParallelism").value || "").trim());
+        const d = Number((qs("#embedBatchDelayMs").value || "").trim());
+        let path = "/embed/plan?format=json";
+        if (Number.isFinite(p) && p > 0) path += "&parallelism=" + encodeURIComponent(String(p));
+        if (Number.isFinite(d) && d >= 0) path += "&batchDelayMs=" + encodeURIComponent(String(d));
+        const j = await apiFetch(path, { accept: "application/json", json: true });
         out(JSON.stringify(j, null, 2));
         setTab("json");
         msg("OK");
@@ -526,7 +536,12 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
 
       async function doEmbedBuild() {
         err(""); msg("Building embeddings...");
-        const j = await apiPost("/embed/build", {});
+        const p = Number((qs("#embedParallelism").value || "").trim());
+        const d = Number((qs("#embedBatchDelayMs").value || "").trim());
+        const body = {};
+        if (Number.isFinite(p) && p > 0) body.parallelism = p;
+        if (Number.isFinite(d) && d >= 0) body.batchDelayMs = d;
+        const j = await apiPost("/embed/build", body);
         out(JSON.stringify(j, null, 2));
         setTab("json");
         msg("OK");
@@ -593,6 +608,18 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("watch:error", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "watch:error"); }
           loadWatch().catch(() => {});
+        });
+        evt.addEventListener("embed:build:start", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:build:start"); }
+        });
+        evt.addEventListener("embed:build:progress", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:build:progress"); }
+        });
+        evt.addEventListener("embed:build:ok", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:build:ok"); }
+        });
+        evt.addEventListener("embed:build:err", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:build:err"); }
         });
       }
 

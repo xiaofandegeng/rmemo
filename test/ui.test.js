@@ -15,6 +15,9 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/embed/status"));
   assert.ok(html.includes("/embed/plan"));
   assert.ok(html.includes("/embed/build"));
+  assert.ok(html.includes("embedParallelism"));
+  assert.ok(html.includes("embedBatchDelayMs"));
+  assert.ok(html.includes("embed:build:progress"));
   assert.ok(html.includes("/refresh"));
   assert.ok(html.includes("/watch"));
   // Should not embed tokens.

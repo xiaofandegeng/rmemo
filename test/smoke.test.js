@@ -1211,6 +1211,7 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   assert.equal(embPlanJson.schema, 1);
   assert.ok(embPlanJson.summary);
   assert.ok(Array.isArray(embPlanJson.files));
+  assert.equal(embPlanJson.runtime.parallelism, 4);
 
   mcp.closeIn();
   try {
@@ -1302,8 +1303,10 @@ test("rmemo embed build/search supports semantic search (mock provider)", async 
   }
 
   {
-    const r = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock", "--dim", "64"]);
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "build", "--provider", "mock", "--dim", "64", "--parallel", "2"]);
     assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("parallelism: 2"));
+    assert.ok(r.out.includes("totalBatches:"));
     assert.ok(await exists(path.join(tmp, ".repo-memory", "embeddings", "index.json")));
     assert.ok(await exists(path.join(tmp, ".repo-memory", "embeddings", "meta.json")));
   }
@@ -1358,12 +1361,13 @@ test("rmemo embed build/search supports semantic search (mock provider)", async 
   }
 
   {
-    const r = await runNode([rmemoBin, "--root", tmp, "embed", "plan", "--provider", "mock", "--dim", "128", "--format", "json"]);
+    const r = await runNode([rmemoBin, "--root", tmp, "embed", "plan", "--provider", "mock", "--dim", "128", "--parallel", "3", "--format", "json"]);
     assert.equal(r.code, 0, r.err || r.out);
     const j = JSON.parse(r.out);
     assert.equal(j.schema, 1);
     assert.ok(j.summary);
     assert.ok(Array.isArray(j.files));
+    assert.equal(j.runtime.parallelism, 3);
   }
 });
 

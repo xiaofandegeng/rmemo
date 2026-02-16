@@ -53,6 +53,12 @@ function fnv1a32(s) {
   return h >>> 0;
 }
 
+function sleep(ms) {
+  const n = Number(ms || 0);
+  if (!Number.isFinite(n) || n <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, n));
+}
+
 function mockEmbedOne(text, dim) {
   const v = new Float32Array(dim);
   const tokens = String(text || "")
@@ -153,7 +159,9 @@ export function defaultEmbeddingConfig() {
     maxChunksPerFile: 200,
     maxCharsPerChunk: 1400,
     overlapChars: 200,
-    maxTotalChunks: 1200
+    maxTotalChunks: 1200,
+    parallelism: 4,
+    batchDelayMs: 0
   };
 }
 
@@ -356,7 +364,9 @@ export async function planEmbeddingsBuild(
     maxChunksPerFile = defaultEmbeddingConfig().maxChunksPerFile,
     maxCharsPerChunk = defaultEmbeddingConfig().maxCharsPerChunk,
     overlapChars = defaultEmbeddingConfig().overlapChars,
-    maxTotalChunks = defaultEmbeddingConfig().maxTotalChunks
+    maxTotalChunks = defaultEmbeddingConfig().maxTotalChunks,
+    parallelism = defaultEmbeddingConfig().parallelism,
+    batchDelayMs = defaultEmbeddingConfig().batchDelayMs
   } = {}
 ) {
   const embedder = createEmbedder({ provider, dim, apiKey, model });
@@ -443,6 +453,8 @@ export async function planEmbeddingsBuild(
   files.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
   const reuseCount = files.filter((f) => f.action === "reuse").length;
   const embedCount = files.filter((f) => f.action !== "reuse").length;
+  const batchSize = embedder.provider === "openai" ? 96 : 256;
+  const estimatedBatches = Math.ceil(Math.max(0, embedCount) / Math.max(1, batchSize));
   const upToDate = Boolean(
     hasIndex &&
       hasMeta &&
@@ -469,7 +481,13 @@ export async function planEmbeddingsBuild(
       reuseFiles: reuseCount,
       embedFiles: embedCount,
       staleIndexedFiles: staleIndexedFiles.length,
+      batchSize,
+      estimatedBatches,
       upToDate
+    },
+    runtime: {
+      parallelism: Math.max(1, Number(parallelism || 1)),
+      batchDelayMs: Math.max(0, Number(batchDelayMs || 0))
     },
     staleIndexedFiles,
     files
@@ -489,6 +507,9 @@ export async function buildEmbeddingsIndex(
     maxCharsPerChunk = defaultEmbeddingConfig().maxCharsPerChunk,
     overlapChars = defaultEmbeddingConfig().overlapChars,
     maxTotalChunks = defaultEmbeddingConfig().maxTotalChunks,
+    parallelism = defaultEmbeddingConfig().parallelism,
+    batchDelayMs = defaultEmbeddingConfig().batchDelayMs,
+    onProgress = null,
     force = false
   } = {}
 ) {
@@ -625,15 +646,71 @@ export async function buildEmbeddingsIndex(
   }
 
   const BATCH = embedder.provider === "openai" ? 96 : 256;
-  for (let i = 0; i < toEmbed.length; i += BATCH) {
+  const totalBatches = Math.ceil(toEmbed.length / BATCH);
+  const par = embedder.provider === "openai" ? 1 : Math.max(1, Math.min(32, Number(parallelism || 1)));
+  const delayMs = embedder.provider === "openai" ? Math.max(0, Number(batchDelayMs || 0)) : 0;
+  const t0 = Date.now();
+  let completedBatches = 0;
+  let completedItems = 0;
+  const emitProgress = (phase, extra = {}) => {
+    if (typeof onProgress !== "function") return;
+    try {
+      onProgress({
+        phase,
+        provider: embedder.provider,
+        batchSize: BATCH,
+        totalBatches,
+        completedBatches,
+        totalItems: toEmbed.length,
+        completedItems,
+        elapsedMs: Date.now() - t0,
+        ...extra
+      });
+    } catch {
+      // ignore observer errors
+    }
+  };
+
+  emitProgress("start", { parallelism: par, batchDelayMs: delayMs });
+
+  async function processBatch(batchIndex) {
+    const i = batchIndex * BATCH;
     const batch = toEmbed.slice(i, i + BATCH);
-    // eslint-disable-next-line no-await-in-loop
+    if (delayMs > 0 && batchIndex > 0) await sleep(delayMs);
     const vecs = await embedder.embedBatch(batch.map((x) => x.text));
     for (let j = 0; j < batch.length; j++) {
       const vec = vecs[j];
       outItems.push({ ...batch[j], vectorB64: encodeVector(vec) });
     }
+    completedBatches += 1;
+    completedItems += batch.length;
+    emitProgress("batch", { batchIndex: batchIndex + 1, batchItems: batch.length });
   }
+
+  if (par <= 1 || totalBatches <= 1) {
+    for (let bi = 0; bi < totalBatches; bi++) {
+      // eslint-disable-next-line no-await-in-loop
+      await processBatch(bi);
+    }
+  } else {
+    let cursor = 0;
+    const workers = [];
+    for (let w = 0; w < par; w++) {
+      workers.push(
+        (async () => {
+          while (true) {
+            const bi = cursor;
+            cursor += 1;
+            if (bi >= totalBatches) return;
+            // eslint-disable-next-line no-await-in-loop
+            await processBatch(bi);
+          }
+        })()
+      );
+    }
+    await Promise.all(workers);
+  }
+  emitProgress("done");
 
   // Stable ordering for diffs.
   outItems.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -653,6 +730,11 @@ export async function buildEmbeddingsIndex(
     maxCharsPerChunk,
     overlapChars,
     maxTotalChunks,
+    parallelism: par,
+    batchDelayMs: delayMs,
+    batchSize: BATCH,
+    totalBatches,
+    elapsedMs: Date.now() - t0,
     itemCount: outItems.length,
     reusedFiles,
     reusedItems,

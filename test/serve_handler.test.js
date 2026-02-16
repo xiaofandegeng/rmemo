@@ -258,9 +258,10 @@ test("serve handler: /embed/status /embed/plan and /embed/build work", async () 
   assert.equal(s0.status, 200);
   assert.ok(s0.body.includes("\"status\""));
 
-  const p0 = await run(ro, { method: "GET", url: "/embed/plan?format=json&token=t" });
+  const p0 = await run(ro, { method: "GET", url: "/embed/plan?format=json&parallelism=3&batchDelayMs=25&token=t" });
   assert.equal(p0.status, 200);
   assert.ok(p0.body.includes("\"summary\""));
+  assert.ok(p0.body.includes("\"runtime\""));
 
   const denied = await run(ro, { method: "POST", url: "/embed/build?token=t", bodyObj: {} });
   assert.equal(denied.status, 400);
@@ -270,10 +271,11 @@ test("serve handler: /embed/status /embed/plan and /embed/build work", async () 
   const b = await run(rw, {
     method: "POST",
     url: "/embed/build?token=t",
-    bodyObj: { provider: "mock", dim: 32, kinds: ["rules", "todos", "context"], recentDays: 7 }
+    bodyObj: { provider: "mock", dim: 32, parallelism: 2, kinds: ["rules", "todos", "context"], recentDays: 7 }
   });
   assert.equal(b.status, 200);
   assert.ok(b.body.includes("\"meta\""));
+  assert.ok(b.body.includes("\"parallelism\": 2"));
 
   const s1 = await run(rw, { method: "GET", url: "/embed/status?format=json&token=t" });
   assert.equal(s1.status, 200);

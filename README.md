@@ -241,7 +241,8 @@ Write endpoints:
 - `POST /log {text, kind?}`
 - `POST /sync`
 - `POST /embed/auto`
-- `POST /embed/build {force?,useConfig?,provider?,model?,dim?,kinds?...}`
+- `POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}`
+  - emits SSE events: `embed:build:start`, `embed:build:progress`, `embed:build:ok`, `embed:build:err`
 
 ## MCP Server (stdio)
 
@@ -301,7 +302,7 @@ Build a local embeddings index (default: deterministic `mock` provider):
 
 ```bash
 rmemo embed build
-rmemo embed plan --format json
+rmemo embed plan --parallel 4 --format json
 rmemo embed search "auth token refresh"
 rmemo embed status --format json
 ```
@@ -310,7 +311,7 @@ Optional OpenAI provider:
 
 ```bash
 export OPENAI_API_KEY=...
-rmemo embed build --provider openai --model text-embedding-3-small
+rmemo embed build --provider openai --model text-embedding-3-small --batch-delay-ms 200
 rmemo embed search "where is auth validated?"
 ```
 

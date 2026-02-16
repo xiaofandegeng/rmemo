@@ -258,6 +258,8 @@ Done:
   - `GET /embed/status?format=json|md`
   - `GET /embed/plan?format=json|md`
   - `POST /embed/build` (trigger build from config or overrides)
+  - Parallel embedding workers for mock provider (`parallelism`) + OpenAI batch throttle (`batchDelayMs`)
+  - Build progress event stream over SSE: `embed:build:start|progress|ok|err`
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

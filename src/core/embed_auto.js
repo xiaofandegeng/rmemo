@@ -40,6 +40,8 @@ export async function readEmbedConfig(root) {
   const maxCharsPerChunk = pickNumber(e?.maxCharsPerChunk, def.maxCharsPerChunk);
   const overlapChars = pickNumber(e?.overlapChars, def.overlapChars);
   const maxTotalChunks = pickNumber(e?.maxTotalChunks, def.maxTotalChunks);
+  const parallelism = pickNumber(e?.parallelism, def.parallelism);
+  const batchDelayMs = pickNumber(e?.batchDelayMs, def.batchDelayMs);
 
   return {
     enabled: true,
@@ -54,7 +56,9 @@ export async function readEmbedConfig(root) {
       maxChunksPerFile,
       maxCharsPerChunk,
       overlapChars,
-      maxTotalChunks
+      maxTotalChunks,
+      parallelism,
+      batchDelayMs
     }
   };
 }
@@ -76,4 +80,3 @@ export async function embedAuto(root, { checkOnly = false } = {}) {
   const built = await buildEmbeddingsIndex(rootAbs, args);
   return { ok: true, skipped: false, reason: "rebuilt", meta: built.meta };
 }
-

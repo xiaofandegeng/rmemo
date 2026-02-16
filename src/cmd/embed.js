@@ -16,6 +16,8 @@ function help() {
     "Notes:",
     "- This builds a local embeddings index under .repo-memory/embeddings/ for semantic search.",
     "- provider=openai requires OPENAI_API_KEY (or --api-key).",
+    "- --parallel controls mock-provider embedding workers.",
+    "- --batch-delay-ms can throttle openai provider calls.",
     "",
     "Examples:",
     "  rmemo embed build",
@@ -52,6 +54,8 @@ export async function cmdEmbed({ rest, flags }) {
     const dim = flags.dim !== undefined ? Number(flags.dim) : 128;
     const kinds = parseKinds(flags.kinds) || undefined;
     const recentDays = flags["recent-days"] !== undefined ? Number(flags["recent-days"]) : undefined;
+    const parallelism = flags.parallel !== undefined ? Number(flags.parallel) : undefined;
+    const batchDelayMs = flags["batch-delay-ms"] !== undefined ? Number(flags["batch-delay-ms"]) : undefined;
     const force = !!flags.force;
     const check = !!flags.check;
 
@@ -66,7 +70,7 @@ export async function cmdEmbed({ rest, flags }) {
       return;
     }
 
-    const r = await buildEmbeddingsIndex(root, { provider, model, apiKey, dim, kinds, recentDays, force });
+    const r = await buildEmbeddingsIndex(root, { provider, model, apiKey, dim, kinds, recentDays, parallelism, batchDelayMs, force });
     process.stdout.write(
       [
         "OK: embeddings index built",
@@ -77,6 +81,10 @@ export async function cmdEmbed({ rest, flags }) {
         `- reusedFiles: ${r.meta.reusedFiles || 0}`,
         `- reusedItems: ${r.meta.reusedItems || 0}`,
         `- embeddedItems: ${r.meta.embeddedItems || 0}`,
+        `- parallelism: ${r.meta.parallelism || 1}`,
+        `- batchSize: ${r.meta.batchSize || "-"}`,
+        `- totalBatches: ${r.meta.totalBatches || 0}`,
+        `- elapsedMs: ${r.meta.elapsedMs || 0}`,
         `- kinds: ${(r.meta.kinds || []).join(", ")}`,
         `- recentDays: ${r.meta.recentDays}`
       ].join("\n") + "\n"
@@ -91,10 +99,12 @@ export async function cmdEmbed({ rest, flags }) {
     const dim = flags.dim !== undefined ? Number(flags.dim) : 128;
     const kinds = parseKinds(flags.kinds) || undefined;
     const recentDays = flags["recent-days"] !== undefined ? Number(flags["recent-days"]) : undefined;
+    const parallelism = flags.parallel !== undefined ? Number(flags.parallel) : undefined;
+    const batchDelayMs = flags["batch-delay-ms"] !== undefined ? Number(flags["batch-delay-ms"]) : undefined;
     const format = flags.format ? String(flags.format).toLowerCase() : "md";
     if (format !== "md" && format !== "json") return exitWithError("format must be md|json");
 
-    const r = await planEmbeddingsBuild(root, { provider, model, apiKey, dim, kinds, recentDays });
+    const r = await planEmbeddingsBuild(root, { provider, model, apiKey, dim, kinds, recentDays, parallelism, batchDelayMs });
     if (format === "json") {
       process.stdout.write(JSON.stringify(r, null, 2) + "\n");
       return;
@@ -105,6 +115,10 @@ export async function cmdEmbed({ rest, flags }) {
     lines.push(`- upToDate: ${r.summary.upToDate ? "yes" : "no"}`);
     lines.push(`- files: total=${r.summary.totalFiles}, reuse=${r.summary.reuseFiles}, embed=${r.summary.embedFiles}`);
     lines.push(`- staleIndexedFiles: ${r.summary.staleIndexedFiles}`);
+    lines.push(`- batchSize: ${r.summary.batchSize}`);
+    lines.push(`- estimatedBatches: ${r.summary.estimatedBatches}`);
+    lines.push(`- parallelism: ${r.runtime.parallelism}`);
+    lines.push(`- batchDelayMs: ${r.runtime.batchDelayMs}`);
     if (r.staleIndexedFiles.length) {
       lines.push("\n## Stale Indexed Files");
       for (const s of r.staleIndexedFiles) lines.push(`- ${s}`);
@@ -156,6 +170,10 @@ export async function cmdEmbed({ rest, flags }) {
     lines.push(`- model: ${r.index.model || "-"}`);
     lines.push(`- dim: ${r.index.dim || "-"}`);
     if (r.index.generatedAt) lines.push(`- generatedAt: ${r.index.generatedAt}`);
+    lines.push(`- parallelism: ${r.meta.parallelism || 1}`);
+    lines.push(`- batchSize: ${r.meta.batchSize || "-"}`);
+    lines.push(`- totalBatches: ${r.meta.totalBatches || 0}`);
+    lines.push(`- elapsedMs: ${r.meta.elapsedMs || 0}`);
     lines.push("");
     lines.push("## Up To Date");
     if (!r.upToDate) lines.push("- check: skipped");

@@ -107,6 +107,11 @@ export async function getEmbedStatus(root, { checkUpToDate = true } = {}) {
       gitHead: meta?.gitHead || null,
       startedAt: meta?.startedAt || null,
       finishedAt: meta?.finishedAt || null,
+      elapsedMs: Number(meta?.elapsedMs || 0),
+      parallelism: Number(meta?.parallelism || 1),
+      batchDelayMs: Number(meta?.batchDelayMs || 0),
+      batchSize: Number(meta?.batchSize || 0),
+      totalBatches: Number(meta?.totalBatches || 0),
       reusedItems: Number(meta?.reusedItems || 0),
       embeddedItems: Number(meta?.embeddedItems || 0),
       reusedFromPreviousIndex: !!meta?.reusedFromPreviousIndex
@@ -126,4 +131,3 @@ export async function getEmbedStatus(root, { checkUpToDate = true } = {}) {
   }
   return result;
 }
-

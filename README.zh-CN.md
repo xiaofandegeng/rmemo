@@ -245,7 +245,8 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 - `POST /log {text, kind?}`
 - `POST /sync`
 - `POST /embed/auto`
-- `POST /embed/build {force?,useConfig?,provider?,model?,dim?,kinds?...}`
+- `POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}`
+  - 会推送 SSE 事件：`embed:build:start`、`embed:build:progress`、`embed:build:ok`、`embed:build:err`
 
 ## MCP Server（stdio）
 
@@ -305,7 +306,7 @@ rmemo integrate claude-desktop --apply --config /path/to/claude_desktop_config.j
 
 ```bash
 rmemo embed build
-rmemo embed plan --format json
+rmemo embed plan --parallel 4 --format json
 rmemo embed search "auth token refresh"
 rmemo embed status --format json
 ```
@@ -314,7 +315,7 @@ rmemo embed status --format json
 
 ```bash
 export OPENAI_API_KEY=...
-rmemo embed build --provider openai --model text-embedding-3-small
+rmemo embed build --provider openai --model text-embedding-3-small --batch-delay-ms 200
 rmemo embed search "鉴权在哪里做的？"
 ```
 

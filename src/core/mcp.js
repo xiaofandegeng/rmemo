@@ -317,6 +317,8 @@ function toolsList() {
         provider: { type: "string", enum: ["mock", "openai"], default: "mock" },
         model: { type: "string", default: "" },
         dim: { type: "number", default: 128 },
+        parallelism: { type: "number", default: 4 },
+        batchDelayMs: { type: "number", default: 0 },
         kinds: {
           oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
           description: "Comma-separated or array: rules,todos,context,journal,sessions,handoff,pr"
@@ -397,6 +399,8 @@ function toolsListWithWrite({ allowWrite } = {}) {
         model: { type: "string" },
         apiKey: { type: "string" },
         dim: { type: "number" },
+        parallelism: { type: "number" },
+        batchDelayMs: { type: "number" },
         kinds: {
           oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
           description: "Comma-separated or array: rules,todos,context,journal,sessions,handoff,pr"
@@ -546,9 +550,11 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite } = {
     const provider = String(args?.provider || "mock");
     const model = String(args?.model || "");
     const dim = args?.dim !== undefined ? Number(args.dim) : 128;
+    const parallelism = args?.parallelism !== undefined ? Number(args.parallelism) : undefined;
+    const batchDelayMs = args?.batchDelayMs !== undefined ? Number(args.batchDelayMs) : undefined;
     const kinds = args?.kinds !== undefined ? parseKindsList(args.kinds) : undefined;
     const recentDays = args?.recentDays !== undefined ? Number(args.recentDays) : undefined;
-    const r = await planEmbeddingsBuild(root, { provider, model, dim, kinds, recentDays });
+    const r = await planEmbeddingsBuild(root, { provider, model, dim, kinds, recentDays, parallelism, batchDelayMs });
     return JSON.stringify(r, null, 2);
   }
 
@@ -611,6 +617,8 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite } = {
     if (args?.model !== undefined) cfg.model = String(args.model);
     if (args?.apiKey !== undefined) cfg.apiKey = String(args.apiKey);
     if (args?.dim !== undefined) cfg.dim = Number(args.dim);
+    if (args?.parallelism !== undefined) cfg.parallelism = Number(args.parallelism);
+    if (args?.batchDelayMs !== undefined) cfg.batchDelayMs = Number(args.batchDelayMs);
     if (args?.kinds !== undefined) {
       const kinds = parseKindsList(args.kinds);
       if (!kinds.length) throw new Error("kinds must be a non-empty list/string when provided");
