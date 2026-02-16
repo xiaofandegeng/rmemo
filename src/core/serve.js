@@ -795,6 +795,49 @@ export function createServeHandler(root, opts = {}) {
         return json(res, 200, { ok: true, schema: 1, generatedAt: new Date().toISOString(), failures: clusters });
       }
 
+      if (req.method === "GET" && url.pathname === "/embed/jobs/governance") {
+        const report = embedJobs?.getGovernanceReport?.() || {
+          schema: 1,
+          generatedAt: new Date().toISOString(),
+          config: {},
+          state: {},
+          metrics: {},
+          recommendations: []
+        };
+        return json(res, 200, { ok: true, report });
+      }
+
+      if (req.method === "POST" && url.pathname === "/embed/jobs/governance/config") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        try {
+          const cfg = embedJobs?.setConfig?.({
+            governanceEnabled: body.governanceEnabled,
+            governanceWindow: body.governanceWindow,
+            governanceMinSample: body.governanceMinSample,
+            governanceFailureRateHigh: body.governanceFailureRateHigh,
+            governanceCooldownMs: body.governanceCooldownMs,
+            governanceAutoScaleConcurrency: body.governanceAutoScaleConcurrency,
+            governanceAutoSwitchTemplate: body.governanceAutoSwitchTemplate
+          });
+          const report = embedJobs?.getGovernanceReport?.() || null;
+          return json(res, 200, { ok: true, config: cfg || {}, report });
+        } catch (e) {
+          return badRequest(res, e?.message || String(e));
+        }
+      }
+
+      if (req.method === "POST" && url.pathname === "/embed/jobs/governance/apply") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const source = body.source !== undefined ? String(body.source) : "api";
+        const r = embedJobs?.applyTopGovernanceRecommendation?.({ source }) || { ok: false, error: "governance_not_available" };
+        if (!r.ok) return badRequest(res, r.error || "no governance recommendation");
+        return json(res, 200, { ok: true, result: r });
+      }
+
       if (req.method === "POST" && url.pathname === "/embed/jobs") {
         if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
         const body = await readBodyJsonOr400(req, res);

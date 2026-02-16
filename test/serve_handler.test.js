@@ -405,6 +405,30 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
   });
   assert.equal(retryFailed.status, 200);
   assert.ok(retryFailed.body.includes("\"retried\""));
+
+  const gov0 = await run(handler, { method: "GET", url: "/embed/jobs/governance?token=t" });
+  assert.equal(gov0.status, 200);
+  assert.ok(gov0.body.includes("\"recommendations\""));
+
+  const govSet = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs/governance/config?token=t",
+    bodyObj: {
+      governanceEnabled: true,
+      governanceWindow: 10,
+      governanceFailureRateHigh: 0.4
+    }
+  });
+  assert.equal(govSet.status, 200);
+  assert.ok(govSet.body.includes("\"governanceEnabled\": true"));
+
+  const govApply = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs/governance/apply?token=t",
+    bodyObj: { source: "test" }
+  });
+  // depending on recommendation availability, may be 200 (applied) or 400 (no recommendation).
+  assert.ok(govApply.status === 200 || govApply.status === 400);
 });
 
 test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWrite + token)", async () => {

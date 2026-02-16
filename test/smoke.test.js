@@ -1233,106 +1233,152 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
   }
 
   const mcp = startNodeStdio([rmemoBin, "--root", tmp, "mcp", "--allow-write"]);
-
-  mcp.writeLine({
-    jsonrpc: "2.0",
-    id: 1,
-    method: "initialize",
-    params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "0" } }
-  });
-  mcp.writeLine({ jsonrpc: "2.0", method: "notifications/initialized", params: {} });
-  mcp.writeLine({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
-  mcp.writeLine({
-    jsonrpc: "2.0",
-    id: 3,
-    method: "tools/call",
-    params: { name: "rmemo_todo_add", arguments: { root: tmp, kind: "next", text: "Add MCP write tools" } }
-  });
-  mcp.writeLine({
-    jsonrpc: "2.0",
-    id: 4,
-    method: "tools/call",
-    params: { name: "rmemo_log", arguments: { root: tmp, kind: "Note", text: "MCP write test" } }
-  });
-  mcp.writeLine({
-    jsonrpc: "2.0",
-    id: 5,
-    method: "tools/call",
-    params: { name: "rmemo_embed_jobs", arguments: {} }
-  });
-  mcp.writeLine({
-    jsonrpc: "2.0",
-    id: 6,
-    method: "tools/call",
-    params: { name: "rmemo_embed_jobs_config", arguments: { action: "set", maxConcurrent: 2, retryTemplate: "aggressive" } }
-  });
-  mcp.writeLine({
-    jsonrpc: "2.0",
-    id: 7,
-    method: "tools/call",
-    params: { name: "rmemo_embed_jobs_failures", arguments: { limit: 10 } }
-  });
-  mcp.writeLine({
-    jsonrpc: "2.0",
-    id: 8,
-    method: "tools/call",
-    params: { name: "rmemo_embed_jobs_retry_failed", arguments: { limit: 2 } }
-  });
-
-  await waitFor(() => {
-    const lines = parseJsonLines(mcp.getOut());
-    return lines.some((x) => x.id === 8) ? true : false;
-  });
-
-  const lines = parseJsonLines(mcp.getOut());
-  const list = lines.find((x) => x.id === 2);
-  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_todo_add"));
-  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_log"));
-  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_job_enqueue"));
-  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs"));
-  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_failures"));
-  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_config"));
-  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_retry_failed"));
-
-  const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
-  assert.ok(todosMd.includes("Add MCP write tools"));
-
-  const journalDir = path.join(tmp, ".repo-memory", "journal");
-  const jFiles = (await fs.readdir(journalDir)).filter((x) => x.endsWith(".md"));
-  assert.ok(jFiles.length >= 1);
-  const j = await fs.readFile(path.join(journalDir, jFiles[0]), "utf8");
-  assert.ok(j.includes("MCP write test"));
-
-  const jobs = lines.find((x) => x.id === 5);
-  const jobsJson = JSON.parse(jobs.result.content[0].text);
-  assert.equal(jobsJson.schema, 1);
-  assert.ok(
-    (jobsJson.active && jobsJson.active.id) ||
-      (Array.isArray(jobsJson.queued) && jobsJson.queued.length >= 0) ||
-      (Array.isArray(jobsJson.history) && jobsJson.history.length >= 0)
-  );
-
-  const cfg = lines.find((x) => x.id === 6);
-  const cfgJson = JSON.parse(cfg.result.content[0].text);
-  assert.equal(cfgJson.ok, true);
-  assert.equal(cfgJson.config.maxConcurrent, 2);
-  assert.equal(cfgJson.config.retryTemplate, "aggressive");
-
-  const failures = lines.find((x) => x.id === 7);
-  const failuresJson = JSON.parse(failures.result.content[0].text);
-  assert.equal(failuresJson.ok, true);
-  assert.ok(Array.isArray(failuresJson.failures));
-
-  const retryFailed = lines.find((x) => x.id === 8);
-  const retryFailedJson = JSON.parse(retryFailed.result.content[0].text);
-  assert.equal(retryFailedJson.ok, true);
-  assert.ok(retryFailedJson.result);
-
-  mcp.closeIn();
   try {
-    mcp.p.kill("SIGTERM");
-  } catch {
-    // ignore
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "0" } }
+    });
+    mcp.writeLine({ jsonrpc: "2.0", method: "notifications/initialized", params: {} });
+    mcp.writeLine({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name: "rmemo_todo_add", arguments: { root: tmp, kind: "next", text: "Add MCP write tools" } }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: { name: "rmemo_log", arguments: { root: tmp, kind: "Note", text: "MCP write test" } }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "tools/call",
+      params: { name: "rmemo_embed_jobs", arguments: {} }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 6,
+      method: "tools/call",
+      params: { name: "rmemo_embed_jobs_config", arguments: { action: "set", maxConcurrent: 2, retryTemplate: "aggressive" } }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 7,
+      method: "tools/call",
+      params: { name: "rmemo_embed_jobs_failures", arguments: { limit: 10 } }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 8,
+      method: "tools/call",
+      params: { name: "rmemo_embed_jobs_retry_failed", arguments: { limit: 2 } }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 9,
+      method: "tools/call",
+      params: { name: "rmemo_embed_jobs_governance", arguments: {} }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 10,
+      method: "tools/call",
+      params: { name: "rmemo_embed_jobs_governance_config", arguments: { action: "set", governanceEnabled: true, governanceWindow: 10 } }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 11,
+      method: "tools/call",
+      params: { name: "rmemo_embed_jobs_governance_apply", arguments: { source: "test" } }
+    });
+
+    await waitFor(() => {
+      const lines = parseJsonLines(mcp.getOut());
+      return lines.some((x) => x.id === 11) ? true : false;
+    });
+
+    const lines = parseJsonLines(mcp.getOut());
+    const list = lines.find((x) => x.id === 2);
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_todo_add"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_log"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_job_enqueue"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_failures"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_config"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_retry_failed"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_config"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_apply"));
+
+    const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
+    assert.ok(todosMd.includes("Add MCP write tools"));
+
+    const journalDir = path.join(tmp, ".repo-memory", "journal");
+    const jFiles = (await fs.readdir(journalDir)).filter((x) => x.endsWith(".md"));
+    assert.ok(jFiles.length >= 1);
+    const j = await fs.readFile(path.join(journalDir, jFiles[0]), "utf8");
+    assert.ok(j.includes("MCP write test"));
+
+    const jobs = lines.find((x) => x.id === 5);
+    const jobsJson = JSON.parse(jobs.result.content[0].text);
+    assert.equal(jobsJson.schema, 1);
+    assert.ok(
+      (jobsJson.active && jobsJson.active.id) ||
+        (Array.isArray(jobsJson.queued) && jobsJson.queued.length >= 0) ||
+        (Array.isArray(jobsJson.history) && jobsJson.history.length >= 0)
+    );
+
+    const cfg = lines.find((x) => x.id === 6);
+    const cfgJson = JSON.parse(cfg.result.content[0].text);
+    assert.equal(cfgJson.ok, true);
+    assert.equal(cfgJson.config.maxConcurrent, 2);
+    assert.equal(cfgJson.config.retryTemplate, "aggressive");
+
+    const failures = lines.find((x) => x.id === 7);
+    const failuresJson = JSON.parse(failures.result.content[0].text);
+    assert.equal(failuresJson.ok, true);
+    assert.ok(Array.isArray(failuresJson.failures));
+
+    const retryFailed = lines.find((x) => x.id === 8);
+    const retryFailedJson = JSON.parse(retryFailed.result.content[0].text);
+    assert.equal(retryFailedJson.ok, true);
+    assert.ok(retryFailedJson.result);
+
+    const gov = lines.find((x) => x.id === 9);
+    const govJson = JSON.parse(gov.result.content[0].text);
+    assert.equal(govJson.ok, true);
+    assert.ok(govJson.report);
+
+    const govCfg = lines.find((x) => x.id === 10);
+    const govCfgJson = JSON.parse(govCfg.result.content[0].text);
+    assert.equal(govCfgJson.ok, true);
+    assert.equal(govCfgJson.config.governanceEnabled, true);
+
+    const govApply = lines.find((x) => x.id === 11);
+    if (govApply.error) {
+      const m = String(govApply.error.message || "");
+      assert.ok(
+        m.includes("no recommendation") ||
+          m.includes("no_recommendation") ||
+          m.includes("no_effective_action")
+      );
+    } else {
+      const govApplyJson = JSON.parse(govApply.result.content[0].text);
+      assert.equal(govApplyJson.ok, true);
+      assert.ok(govApplyJson.result);
+    }
+  } finally {
+    mcp.closeIn();
+    try {
+      mcp.p.kill("SIGTERM");
+    } catch {
+      // ignore
+    }
   }
 });
 

@@ -257,6 +257,18 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                   <div class="row">
                     <input id="embedClusterKey" type="text" placeholder="clusterKey filter (optional)" style="min-width: 280px; flex: 1;" />
                   </div>
+                  <div style="height: 8px;"></div>
+                  <div class="row">
+                    <label style="display:flex; gap:6px; align-items:center;">
+                      <input id="govEnabled" type="checkbox" />
+                      <span class="hint" style="margin:0;">governance enabled</span>
+                    </label>
+                    <input id="govWindow" type="text" placeholder="gov window (jobs)" style="width: 180px;" />
+                    <input id="govFailureRateHigh" type="text" placeholder="gov failure threshold (0~1)" style="width: 220px;" />
+                    <button class="btn secondary" id="loadEmbedGovernance">Governance</button>
+                    <button class="btn secondary" id="saveEmbedGovernance">Save Governance</button>
+                    <button class="btn secondary" id="applyEmbedGovernance">Apply Top Suggestion</button>
+                  </div>
 
                   <div style="height: 10px;"></div>
 
@@ -698,6 +710,44 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Embed Retry Failed";
       }
 
+      async function loadEmbedGovernance() {
+        err(""); msg("Loading governance report...");
+        const j = await apiFetch("/embed/jobs/governance", { accept: "application/json", json: true });
+        const cfg = (j && j.report && j.report.config) || {};
+        if (cfg.governanceEnabled !== undefined) qs("#govEnabled").checked = !!cfg.governanceEnabled;
+        if (cfg.governanceWindow !== undefined) qs("#govWindow").value = String(cfg.governanceWindow);
+        if (cfg.governanceFailureRateHigh !== undefined) qs("#govFailureRateHigh").value = String(cfg.governanceFailureRateHigh);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Governance";
+      }
+
+      async function saveEmbedGovernance() {
+        err(""); msg("Saving governance config...");
+        const windowN = Number((qs("#govWindow").value || "").trim());
+        const fr = Number((qs("#govFailureRateHigh").value || "").trim());
+        const body = {
+          governanceEnabled: !!qs("#govEnabled").checked
+        };
+        if (Number.isFinite(windowN) && windowN > 0) body.governanceWindow = windowN;
+        if (Number.isFinite(fr) && fr > 0 && fr <= 1) body.governanceFailureRateHigh = fr;
+        const j = await apiPost("/embed/jobs/governance/config", body);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Governance Config";
+      }
+
+      async function applyEmbedGovernance() {
+        err(""); msg("Applying top governance recommendation...");
+        const j = await apiPost("/embed/jobs/governance/apply", { source: "ui" });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Governance Apply";
+      }
+
       async function doRefreshRepo() {
         err(""); msg("Refreshing repo memory...");
         const sync = !!qs("#refreshSync").checked;
@@ -798,6 +848,14 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("embed:jobs:retry-failed", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:retry-failed"); }
         });
+        evt.addEventListener("embed:jobs:governance:action", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:governance:action"); }
+          loadEmbedGovernance().catch(() => {});
+          loadEmbedJobsConfig().catch(() => {});
+        });
+        evt.addEventListener("embed:jobs:governance:skip", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:governance:skip"); }
+        });
         evt.addEventListener("embed:jobs:config", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:config"); }
           loadEmbedJobsConfig().catch(() => {});
@@ -829,6 +887,9 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#retryEmbedJob").addEventListener("click", () => retryEmbedJob().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadEmbedFailures").addEventListener("click", () => loadEmbedFailures().catch((e) => { err(String(e)); msg(""); }));
       qs("#retryFailedEmbedJobs").addEventListener("click", () => retryFailedEmbedJobs().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadEmbedGovernance").addEventListener("click", () => loadEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
+      qs("#saveEmbedGovernance").addEventListener("click", () => saveEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
+      qs("#applyEmbedGovernance").addEventListener("click", () => applyEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#doRefreshRepo").addEventListener("click", () => doRefreshRepo().catch((e) => { err(String(e)); msg(""); }));
       qs("#startEvents").addEventListener("click", () => startEvents());
       qs("#stopEvents").addEventListener("click", () => stopEvents());

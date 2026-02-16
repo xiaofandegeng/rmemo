@@ -212,6 +212,7 @@ Then fetch:
 - `GET /embed/plan?format=json|md` (preview reuse/embed actions before build)
 - `GET /embed/jobs`, `GET /embed/jobs/:id` (background embeddings jobs)
 - `GET /embed/jobs/failures?limit=20&errorClass=config` (failed-job clustering for governance)
+- `GET /embed/jobs/governance` (health metrics + governance recommendations)
 - `GET /embed/jobs/config` (job scheduler config)
 - `GET /watch` (watch runtime status)
 - `GET /status?format=json`
@@ -252,6 +253,8 @@ Write endpoints:
 - `POST /embed/jobs/:id/cancel`
 - `POST /embed/jobs/:id/retry {priority?,retryTemplate?}` (one-click retry one failed/canceled job)
 - `POST /embed/jobs/retry-failed {limit?,errorClass?,clusterKey?,priority?,retryTemplate?}` (bulk retry)
+- `POST /embed/jobs/governance/config {governanceEnabled?,governanceWindow?,governanceFailureRateHigh?,...}` (set auto-governance policy)
+- `POST /embed/jobs/governance/apply` (apply top governance recommendation now)
 
 ## MCP Server (stdio)
 
@@ -281,10 +284,13 @@ Write tools:
 - `rmemo_embed_jobs_config`
 - `rmemo_embed_job_retry`
 - `rmemo_embed_jobs_retry_failed`
+- `rmemo_embed_jobs_governance_config`
+- `rmemo_embed_jobs_governance_apply`
 
 Read tool:
 - `rmemo_embed_jobs`
 - `rmemo_embed_jobs_failures`
+- `rmemo_embed_jobs_governance`
 
 ## Integrations (MCP Config Snippets)
 

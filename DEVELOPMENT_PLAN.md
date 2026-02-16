@@ -272,6 +272,18 @@ Done:
     - One-click retry APIs: `POST /embed/jobs/:id/retry`, `POST /embed/jobs/retry-failed`
     - MCP governance tools: `rmemo_embed_jobs_failures`, `rmemo_embed_job_retry`, `rmemo_embed_jobs_retry_failed`
     - UI governance panel actions: failures view + retry single/batch
+  - Task governance v3 (auto policy engine):
+    - Governance report API: `GET /embed/jobs/governance` (sample/failureRate/errorClassCounts + recommendations)
+    - Auto-governance config API: `POST /embed/jobs/governance/config`
+    - Manual recommendation apply API: `POST /embed/jobs/governance/apply`
+    - Auto action engine with cooldown:
+      - auto-downscale on unstable windows (rate-limit/network/auth/config heavy)
+      - auto-recover on healthy windows (gradual concurrency restore + retry-template relax)
+    - New governance events: `embed:jobs:governance:action`, `embed:jobs:governance:skip`
+    - MCP governance tools:
+      - `rmemo_embed_jobs_governance`
+      - `rmemo_embed_jobs_governance_config`
+      - `rmemo_embed_jobs_governance_apply`
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

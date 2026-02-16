@@ -340,6 +340,11 @@ function toolsList() {
         errorClass: { type: "string", description: "Optional filter: auth|rate_limit|network|config|runtime|unknown" }
       },
       additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_governance", "Get governance report for embed jobs (health + recommendations).", {
+      type: "object",
+      properties: {},
+      additionalProperties: false
     })
   ];
 
@@ -488,6 +493,27 @@ function toolsListWithWrite({ allowWrite } = {}) {
         clusterKey: { type: "string" },
         priority: { type: "string", enum: ["low", "normal", "high"] },
         retryTemplate: { type: "string", enum: ["conservative", "balanced", "aggressive"] }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_governance_config", "Get/set auto-governance config for embed jobs.", {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["get", "set"], default: "get" },
+        governanceEnabled: { type: "boolean" },
+        governanceWindow: { type: "number" },
+        governanceMinSample: { type: "number" },
+        governanceFailureRateHigh: { type: "number" },
+        governanceCooldownMs: { type: "number" },
+        governanceAutoScaleConcurrency: { type: "boolean" },
+        governanceAutoSwitchTemplate: { type: "boolean" }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_governance_apply", "Apply top governance recommendation manually.", {
+      type: "object",
+      properties: {
+        source: { type: "string", default: "mcp" }
       },
       additionalProperties: false
     })
@@ -764,6 +790,18 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     return JSON.stringify({ ok: true, schema: 1, generatedAt: new Date().toISOString(), failures }, null, 2);
   }
 
+  if (name === "rmemo_embed_jobs_governance") {
+    const report = embedJobs?.getGovernanceReport?.() || {
+      schema: 1,
+      generatedAt: new Date().toISOString(),
+      config: {},
+      state: {},
+      metrics: {},
+      recommendations: []
+    };
+    return JSON.stringify({ ok: true, report }, null, 2);
+  }
+
   if (name === "rmemo_embed_jobs_config") {
     const action = String(args?.action || "get").toLowerCase();
     if (action === "get") {
@@ -802,6 +840,35 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       priority: args?.priority !== undefined ? String(args.priority) : undefined,
       retryTemplate: args?.retryTemplate !== undefined ? String(args.retryTemplate) : undefined
     }) || { ok: true, retried: [] };
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_embed_jobs_governance_config") {
+    const action = String(args?.action || "get").toLowerCase();
+    if (action === "get") {
+      const config = embedJobs?.getConfig?.() || {};
+      const report = embedJobs?.getGovernanceReport?.() || null;
+      return JSON.stringify({ ok: true, config, report }, null, 2);
+    }
+    requireWrite();
+    const config = embedJobs?.setConfig?.({
+      governanceEnabled: args?.governanceEnabled,
+      governanceWindow: args?.governanceWindow,
+      governanceMinSample: args?.governanceMinSample,
+      governanceFailureRateHigh: args?.governanceFailureRateHigh,
+      governanceCooldownMs: args?.governanceCooldownMs,
+      governanceAutoScaleConcurrency: args?.governanceAutoScaleConcurrency,
+      governanceAutoSwitchTemplate: args?.governanceAutoSwitchTemplate
+    }) || {};
+    const report = embedJobs?.getGovernanceReport?.() || null;
+    return JSON.stringify({ ok: true, config, report }, null, 2);
+  }
+
+  if (name === "rmemo_embed_jobs_governance_apply") {
+    requireWrite();
+    const source = args?.source !== undefined ? String(args.source) : "mcp";
+    const r = embedJobs?.applyTopGovernanceRecommendation?.({ source }) || { ok: false, error: "governance_not_available" };
+    if (!r.ok) throw new Error(r.error || "no recommendation");
     return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 
