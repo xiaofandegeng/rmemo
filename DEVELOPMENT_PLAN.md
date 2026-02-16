@@ -295,6 +295,16 @@ Done:
     - UI support:
       - policy history viewer
       - rollback by version id
+  - Task governance v5 (policy simulator + impact preview):
+    - Simulation API: `POST /embed/jobs/governance/simulate`
+    - Supports:
+      - `mode=recommend` (recommendation-only preview)
+      - `mode=apply_top` (predict effective patch + predicted afterConfig, without mutating runtime)
+    - Supports hypothetical policy patch inputs (window/threshold/retryTemplate/concurrency flags)
+    - MCP simulation tool: `rmemo_embed_jobs_governance_simulate`
+    - UI simulation controls:
+      - mode selector
+      - one-click dry-run output panel
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

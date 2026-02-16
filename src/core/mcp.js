@@ -352,6 +352,24 @@ function toolsList() {
         limit: { type: "number", default: 20 }
       },
       additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_governance_simulate", "Dry-run governance policy simulation and impact prediction.", {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["recommend", "apply_top"], default: "recommend" },
+        assumeNoCooldown: { type: "boolean", default: true },
+        maxConcurrent: { type: "number" },
+        retryTemplate: { type: "string", enum: ["conservative", "balanced", "aggressive"] },
+        defaultPriority: { type: "string", enum: ["low", "normal", "high"] },
+        governanceEnabled: { type: "boolean" },
+        governanceWindow: { type: "number" },
+        governanceMinSample: { type: "number" },
+        governanceFailureRateHigh: { type: "number" },
+        governanceCooldownMs: { type: "number" },
+        governanceAutoScaleConcurrency: { type: "boolean" },
+        governanceAutoSwitchTemplate: { type: "boolean" }
+      },
+      additionalProperties: false
     })
   ];
 
@@ -822,6 +840,27 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const limit = args?.limit !== undefined ? Number(args.limit) : 20;
     const versions = embedJobs?.listPolicyVersions?.({ limit }) || [];
     return JSON.stringify({ ok: true, schema: 1, generatedAt: new Date().toISOString(), versions }, null, 2);
+  }
+
+  if (name === "rmemo_embed_jobs_governance_simulate") {
+    const configPatch = {
+      maxConcurrent: args?.maxConcurrent,
+      retryTemplate: args?.retryTemplate,
+      defaultPriority: args?.defaultPriority,
+      governanceEnabled: args?.governanceEnabled,
+      governanceWindow: args?.governanceWindow,
+      governanceMinSample: args?.governanceMinSample,
+      governanceFailureRateHigh: args?.governanceFailureRateHigh,
+      governanceCooldownMs: args?.governanceCooldownMs,
+      governanceAutoScaleConcurrency: args?.governanceAutoScaleConcurrency,
+      governanceAutoSwitchTemplate: args?.governanceAutoSwitchTemplate
+    };
+    const r = embedJobs?.simulateGovernance?.({
+      configPatch,
+      mode: args?.mode !== undefined ? String(args.mode) : "recommend",
+      assumeNoCooldown: args?.assumeNoCooldown !== undefined ? !!args.assumeNoCooldown : true
+    }) || { ok: false, error: "governance_not_available" };
+    return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 
   if (name === "rmemo_embed_jobs_config") {

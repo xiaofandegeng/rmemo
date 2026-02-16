@@ -236,19 +236,61 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     };
   }
 
-  function policyConfigSnapshot() {
+  function policyConfigSnapshot(cfg = config) {
     return {
-      maxConcurrent: config.maxConcurrent,
-      retryTemplate: config.retryTemplate,
-      defaultPriority: config.defaultPriority,
-      governanceEnabled: config.governanceEnabled,
-      governanceWindow: config.governanceWindow,
-      governanceMinSample: config.governanceMinSample,
-      governanceFailureRateHigh: config.governanceFailureRateHigh,
-      governanceCooldownMs: config.governanceCooldownMs,
-      governanceAutoScaleConcurrency: config.governanceAutoScaleConcurrency,
-      governanceAutoSwitchTemplate: config.governanceAutoSwitchTemplate
+      maxConcurrent: cfg.maxConcurrent,
+      retryTemplate: cfg.retryTemplate,
+      defaultPriority: cfg.defaultPriority,
+      governanceEnabled: cfg.governanceEnabled,
+      governanceWindow: cfg.governanceWindow,
+      governanceMinSample: cfg.governanceMinSample,
+      governanceFailureRateHigh: cfg.governanceFailureRateHigh,
+      governanceCooldownMs: cfg.governanceCooldownMs,
+      governanceAutoScaleConcurrency: cfg.governanceAutoScaleConcurrency,
+      governanceAutoSwitchTemplate: cfg.governanceAutoSwitchTemplate
     };
+  }
+
+  function buildConfigFrom(base, partial = {}) {
+    const next = { ...base };
+    if (partial.maxConcurrent !== undefined) {
+      const n = Number(partial.maxConcurrent);
+      if (!Number.isFinite(n) || n < 1 || n > 8) throw new Error("maxConcurrent must be an integer in [1,8]");
+      next.maxConcurrent = Math.floor(n);
+    }
+    if (partial.retryTemplate !== undefined) {
+      const raw = String(partial.retryTemplate || "").trim().toLowerCase();
+      if (!RETRY_TEMPLATES[raw]) throw new Error("retryTemplate must be one of: conservative, balanced, aggressive");
+      next.retryTemplate = raw;
+    }
+    if (partial.defaultPriority !== undefined) {
+      next.defaultPriority = priorityName(toPriority(partial.defaultPriority));
+    }
+    if (partial.governanceEnabled !== undefined) next.governanceEnabled = !!partial.governanceEnabled;
+    if (partial.governanceWindow !== undefined) {
+      const n = Number(partial.governanceWindow);
+      if (!Number.isFinite(n) || n < 5 || n > 200) throw new Error("governanceWindow must be in [5,200]");
+      next.governanceWindow = Math.floor(n);
+    }
+    if (partial.governanceMinSample !== undefined) {
+      const n = Number(partial.governanceMinSample);
+      if (!Number.isFinite(n) || n < 3 || n > 100) throw new Error("governanceMinSample must be in [3,100]");
+      next.governanceMinSample = Math.floor(n);
+    }
+    if (partial.governanceFailureRateHigh !== undefined) {
+      const n = Number(partial.governanceFailureRateHigh);
+      if (!Number.isFinite(n) || n < 0.1 || n > 1) throw new Error("governanceFailureRateHigh must be in [0.1,1]");
+      next.governanceFailureRateHigh = n;
+    }
+    if (partial.governanceCooldownMs !== undefined) {
+      const n = Number(partial.governanceCooldownMs);
+      if (!Number.isFinite(n) || n < 0 || n > 3_600_000) throw new Error("governanceCooldownMs must be in [0,3600000]");
+      next.governanceCooldownMs = Math.floor(n);
+    }
+    if (partial.governanceAutoScaleConcurrency !== undefined) next.governanceAutoScaleConcurrency = !!partial.governanceAutoScaleConcurrency;
+    if (partial.governanceAutoSwitchTemplate !== undefined) next.governanceAutoSwitchTemplate = !!partial.governanceAutoSwitchTemplate;
+    const changedKeys = Object.keys(next).filter((k) => next[k] !== base[k]);
+    return { next, changedKeys };
   }
 
   function maybeCreatePolicyVersion({ source = "system", reason = "", changedKeys = [] } = {}) {
@@ -300,7 +342,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     return out;
   }
 
-  function getGovernanceRecommendations(report) {
+  function getGovernanceRecommendations(report, cfg = config) {
     const recs = [];
     const total = Number(report?.metrics?.sample || 0);
     const failureRate = Number(report?.metrics?.failureRate || 0);
@@ -308,7 +350,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     const clusters = Array.isArray(report?.topFailures) ? report.topFailures : [];
     const top = clusters[0] || null;
 
-    if (total >= config.governanceMinSample && failureRate >= config.governanceFailureRateHigh) {
+    if (total >= cfg.governanceMinSample && failureRate >= cfg.governanceFailureRateHigh) {
       if ((byClass.rate_limit || 0) >= 2 || (top && top.errorClass === "rate_limit" && top.count >= 2)) {
         recs.push({
           code: "throttle_rate_limit",
@@ -340,16 +382,16 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
       }
     }
 
-    if (total >= config.governanceMinSample && failureRate <= 0.15 && (byClass.rate_limit || 0) === 0 && (byClass.network || 0) === 0) {
-      if (config.maxConcurrent < 3) {
+    if (total >= cfg.governanceMinSample && failureRate <= 0.15 && (byClass.rate_limit || 0) === 0 && (byClass.network || 0) === 0) {
+      if (cfg.maxConcurrent < 3) {
         recs.push({
           code: "scale_up_healthy",
           priority: 40,
           reason: `healthy recent window (${Math.round(failureRate * 100)}% failures)`,
-          action: { maxConcurrent: Math.min(3, Number(config.maxConcurrent || 1) + 1) }
+          action: { maxConcurrent: Math.min(3, Number(cfg.maxConcurrent || 1) + 1) }
         });
       }
-      if (config.retryTemplate === "conservative") {
+      if (cfg.retryTemplate === "conservative") {
         recs.push({
           code: "restore_balanced_retry",
           priority: 30,
@@ -362,8 +404,9 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     return recs.sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
   }
 
-  function getGovernanceReport() {
-    const recent = listRecentFinishedJobs(config.governanceWindow);
+  function getGovernanceReport({ config: reportConfig } = {}) {
+    const cfg = reportConfig ? { ...reportConfig } : { ...config };
+    const recent = listRecentFinishedJobs(cfg.governanceWindow);
     const sample = recent.length;
     let ok = 0;
     let error = 0;
@@ -383,7 +426,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     const report = {
       schema: 1,
       generatedAt: now(),
-      config: { ...config },
+      config: { ...cfg },
       state: {
         lastEvaluatedAt: governance.lastEvaluatedAt,
         lastActionAt: governance.lastActionAt,
@@ -401,15 +444,20 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
       },
       topFailures
     };
-    report.recommendations = getGovernanceRecommendations(report);
+    report.recommendations = getGovernanceRecommendations(report, cfg);
     return report;
+  }
+
+  function getEffectiveGovernancePatch(rec, cfg = config) {
+    const patch = {};
+    if (cfg.governanceAutoScaleConcurrency && rec?.action?.maxConcurrent !== undefined) patch.maxConcurrent = rec.action.maxConcurrent;
+    if (cfg.governanceAutoSwitchTemplate && rec?.action?.retryTemplate !== undefined) patch.retryTemplate = rec.action.retryTemplate;
+    return patch;
   }
 
   function applyGovernanceAction(rec, { source = "manual" } = {}) {
     if (!rec || !rec.action) return { ok: false, error: "invalid_recommendation" };
-    const patch = {};
-    if (config.governanceAutoScaleConcurrency && rec.action.maxConcurrent !== undefined) patch.maxConcurrent = rec.action.maxConcurrent;
-    if (config.governanceAutoSwitchTemplate && rec.action.retryTemplate !== undefined) patch.retryTemplate = rec.action.retryTemplate;
+    const patch = getEffectiveGovernancePatch(rec, config);
     if (!Object.keys(patch).length) return { ok: false, error: "no_effective_action" };
     const before = { maxConcurrent: config.maxConcurrent, retryTemplate: config.retryTemplate };
     const after = setConfig(patch, { source: `governance:${source}`, reason: rec.code || "governance_action" });
@@ -429,7 +477,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
   function maybeRunAutoGovernance() {
     governance.lastEvaluatedAt = now();
     if (!config.governanceEnabled) return;
-    const report = getGovernanceReport();
+    const report = getGovernanceReport({ config });
     if (report.metrics.sample < Number(config.governanceMinSample || 0)) return;
     const top = Array.isArray(report.recommendations) && report.recommendations.length ? report.recommendations[0] : null;
     if (!top) return;
@@ -654,47 +702,8 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
   }
 
   function setConfig(partial = {}, meta = {}) {
-    const before = { ...config };
-    if (partial.maxConcurrent !== undefined) {
-      const n = Number(partial.maxConcurrent);
-      if (!Number.isFinite(n) || n < 1 || n > 8) {
-        throw new Error("maxConcurrent must be an integer in [1,8]");
-      }
-      config.maxConcurrent = Math.floor(n);
-    }
-    if (partial.retryTemplate !== undefined) {
-      const raw = String(partial.retryTemplate || "").trim().toLowerCase();
-      if (!RETRY_TEMPLATES[raw]) throw new Error("retryTemplate must be one of: conservative, balanced, aggressive");
-      config.retryTemplate = raw;
-    }
-    if (partial.defaultPriority !== undefined) {
-      const p = priorityName(toPriority(partial.defaultPriority));
-      config.defaultPriority = p;
-    }
-    if (partial.governanceEnabled !== undefined) config.governanceEnabled = !!partial.governanceEnabled;
-    if (partial.governanceWindow !== undefined) {
-      const n = Number(partial.governanceWindow);
-      if (!Number.isFinite(n) || n < 5 || n > 200) throw new Error("governanceWindow must be in [5,200]");
-      config.governanceWindow = Math.floor(n);
-    }
-    if (partial.governanceMinSample !== undefined) {
-      const n = Number(partial.governanceMinSample);
-      if (!Number.isFinite(n) || n < 3 || n > 100) throw new Error("governanceMinSample must be in [3,100]");
-      config.governanceMinSample = Math.floor(n);
-    }
-    if (partial.governanceFailureRateHigh !== undefined) {
-      const n = Number(partial.governanceFailureRateHigh);
-      if (!Number.isFinite(n) || n < 0.1 || n > 1) throw new Error("governanceFailureRateHigh must be in [0.1,1]");
-      config.governanceFailureRateHigh = n;
-    }
-    if (partial.governanceCooldownMs !== undefined) {
-      const n = Number(partial.governanceCooldownMs);
-      if (!Number.isFinite(n) || n < 0 || n > 3_600_000) throw new Error("governanceCooldownMs must be in [0,3600000]");
-      config.governanceCooldownMs = Math.floor(n);
-    }
-    if (partial.governanceAutoScaleConcurrency !== undefined) config.governanceAutoScaleConcurrency = !!partial.governanceAutoScaleConcurrency;
-    if (partial.governanceAutoSwitchTemplate !== undefined) config.governanceAutoSwitchTemplate = !!partial.governanceAutoSwitchTemplate;
-    const changedKeys = Object.keys(config).filter((k) => config[k] !== before[k]);
+    const { next, changedKeys } = buildConfigFrom(config, partial);
+    for (const k of Object.keys(next)) config[k] = next[k];
     const source = meta?.source || "manual";
     const reason = meta?.reason || "";
     if (changedKeys.length) maybeCreatePolicyVersion({ source, reason, changedKeys });
@@ -771,7 +780,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
   }
 
   function applyTopGovernanceRecommendation({ source = "manual" } = {}) {
-    const report = getGovernanceReport();
+    const report = getGovernanceReport({ config });
     const top = Array.isArray(report.recommendations) && report.recommendations.length ? report.recommendations[0] : null;
     if (!top) return { ok: false, error: "no_recommendation", report };
     const r = applyGovernanceAction(top, { source });
@@ -795,6 +804,61 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     return { ok: true, versionId: id, config: cfg, action };
   }
 
+  function simulateGovernance({
+    configPatch = {},
+    mode = "recommend",
+    assumeNoCooldown = true
+  } = {}) {
+    const { next: simulatedConfig, changedKeys } = buildConfigFrom(config, configPatch || {});
+    const report = getGovernanceReport({ config: simulatedConfig });
+    const top = Array.isArray(report.recommendations) && report.recommendations.length ? report.recommendations[0] : null;
+    const prediction = {
+      mode: String(mode || "recommend"),
+      wouldApply: false,
+      reason: "recommendation_only",
+      topRecommendation: top || null
+    };
+
+    if (prediction.mode === "apply_top") {
+      if (!top) {
+        prediction.reason = "no_recommendation";
+      } else {
+        const cd = Math.max(0, Number(simulatedConfig.governanceCooldownMs || 0));
+        let cooldownBlocked = false;
+        if (!assumeNoCooldown && governance.lastActionAt && cd > 0) {
+          const elapsed = Date.now() - Date.parse(governance.lastActionAt);
+          cooldownBlocked = Number.isFinite(elapsed) && elapsed < cd;
+          prediction.cooldown = { cooldownMs: cd, elapsedMs: elapsed, blocked: cooldownBlocked };
+        }
+        if (cooldownBlocked) {
+          prediction.reason = "cooldown";
+        } else {
+          const patch = getEffectiveGovernancePatch(top, simulatedConfig);
+          if (!Object.keys(patch).length) {
+            prediction.reason = "no_effective_action";
+          } else {
+            const { next: afterConfig } = buildConfigFrom(simulatedConfig, patch);
+            prediction.wouldApply = true;
+            prediction.reason = "would_apply";
+            prediction.patch = patch;
+            prediction.afterConfig = afterConfig;
+          }
+        }
+      }
+    }
+
+    return {
+      ok: true,
+      schema: 1,
+      generatedAt: now(),
+      baselineConfig: policyConfigSnapshot(config),
+      simulatedConfig: policyConfigSnapshot(simulatedConfig),
+      changedKeys,
+      report,
+      prediction
+    };
+  }
+
   // Seed first version snapshot after controller bootstrap.
   maybeCreatePolicyVersion({ source: "init", reason: "initial_policy", changedKeys: Object.keys(policyConfigSnapshot()) });
 
@@ -807,6 +871,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     getConfig,
     getFailureClusters,
     getGovernanceReport,
+    simulateGovernance,
     listPolicyVersions,
     retryJob,
     retryFailed,

@@ -437,6 +437,21 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
   // depending on recommendation availability, may be 200 (applied) or 400 (no recommendation).
   assert.ok(govApply.status === 200 || govApply.status === 400);
 
+  const govSim = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs/governance/simulate?token=t",
+    bodyObj: {
+      mode: "apply_top",
+      governanceEnabled: true,
+      governanceWindow: 10,
+      governanceFailureRateHigh: 0.3,
+      retryTemplate: "conservative"
+    }
+  });
+  assert.equal(govSim.status, 200);
+  assert.ok(govSim.body.includes("\"prediction\""));
+  assert.ok(govSim.body.includes("\"simulatedConfig\""));
+
   const rollback = await run(handler, {
     method: "POST",
     url: "/embed/jobs/governance/rollback?token=t",

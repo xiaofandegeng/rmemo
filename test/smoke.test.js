@@ -1308,10 +1308,19 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       method: "tools/call",
       params: { name: "rmemo_embed_jobs_governance_rollback", arguments: { versionId: "no-such-version", source: "test" } }
     });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 14,
+      method: "tools/call",
+      params: {
+        name: "rmemo_embed_jobs_governance_simulate",
+        arguments: { mode: "apply_top", governanceEnabled: true, governanceWindow: 10, governanceFailureRateHigh: 0.3, retryTemplate: "balanced" }
+      }
+    });
 
     await waitFor(() => {
       const lines = parseJsonLines(mcp.getOut());
-      return lines.some((x) => x.id === 13) ? true : false;
+      return lines.some((x) => x.id === 14) ? true : false;
     });
 
     const lines = parseJsonLines(mcp.getOut());
@@ -1328,6 +1337,7 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_apply"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_history"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_rollback"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_simulate"));
 
     const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
     assert.ok(todosMd.includes("Add MCP write tools"));
@@ -1398,6 +1408,13 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     if (govRollback.error) {
       assert.ok(String(govRollback.error.message || "").includes("version_not_found"));
     }
+
+    const govSim = lines.find((x) => x.id === 14);
+    const govSimJson = JSON.parse(govSim.result.content[0].text);
+    assert.equal(govSimJson.ok, true);
+    assert.ok(govSimJson.result);
+    assert.ok(govSimJson.result.prediction);
+    assert.ok(govSimJson.result.simulatedConfig);
   } finally {
     mcp.closeIn();
     try {

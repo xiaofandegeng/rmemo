@@ -265,8 +265,13 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                     </label>
                     <input id="govWindow" type="text" placeholder="gov window (jobs)" style="width: 180px;" />
                     <input id="govFailureRateHigh" type="text" placeholder="gov failure threshold (0~1)" style="width: 220px;" />
+                    <select id="govSimMode">
+                      <option value="recommend" selected>simulate: recommend</option>
+                      <option value="apply_top">simulate: apply_top</option>
+                    </select>
                     <button class="btn secondary" id="loadEmbedGovernance">Governance</button>
                     <button class="btn secondary" id="loadEmbedGovernanceHistory">Gov History</button>
+                    <button class="btn secondary" id="simulateEmbedGovernance">Simulate</button>
                     <button class="btn secondary" id="saveEmbedGovernance">Save Governance</button>
                     <button class="btn secondary" id="applyEmbedGovernance">Apply Top Suggestion</button>
                   </div>
@@ -754,6 +759,28 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Embed Governance Apply";
       }
 
+      async function simulateEmbedGovernance() {
+        err(""); msg("Simulating governance policy...");
+        const windowN = Number((qs("#govWindow").value || "").trim());
+        const fr = Number((qs("#govFailureRateHigh").value || "").trim());
+        const maxConcurrent = Number((qs("#embedJobsMaxConcurrent").value || "").trim());
+        const retryTemplate = (qs("#embedRetryTemplate").value || "").trim().toLowerCase();
+        const body = {
+          mode: qs("#govSimMode").value || "recommend",
+          assumeNoCooldown: true,
+          governanceEnabled: !!qs("#govEnabled").checked
+        };
+        if (Number.isFinite(windowN) && windowN > 0) body.governanceWindow = windowN;
+        if (Number.isFinite(fr) && fr > 0 && fr <= 1) body.governanceFailureRateHigh = fr;
+        if (Number.isFinite(maxConcurrent) && maxConcurrent > 0) body.maxConcurrent = maxConcurrent;
+        if (retryTemplate === "conservative" || retryTemplate === "balanced" || retryTemplate === "aggressive") body.retryTemplate = retryTemplate;
+        const j = await apiPost("/embed/jobs/governance/simulate", body);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Governance Simulate";
+      }
+
       async function loadEmbedGovernanceHistory() {
         err(""); msg("Loading governance history...");
         const j = await apiFetch("/embed/jobs/governance/history?limit=40", { accept: "application/json", json: true });
@@ -928,6 +955,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#retryFailedEmbedJobs").addEventListener("click", () => retryFailedEmbedJobs().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadEmbedGovernance").addEventListener("click", () => loadEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadEmbedGovernanceHistory").addEventListener("click", () => loadEmbedGovernanceHistory().catch((e) => { err(String(e)); msg(""); }));
+      qs("#simulateEmbedGovernance").addEventListener("click", () => simulateEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#saveEmbedGovernance").addEventListener("click", () => saveEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#applyEmbedGovernance").addEventListener("click", () => applyEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#rollbackEmbedGovernance").addEventListener("click", () => rollbackEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));

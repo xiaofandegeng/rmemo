@@ -256,6 +256,7 @@ Write endpoints:
 - `POST /embed/jobs/retry-failed {limit?,errorClass?,clusterKey?,priority?,retryTemplate?}` (bulk retry)
 - `POST /embed/jobs/governance/config {governanceEnabled?,governanceWindow?,governanceFailureRateHigh?,...}` (set auto-governance policy)
 - `POST /embed/jobs/governance/apply` (apply top governance recommendation now)
+- `POST /embed/jobs/governance/simulate` (dry-run governance recommendations / apply impact)
 - `POST /embed/jobs/governance/rollback {versionId}` (rollback to a governance policy version)
 
 ## MCP Server (stdio)
@@ -295,6 +296,7 @@ Read tool:
 - `rmemo_embed_jobs_failures`
 - `rmemo_embed_jobs_governance`
 - `rmemo_embed_jobs_governance_history`
+- `rmemo_embed_jobs_governance_simulate`
 
 ## Integrations (MCP Config Snippets)
 

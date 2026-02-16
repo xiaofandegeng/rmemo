@@ -844,6 +844,33 @@ export function createServeHandler(root, opts = {}) {
         return json(res, 200, { ok: true, result: r });
       }
 
+      if (req.method === "POST" && url.pathname === "/embed/jobs/governance/simulate") {
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        try {
+          const configPatch = {
+            maxConcurrent: body.maxConcurrent,
+            retryTemplate: body.retryTemplate,
+            defaultPriority: body.defaultPriority,
+            governanceEnabled: body.governanceEnabled,
+            governanceWindow: body.governanceWindow,
+            governanceMinSample: body.governanceMinSample,
+            governanceFailureRateHigh: body.governanceFailureRateHigh,
+            governanceCooldownMs: body.governanceCooldownMs,
+            governanceAutoScaleConcurrency: body.governanceAutoScaleConcurrency,
+            governanceAutoSwitchTemplate: body.governanceAutoSwitchTemplate
+          };
+          const r = embedJobs?.simulateGovernance?.({
+            configPatch,
+            mode: body.mode !== undefined ? String(body.mode) : "recommend",
+            assumeNoCooldown: body.assumeNoCooldown !== undefined ? !!body.assumeNoCooldown : true
+          });
+          return json(res, 200, { ok: true, result: r || null });
+        } catch (e) {
+          return badRequest(res, e?.message || String(e));
+        }
+      }
+
       if (req.method === "POST" && url.pathname === "/embed/jobs/governance/rollback") {
         if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
         const body = await readBodyJsonOr400(req, res);
