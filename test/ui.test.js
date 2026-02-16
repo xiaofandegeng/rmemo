@@ -9,6 +9,8 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/status?format=json"));
   assert.ok(html.includes("/search?mode=semantic"));
   assert.ok(html.includes("/focus?q="));
+  assert.ok(html.includes("/ws/list"));
+  assert.ok(html.includes("/ws/focus?q="));
   assert.ok(html.includes("/events"));
   assert.ok(html.includes("/events/export"));
   assert.ok(html.includes("/diagnostics/export"));
@@ -44,6 +46,9 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("govVersionId"));
   assert.ok(html.includes("govSimMode"));
   assert.ok(html.includes("govBenchMode"));
+  assert.ok(html.includes("wsOnly"));
+  assert.ok(html.includes("loadWsList"));
+  assert.ok(html.includes("doWsFocus"));
   assert.ok(html.includes("govBenchmarkAutoAdoptEnabled"));
   assert.ok(html.includes("govBenchmarkMinScore"));
   assert.ok(html.includes("govBenchmarkMinGap"));

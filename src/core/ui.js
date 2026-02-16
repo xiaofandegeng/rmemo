@@ -331,6 +331,21 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
             </div>
 
             <div style="height: 12px;"></div>
+
+            <div>
+              <label>Workspace Hub (Monorepo)</label>
+              <div class="row">
+                <input id="wsOnly" type="text" placeholder="only dirs (optional, comma-separated)" />
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <button class="btn secondary" id="loadWsList">WS List</button>
+                <button class="btn secondary" id="doWsFocus">WS Focus</button>
+              </div>
+              <div class="hint">Use existing query + mode above; outputs aggregated JSON from <span style="font-family: var(--mono)">/ws/list</span> and <span style="font-family: var(--mono)">/ws/focus</span>.</div>
+            </div>
+
+            <div style="height: 12px;"></div>
             <div id="msg" class="hint"></div>
             <div id="err" class="err"></div>
           </div>
@@ -523,6 +538,33 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         out(t);
         msg("OK");
         qs("#title").textContent = "Focus Pack";
+      }
+
+      async function loadWsList() {
+        err(""); msg("Loading workspace list...");
+        const only = (qs("#wsOnly").value || "").trim();
+        let p = "/ws/list";
+        if (only) p += "?only=" + encodeURIComponent(only);
+        const j = await apiFetch(p, { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace List";
+      }
+
+      async function doWsFocus() {
+        err(""); msg("Running workspace focus...");
+        const q = (qs("#q").value || "").trim();
+        const mode = qs("#mode").value;
+        const only = (qs("#wsOnly").value || "").trim();
+        if (!q) return msg("Missing query.");
+        let p = "/ws/focus?q=" + encodeURIComponent(q) + "&mode=" + encodeURIComponent(mode) + "&includeStatus=0";
+        if (only) p += "&only=" + encodeURIComponent(only);
+        const j = await apiFetch(p, { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Focus";
       }
 
       async function addTodo() {
@@ -993,6 +1035,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadContext").addEventListener("click", loadContext);
       qs("#doSearch").addEventListener("click", () => doSearch().catch((e) => { err(String(e)); msg(""); }));
       qs("#doFocus").addEventListener("click", () => doFocus().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsList").addEventListener("click", () => loadWsList().catch((e) => { err(String(e)); msg(""); }));
+      qs("#doWsFocus").addEventListener("click", () => doWsFocus().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

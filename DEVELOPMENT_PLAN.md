@@ -342,6 +342,12 @@ Done:
     - `rmemo_ws_focus`
   - Shared core:
     - `src/core/workspaces.js` for reusable workspace listing + batch focus
+- Workspace intelligence v4 (UI workspace hub):
+  - UI panel:
+    - `WS List` (calls `/ws/list`)
+    - `WS Focus` (calls `/ws/focus`)
+    - `only` filter field for subproject subset querying
+  - Reuse existing global query/mode controls for workspace focus
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:
