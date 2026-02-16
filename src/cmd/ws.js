@@ -9,6 +9,13 @@ import { cmdPr } from "./pr.js";
 import { cmdSync } from "./sync.js";
 import { cmdEmbed } from "./embed.js";
 import { generateFocus } from "../core/focus.js";
+import {
+  batchWorkspaceFocus,
+  compareWorkspaceFocusSnapshots,
+  compareWorkspaceFocusWithLatest,
+  listWorkspaceFocusSnapshots,
+  saveWorkspaceFocusSnapshot
+} from "../core/workspaces.js";
 import { ensureRepoMemory } from "../core/memory.js";
 import { wsSummaryPath } from "../lib/paths.js";
 import { generateHandoff } from "../core/handoff.js";
@@ -42,12 +49,16 @@ function wsHelp() {
     "  rmemo ws embed <n|dir> <auto|build|search> [...args]",
     "  rmemo ws focus <n|dir> <query> [--mode semantic|keyword] [--format md|json]",
     "  rmemo ws batch focus <query> [--mode semantic|keyword] [--format md|json]",
+    "  rmemo ws focus-history list [--limit <n>]",
+    "  rmemo ws focus-history compare <fromId> <toId>",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
     "- <n> refers to the index printed by `rmemo ws ls`.",
     "- For batch: `--only` is a comma-separated list of subproject dirs (e.g. apps/admin-web,apps/miniapp).",
-    "- For batch embed: use `--check` to audit (non-zero if any workspace is out of date)."
+    "- For batch embed: use `--check` to audit (non-zero if any workspace is out of date).",
+    "- For batch focus: use `--save` to write snapshot; `--compare-latest` to compare with latest saved snapshot.",
+    "- Use `ws focus-history list|compare` to inspect workspace focus trend."
   ].join("\n");
 }
 
@@ -132,8 +143,8 @@ function renderBatchMd({ root, cmd, results }) {
   return lines.join("\n").trimEnd() + "\n";
 }
 
-function renderBatchJson({ root, cmd, results }) {
-  return JSON.stringify({ schema: 1, root, generatedAt: new Date().toISOString(), cmd, results }, null, 2) + "\n";
+function renderBatchJson({ root, cmd, results, extra = null }) {
+  return JSON.stringify({ schema: 1, root, generatedAt: new Date().toISOString(), cmd, results, ...(extra || {}) }, null, 2) + "\n";
 }
 
 async function runBatch({
@@ -155,6 +166,24 @@ async function runBatch({
   maxHits,
   includeStatus
 }) {
+  if (cmd === "focus") {
+    const report = await batchWorkspaceFocus(root, {
+      q: query,
+      mode: focusMode,
+      k,
+      minScore,
+      maxHits,
+      recentDays,
+      includeStatus,
+      preferGit,
+      maxFiles,
+      onlyDirs
+    });
+    const output = format === "json" ? renderBatchJson({ root, cmd, results: report.results }) : renderBatchMd({ root, cmd, results: report.results });
+    const summaryPath = await writeWsSummary(root, format === "json" ? renderBatchMd({ root, cmd, results: report.results }) : output);
+    return { output, summaryPath, results: report.results, report };
+  }
+
   const { manifest } = await scanRepo(root, { maxFiles, preferGit });
   const spsAll = Array.isArray(manifest?.subprojects) ? manifest.subprojects : [];
   const sps = onlyDirs && onlyDirs.length ? spsAll.filter((x) => onlyDirs.includes(x.dir)) : spsAll;
@@ -257,6 +286,9 @@ export async function cmdWs({ rest, flags }) {
   const minScore = flags["min-score"] !== undefined ? Number(flags["min-score"]) : 0.15;
   const maxHits = flags["max-hits"] !== undefined ? Number(flags["max-hits"]) : 50;
   const includeStatus = flags["no-status"] ? false : true;
+  const saveFocusSnapshot = !!flags.save;
+  const compareLatest = !!flags["compare-latest"];
+  const snapshotTag = flags.tag ? String(flags.tag) : "";
 
   if (!sub || sub === "help") {
     process.stdout.write(wsHelp() + "\n");
@@ -305,11 +337,93 @@ export async function cmdWs({ rest, flags }) {
       maxHits,
       includeStatus
     });
+    if (cmd === "focus" && r.report) {
+      let snapshot = null;
+      let comparison = null;
+      if (compareLatest) comparison = await compareWorkspaceFocusWithLatest(root, r.report);
+      if (saveFocusSnapshot) {
+        snapshot = await saveWorkspaceFocusSnapshot(root, r.report, { tag: snapshotTag });
+      }
+      if (format === "json") {
+        process.stdout.write(renderBatchJson({
+          root,
+          cmd,
+          results: r.results,
+          extra: {
+            report: r.report,
+            snapshot: snapshot ? { id: snapshot.id, path: snapshot.path, tag: snapshot.snapshot?.tag || null } : null,
+            comparison: comparison || null
+          }
+        }));
+      } else {
+        process.stdout.write(r.output);
+        const lines = [];
+        if (snapshot) lines.push(`Snapshot: ${snapshot.id}`);
+        if (comparison) lines.push(`Comparison changedCount: ${comparison?.diff?.changedCount ?? 0}`);
+        if (lines.length) process.stdout.write(lines.join("\n") + "\n");
+      }
+      return;
+    }
     process.stdout.write(r.output);
     if (cmd === "embed" && check) {
       const anyBad = Array.isArray(r.results) && r.results.some((x) => !x.ok);
       if (anyBad) process.exitCode = 2;
     }
+    return;
+  }
+
+  if (sub === "focus-history") {
+    const op = String(rest[1] || "list").trim();
+    if (op === "list") {
+      const limit = Number(flags.limit || 20);
+      const out = await listWorkspaceFocusSnapshots(root, { limit });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        const lines = [];
+        lines.push("# Workspace Focus Snapshots\n");
+        lines.push(`Root: ${root}\n`);
+        if (!out.snapshots.length) {
+          lines.push("No snapshots.\n");
+        } else {
+          for (const s of out.snapshots) {
+            lines.push(`- ${s.id} q="${s.q}" mode=${s.mode} nonEmpty=${s.summary?.nonEmpty ?? 0}${s.tag ? ` tag=${s.tag}` : ""}`);
+          }
+          lines.push("");
+        }
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    if (op === "compare") {
+      const fromId = String(rest[2] || "").trim();
+      const toId = String(rest[3] || "").trim();
+      if (!fromId || !toId) {
+        process.stderr.write("Usage: rmemo ws focus-history compare <fromId> <toId>\n");
+        process.exitCode = 2;
+        return;
+      }
+      const out = await compareWorkspaceFocusSnapshots(root, { fromId, toId });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        const lines = [];
+        lines.push("# Workspace Focus Compare\n");
+        lines.push(`From: ${out.from.id}`);
+        lines.push(`To: ${out.to.id}`);
+        lines.push(`Changed: ${out.diff.changedCount}`);
+        lines.push("");
+        for (const c of out.diff.changes.slice(0, 100)) {
+          lines.push(`- ${c.dir}: ${c.previous?.hits ?? "-"} -> ${c.current?.hits ?? "-"} (delta=${c.deltaHits})`);
+        }
+        lines.push("");
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    process.stderr.write(`Unknown subcommand: ws focus-history ${op}\n\n`);
+    process.stderr.write(wsHelp() + "\n");
+    process.exitCode = 2;
     return;
   }
 

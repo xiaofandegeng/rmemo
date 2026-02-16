@@ -348,6 +348,18 @@ Done:
     - `WS Focus` (calls `/ws/focus`)
     - `only` filter field for subproject subset querying
   - Reuse existing global query/mode controls for workspace focus
+- Workspace intelligence v5 (focus snapshots + drift compare):
+  - Persist workspace-focus snapshots under `.repo-memory/ws-focus/snapshots/*.json`
+  - CLI:
+    - `rmemo ws batch focus ... --save --compare-latest --tag <name>`
+    - `rmemo ws focus-history list|compare`
+  - HTTP:
+    - `/ws/focus` supports `save=1` and `compareLatest=1`
+    - `GET /ws/focus/snapshots`
+    - `GET /ws/focus/compare`
+  - MCP:
+    - `rmemo_ws_focus_snapshots`
+    - `rmemo_ws_focus_compare`
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

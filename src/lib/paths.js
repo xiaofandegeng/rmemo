@@ -61,6 +61,22 @@ export function wsSummaryPath(root) {
   return path.join(memDir(root), "ws.md");
 }
 
+export function wsFocusDir(root) {
+  return path.join(memDir(root), "ws-focus");
+}
+
+export function wsFocusSnapshotsDir(root) {
+  return path.join(wsFocusDir(root), "snapshots");
+}
+
+export function wsFocusIndexPath(root) {
+  return path.join(wsFocusDir(root), "index.json");
+}
+
+export function wsFocusSnapshotPath(root, id) {
+  return path.join(wsFocusSnapshotsDir(root), `${String(id)}.json`);
+}
+
 export function sessionsDir(root) {
   return path.join(memDir(root), "sessions");
 }

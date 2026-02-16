@@ -28,7 +28,14 @@ import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
 import { refreshRepoMemory, watchRepo } from "./watch.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
-import { batchWorkspaceFocus, listWorkspaces } from "./workspaces.js";
+import {
+  batchWorkspaceFocus,
+  compareWorkspaceFocusSnapshots,
+  compareWorkspaceFocusWithLatest,
+  listWorkspaceFocusSnapshots,
+  listWorkspaces,
+  saveWorkspaceFocusSnapshot
+} from "./workspaces.js";
 
 function json(res, code, obj) {
   const s = JSON.stringify(obj, null, 2) + "\n";
@@ -1278,10 +1285,13 @@ export function createServeHandler(root, opts = {}) {
         const maxHits = Number(url.searchParams.get("maxHits") || 50);
         const recentDays = Number(url.searchParams.get("recentDays") || 14);
         const includeStatus = url.searchParams.get("includeStatus") === "1";
+        const save = url.searchParams.get("save") === "1";
+        const compareLatest = url.searchParams.get("compareLatest") === "1";
+        const tag = String(url.searchParams.get("tag") || "");
         const maxFiles = Number(url.searchParams.get("maxFiles") || 4000);
         const preferGit = url.searchParams.get("noGit") === "1" ? false : true;
         const onlyDirs = String(url.searchParams.get("only") || "");
-        const out = await batchWorkspaceFocus(root, {
+        const report = await batchWorkspaceFocus(root, {
           q,
           mode,
           k,
@@ -1293,6 +1303,26 @@ export function createServeHandler(root, opts = {}) {
           maxFiles,
           onlyDirs
         });
+        const comparison = compareLatest ? await compareWorkspaceFocusWithLatest(root, report) : null;
+        const snapshot = save ? await saveWorkspaceFocusSnapshot(root, report, { tag }) : null;
+        return json(res, 200, {
+          ...report,
+          snapshot: snapshot ? { id: snapshot.id, path: snapshot.path, tag: snapshot.snapshot?.tag || null } : null,
+          comparison
+        });
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/snapshots") {
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const out = await listWorkspaceFocusSnapshots(root, { limit });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/compare") {
+        const fromId = String(url.searchParams.get("from") || "").trim();
+        const toId = String(url.searchParams.get("to") || "").trim();
+        if (!fromId || !toId) return badRequest(res, "Missing from/to snapshot ids");
+        const out = await compareWorkspaceFocusSnapshots(root, { fromId, toId });
         return json(res, 200, out);
       }
 

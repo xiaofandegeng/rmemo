@@ -28,7 +28,14 @@ import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
-import { batchWorkspaceFocus, listWorkspaces } from "./workspaces.js";
+import {
+  batchWorkspaceFocus,
+  compareWorkspaceFocusSnapshots,
+  compareWorkspaceFocusWithLatest,
+  listWorkspaceFocusSnapshots,
+  listWorkspaces,
+  saveWorkspaceFocusSnapshot
+} from "./workspaces.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -328,6 +335,9 @@ function toolsList() {
         maxHits: { type: "number", default: 50 },
         recentDays: { type: "number", default: 14 },
         includeStatus: { type: "boolean", default: false },
+        saveSnapshot: { type: "boolean", default: false },
+        compareLatest: { type: "boolean", default: false },
+        tag: { type: "string", default: "" },
         noGit: { type: "boolean", default: false },
         maxFiles: { type: "number", default: 4000 },
         only: {
@@ -336,6 +346,24 @@ function toolsList() {
         }
       },
       required: ["q"],
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_snapshots", "List workspace-focus snapshots saved under .repo-memory/ws-focus.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limit: { type: "number", default: 20 }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_compare", "Compare two workspace-focus snapshots by id.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        fromId: { type: "string" },
+        toId: { type: "string" }
+      },
+      required: ["fromId", "toId"],
       additionalProperties: false
     }),
     tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
@@ -769,7 +797,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
   if (name === "rmemo_ws_focus") {
     const q = String(args?.q || "").trim();
     if (!q) throw new Error("Missing q");
-    const r = await batchWorkspaceFocus(root, {
+    const report = await batchWorkspaceFocus(root, {
       q,
       mode: args?.mode !== undefined ? String(args.mode) : "semantic",
       k: args?.k !== undefined ? Number(args.k) : 8,
@@ -781,6 +809,32 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       maxFiles: Number(args?.maxFiles || 4000),
       onlyDirs: args?.only
     });
+    const compareLatest = args?.compareLatest !== undefined ? !!args.compareLatest : false;
+    const saveSnapshot = args?.saveSnapshot !== undefined ? !!args.saveSnapshot : false;
+    const tag = args?.tag !== undefined ? String(args.tag) : "";
+    const comparison = compareLatest ? await compareWorkspaceFocusWithLatest(root, report) : null;
+    const snapshot = saveSnapshot ? await saveWorkspaceFocusSnapshot(root, report, { tag }) : null;
+    return JSON.stringify(
+      {
+        ...report,
+        snapshot: snapshot ? { id: snapshot.id, path: snapshot.path, tag: snapshot.snapshot?.tag || null } : null,
+        comparison
+      },
+      null,
+      2
+    );
+  }
+
+  if (name === "rmemo_ws_focus_snapshots") {
+    const r = await listWorkspaceFocusSnapshots(root, { limit: Number(args?.limit || 20) });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_compare") {
+    const fromId = String(args?.fromId || "").trim();
+    const toId = String(args?.toId || "").trim();
+    if (!fromId || !toId) throw new Error("Missing fromId/toId");
+    const r = await compareWorkspaceFocusSnapshots(root, { fromId, toId });
     return JSON.stringify(r, null, 2);
   }
 

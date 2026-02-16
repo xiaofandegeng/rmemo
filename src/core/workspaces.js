@@ -1,6 +1,9 @@
 import path from "node:path";
+import fs from "node:fs/promises";
 import { scanRepo } from "./scan.js";
 import { generateFocus } from "./focus.js";
+import { fileExists, readJson, writeJson } from "../lib/io.js";
+import { wsFocusIndexPath, wsFocusSnapshotPath, wsFocusSnapshotsDir } from "../lib/paths.js";
 
 function splitList(raw) {
   if (!raw) return [];
@@ -112,5 +115,145 @@ export async function batchWorkspaceFocus(
       best: best ? { dir: best.dir, hits: best.hits } : null
     },
     results
+  };
+}
+
+function makeSnapshotId() {
+  const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${iso}-${rand}`;
+}
+
+async function readWsFocusIndex(root) {
+  const p = wsFocusIndexPath(root);
+  if (!(await fileExists(p))) return { schema: 1, updatedAt: null, snapshots: [] };
+  try {
+    const j = await readJson(p);
+    const list = Array.isArray(j?.snapshots) ? j.snapshots : [];
+    return { schema: 1, updatedAt: j?.updatedAt || null, snapshots: list };
+  } catch {
+    return { schema: 1, updatedAt: null, snapshots: [] };
+  }
+}
+
+function reportSummaryForIndex(report) {
+  return {
+    total: Number(report?.summary?.total || 0),
+    ok: Number(report?.summary?.ok || 0),
+    nonEmpty: Number(report?.summary?.nonEmpty || 0),
+    best: report?.summary?.best || null
+  };
+}
+
+function compareFocusReports(prev, next) {
+  const a = Array.isArray(prev?.results) ? prev.results : [];
+  const b = Array.isArray(next?.results) ? next.results : [];
+  const mapA = new Map(a.map((x) => [String(x.dir || ""), x]));
+  const mapB = new Map(b.map((x) => [String(x.dir || ""), x]));
+  const dirs = Array.from(new Set([...mapA.keys(), ...mapB.keys()])).sort();
+  const changes = [];
+  for (const dir of dirs) {
+    const pa = mapA.get(dir) || null;
+    const pb = mapB.get(dir) || null;
+    const hitsA = Number(pa?.hits || 0);
+    const hitsB = Number(pb?.hits || 0);
+    const okA = !!pa?.ok;
+    const okB = !!pb?.ok;
+    const delta = hitsB - hitsA;
+    if (!pa || !pb || delta !== 0 || okA !== okB) {
+      changes.push({
+        dir,
+        previous: pa ? { ok: okA, hits: hitsA } : null,
+        current: pb ? { ok: okB, hits: hitsB } : null,
+        deltaHits: delta
+      });
+    }
+  }
+  const prevSummary = reportSummaryForIndex(prev);
+  const nextSummary = reportSummaryForIndex(next);
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    previousSummary: prevSummary,
+    currentSummary: nextSummary,
+    summaryDelta: {
+      total: nextSummary.total - prevSummary.total,
+      ok: nextSummary.ok - prevSummary.ok,
+      nonEmpty: nextSummary.nonEmpty - prevSummary.nonEmpty
+    },
+    changedCount: changes.length,
+    changes
+  };
+}
+
+export async function saveWorkspaceFocusSnapshot(root, report, { tag = "" } = {}) {
+  const id = makeSnapshotId();
+  const p = wsFocusSnapshotPath(root, id);
+  const snapshot = {
+    schema: 1,
+    id,
+    createdAt: new Date().toISOString(),
+    tag: String(tag || "").trim() || null,
+    report
+  };
+  await fs.mkdir(wsFocusSnapshotsDir(root), { recursive: true });
+  await writeJson(p, snapshot);
+
+  const index = await readWsFocusIndex(root);
+  index.snapshots.unshift({
+    id,
+    createdAt: snapshot.createdAt,
+    tag: snapshot.tag,
+    q: String(report?.q || ""),
+    mode: String(report?.mode || "semantic"),
+    summary: reportSummaryForIndex(report)
+  });
+  index.snapshots = index.snapshots.slice(0, 200);
+  index.updatedAt = new Date().toISOString();
+  await writeJson(wsFocusIndexPath(root), index);
+  return { id, path: p, snapshot };
+}
+
+export async function listWorkspaceFocusSnapshots(root, { limit = 20 } = {}) {
+  const index = await readWsFocusIndex(root);
+  const lim = Math.min(200, Math.max(1, Number(limit || 20)));
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    snapshots: index.snapshots.slice(0, lim)
+  };
+}
+
+export async function getWorkspaceFocusSnapshot(root, id) {
+  const sid = String(id || "").trim();
+  if (!sid) throw new Error("Missing snapshot id");
+  const p = wsFocusSnapshotPath(root, sid);
+  if (!(await fileExists(p))) throw new Error("snapshot_not_found");
+  return readJson(p);
+}
+
+export async function compareWorkspaceFocusSnapshots(root, { fromId, toId } = {}) {
+  const from = await getWorkspaceFocusSnapshot(root, fromId);
+  const to = await getWorkspaceFocusSnapshot(root, toId);
+  return {
+    schema: 1,
+    root,
+    from: { id: from.id, createdAt: from.createdAt, tag: from.tag, q: from.report?.q || "", mode: from.report?.mode || "" },
+    to: { id: to.id, createdAt: to.createdAt, tag: to.tag, q: to.report?.q || "", mode: to.report?.mode || "" },
+    diff: compareFocusReports(from.report || {}, to.report || {})
+  };
+}
+
+export async function compareWorkspaceFocusWithLatest(root, report) {
+  const index = await readWsFocusIndex(root);
+  const latest = index.snapshots[0] || null;
+  if (!latest?.id) return null;
+  const prev = await getWorkspaceFocusSnapshot(root, latest.id);
+  return {
+    schema: 1,
+    from: { id: prev.id, createdAt: prev.createdAt, tag: prev.tag, q: prev.report?.q || "", mode: prev.report?.mode || "" },
+    to: { id: null, createdAt: new Date().toISOString(), tag: null, q: report?.q || "", mode: report?.mode || "" },
+    diff: compareFocusReports(prev.report || {}, report || {})
   };
 }

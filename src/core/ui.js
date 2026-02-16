@@ -339,8 +339,27 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
               </div>
               <div style="height: 8px;"></div>
               <div class="row">
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsSaveSnapshot" type="checkbox" />
+                  <span class="hint" style="margin:0;">save snapshot</span>
+                </label>
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsCompareLatest" type="checkbox" />
+                  <span class="hint" style="margin:0;">compare latest</span>
+                </label>
+                <input id="wsTag" type="text" placeholder="snapshot tag (optional)" style="width: 220px;" />
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
                 <button class="btn secondary" id="loadWsList">WS List</button>
                 <button class="btn secondary" id="doWsFocus">WS Focus</button>
+                <button class="btn secondary" id="loadWsSnapshots">WS Snapshots</button>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <input id="wsFromId" type="text" placeholder="snapshot from id" style="width: 280px;" />
+                <input id="wsToId" type="text" placeholder="snapshot to id" style="width: 280px;" />
+                <button class="btn secondary" id="doWsCompare">WS Compare</button>
               </div>
               <div class="hint">Use existing query + mode above; outputs aggregated JSON from <span style="font-family: var(--mono)">/ws/list</span> and <span style="font-family: var(--mono)">/ws/focus</span>.</div>
             </div>
@@ -557,14 +576,47 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         const q = (qs("#q").value || "").trim();
         const mode = qs("#mode").value;
         const only = (qs("#wsOnly").value || "").trim();
+        const save = !!qs("#wsSaveSnapshot").checked;
+        const compareLatest = !!qs("#wsCompareLatest").checked;
+        const tag = (qs("#wsTag").value || "").trim();
         if (!q) return msg("Missing query.");
         let p = "/ws/focus?q=" + encodeURIComponent(q) + "&mode=" + encodeURIComponent(mode) + "&includeStatus=0";
         if (only) p += "&only=" + encodeURIComponent(only);
+        if (save) p += "&save=1";
+        if (compareLatest) p += "&compareLatest=1";
+        if (tag) p += "&tag=" + encodeURIComponent(tag);
         const j = await apiFetch(p, { accept: "application/json", json: true });
         out(JSON.stringify(j, null, 2));
         setTab("json");
         msg("OK");
         qs("#title").textContent = "Workspace Focus";
+      }
+
+      async function loadWsSnapshots() {
+        err(""); msg("Loading workspace snapshots...");
+        const j = await apiFetch("/ws/focus/snapshots?limit=30", { accept: "application/json", json: true });
+        const first = j && Array.isArray(j.snapshots) && j.snapshots.length ? j.snapshots[0] : null;
+        if (first && first.id) {
+          qs("#wsFromId").value = first.id;
+          qs("#wsToId").value = first.id;
+        }
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Snapshots";
+      }
+
+      async function doWsCompare() {
+        err(""); msg("Comparing workspace snapshots...");
+        const from = (qs("#wsFromId").value || "").trim();
+        const to = (qs("#wsToId").value || "").trim();
+        if (!from || !to) return msg("Missing snapshot ids.");
+        const p = "/ws/focus/compare?from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to);
+        const j = await apiFetch(p, { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Compare";
       }
 
       async function addTodo() {
@@ -1037,6 +1089,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#doFocus").addEventListener("click", () => doFocus().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsList").addEventListener("click", () => loadWsList().catch((e) => { err(String(e)); msg(""); }));
       qs("#doWsFocus").addEventListener("click", () => doWsFocus().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsSnapshots").addEventListener("click", () => loadWsSnapshots().catch((e) => { err(String(e)); msg(""); }));
+      qs("#doWsCompare").addEventListener("click", () => doWsCompare().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

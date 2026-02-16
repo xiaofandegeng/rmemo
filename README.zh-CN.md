@@ -227,7 +227,9 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /search?q=...`（关键字检索）
 - `GET /search?mode=semantic&q=...`（语义检索；需要先执行 `rmemo embed build`）
 - `GET /ws/list?only=apps/a,apps/b`（列出检测到的 monorepo 子项目）
-- `GET /ws/focus?q=...&mode=semantic|keyword`（跨子项目聚合 focus 检索）
+- `GET /ws/focus?q=...&mode=semantic|keyword`（跨子项目聚合 focus 检索；支持 `save=1`、`compareLatest=1`、`tag=...`）
+- `GET /ws/focus/snapshots?limit=20`（workspace focus 快照历史）
+- `GET /ws/focus/compare?from=<id>&to=<id>`（对比两个 workspace focus 快照）
 
 可选：开启写入操作（必须设置 token）：
 
@@ -309,6 +311,8 @@ rmemo mcp --root . --allow-write
 - `rmemo_embed_jobs_governance_benchmark`
 - `rmemo_ws_list`
 - `rmemo_ws_focus`
+- `rmemo_ws_focus_snapshots`
+- `rmemo_ws_focus_compare`
 
 ## 集成（MCP 配置片段）
 
@@ -370,6 +374,8 @@ rmemo ws focus apps/admin-web "auth token refresh" --mode keyword
 rmemo ws batch handoff
 rmemo ws batch pr --base origin/main
 rmemo ws batch focus "auth token refresh" --mode keyword --format json
+rmemo ws batch focus "auth token refresh" --mode keyword --format json --save --compare-latest --tag daily
+rmemo ws focus-history list --format json
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 

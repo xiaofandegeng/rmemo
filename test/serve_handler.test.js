@@ -593,7 +593,7 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
 
   const focus = await run(handler, {
     method: "GET",
-    url: "/ws/focus?token=t&q=auth%20token%20flow&mode=keyword&noGit=1&includeStatus=0"
+    url: "/ws/focus?token=t&q=auth%20token%20flow&mode=keyword&noGit=1&includeStatus=0&save=1&tag=serve-d1"
   });
   assert.equal(focus.status, 200);
   const focusJson = JSON.parse(focus.body);
@@ -602,4 +602,35 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   assert.ok(Array.isArray(focusJson.results));
   assert.equal(focusJson.results.length, 2);
   assert.ok(focusJson.results.every((x) => x.ok === true));
+  assert.ok(focusJson.snapshot && focusJson.snapshot.id);
+
+  await fs.appendFile(path.join(root, "apps", "b", ".repo-memory", "rules.md"), "\n- auth token flow auth token flow\n", "utf8");
+
+  const focus2 = await run(handler, {
+    method: "GET",
+    url: "/ws/focus?token=t&q=auth%20token%20flow&mode=keyword&noGit=1&includeStatus=0&save=1&compareLatest=1&tag=serve-d2"
+  });
+  assert.equal(focus2.status, 200);
+  const focusJson2 = JSON.parse(focus2.body);
+  assert.ok(focusJson2.snapshot && focusJson2.snapshot.id);
+  assert.ok(focusJson2.comparison && focusJson2.comparison.diff);
+
+  const snaps = await run(handler, { method: "GET", url: "/ws/focus/snapshots?token=t&limit=10" });
+  assert.equal(snaps.status, 200);
+  const snapsJson = JSON.parse(snaps.body);
+  assert.ok(Array.isArray(snapsJson.snapshots));
+  assert.ok(snapsJson.snapshots.length >= 2);
+
+  const cmp = await run(
+    handler,
+    {
+      method: "GET",
+      url: `/ws/focus/compare?token=t&from=${encodeURIComponent(focusJson.snapshot.id)}&to=${encodeURIComponent(focusJson2.snapshot.id)}`
+    }
+  );
+  assert.equal(cmp.status, 200);
+  const cmpJson = JSON.parse(cmp.body);
+  assert.equal(cmpJson.schema, 1);
+  assert.ok(cmpJson.diff);
+  assert.ok(Array.isArray(cmpJson.diff.changes));
 });

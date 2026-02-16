@@ -85,6 +85,8 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /focus?q=... (mode=semantic|keyword)\n`);
   process.stdout.write(`- GET /ws/list?only=apps/a,apps/b\n`);
   process.stdout.write(`- GET /ws/focus?q=... (mode=semantic|keyword&only=...)\n`);
+  process.stdout.write(`- GET /ws/focus/snapshots?limit=20\n`);
+  process.stdout.write(`- GET /ws/focus/compare?from=<id>&to=<id>\n`);
   if (allowRefresh) process.stdout.write(`- GET /handoff?refresh=1, /pr?refresh=1\n`);
   if (allowWrite) {
     process.stdout.write(`- POST /refresh {sync?,embed?}\n`);

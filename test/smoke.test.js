@@ -1000,6 +1000,95 @@ test("rmemo ws batch focus aggregates focus results across workspaces", async ()
   assert.ok(await exists(path.join(tmp, ".repo-memory", "ws.md")), true);
 });
 
+test("rmemo ws focus snapshots can be saved, listed and compared", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-ws-focus-history-"));
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "mono", private: true, workspaces: ["apps/*"] }, null, 2) + "\n",
+    "utf8"
+  );
+  const apps = ["apps/a", "apps/b"];
+  for (const d of apps) {
+    const abs = path.join(tmp, d);
+    await fs.mkdir(path.join(abs, ".repo-memory"), { recursive: true });
+    await fs.writeFile(path.join(abs, "package.json"), JSON.stringify({ name: d.replace("/", "-"), private: true }, null, 2) + "\n", "utf8");
+    await fs.writeFile(path.join(abs, ".repo-memory", "rules.md"), "# Rules\n- auth token flow is tracked.\n", "utf8");
+    await fs.writeFile(path.join(abs, ".repo-memory", "todos.md"), "## Next\n- verify auth token flow\n\n## Blockers\n- (none)\n", "utf8");
+  }
+
+  const r1 = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--no-git",
+    "--format",
+    "json",
+    "--mode",
+    "keyword",
+    "ws",
+    "batch",
+    "focus",
+    "auth token flow",
+    "--save",
+    "--tag",
+    "d1"
+  ]);
+  assert.equal(r1.code, 0, r1.err || r1.out);
+  const j1 = JSON.parse(r1.out);
+  assert.ok(j1.snapshot && j1.snapshot.id);
+
+  await fs.appendFile(path.join(tmp, "apps/b", ".repo-memory", "rules.md"), "\n- auth token flow auth token flow\n", "utf8");
+
+  const r2 = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--no-git",
+    "--format",
+    "json",
+    "--mode",
+    "keyword",
+    "ws",
+    "batch",
+    "focus",
+    "auth token flow",
+    "--save",
+    "--compare-latest",
+    "--tag",
+    "d2"
+  ]);
+  assert.equal(r2.code, 0, r2.err || r2.out);
+  const j2 = JSON.parse(r2.out);
+  assert.ok(j2.snapshot && j2.snapshot.id);
+  assert.ok(j2.comparison && j2.comparison.diff);
+
+  const ls = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "focus-history", "list", "--limit", "10"]);
+  assert.equal(ls.code, 0, ls.err || ls.out);
+  const lsJson = JSON.parse(ls.out);
+  assert.ok(Array.isArray(lsJson.snapshots));
+  assert.ok(lsJson.snapshots.length >= 2);
+
+  const cmp = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "focus-history",
+    "compare",
+    j1.snapshot.id,
+    j2.snapshot.id
+  ]);
+  assert.equal(cmp.code, 0, cmp.err || cmp.out);
+  const cmpJson = JSON.parse(cmp.out);
+  assert.equal(cmpJson.schema, 1);
+  assert.ok(cmpJson.diff);
+  assert.ok(Array.isArray(cmpJson.diff.changes));
+});
+
 test("rmemo profile ls/describe/apply works", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-profile-"));
@@ -1333,7 +1422,7 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
       jsonrpc: "2.0",
       id: 4,
       method: "tools/call",
-      params: { name: "rmemo_ws_focus", arguments: { root: tmp, q: "auth token flow", mode: "keyword", noGit: true } }
+      params: { name: "rmemo_ws_focus", arguments: { root: tmp, q: "auth token flow", mode: "keyword", noGit: true, saveSnapshot: true, tag: "mcp-d1" } }
     });
 
     await waitFor(() => {
@@ -1345,6 +1434,8 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     const list = lines.find((x) => x.id === 2);
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_list"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_snapshots"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_compare"));
 
     const wsList = lines.find((x) => x.id === 3);
     const wsListJson = JSON.parse(wsList.result.content[0].text);
@@ -1353,11 +1444,51 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     assert.equal(wsListJson.subprojects.length, 2);
 
     const wsFocus = lines.find((x) => x.id === 4);
+    assert.ok(wsFocus, "ws focus response missing");
+    assert.ok(!wsFocus.error, `ws focus error: ${wsFocus.error ? wsFocus.error.message : ""}`);
     const wsFocusJson = JSON.parse(wsFocus.result.content[0].text);
     assert.equal(wsFocusJson.schema, 1);
     assert.ok(Array.isArray(wsFocusJson.results));
     assert.equal(wsFocusJson.results.length, 2);
     assert.ok(wsFocusJson.results.every((x) => x.ok === true));
+    assert.ok(wsFocusJson.snapshot && wsFocusJson.snapshot.id);
+
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "tools/call",
+      params: { name: "rmemo_ws_focus_snapshots", arguments: { root: tmp, limit: 5 } }
+    });
+    await waitFor(() => {
+      const lines2 = parseJsonLines(mcp.getOut());
+      return lines2.some((x) => x.id === 5);
+    });
+
+    const linesAfterSnap = parseJsonLines(mcp.getOut());
+    const wsSnap = linesAfterSnap.find((x) => x.id === 5);
+    const wsSnapJson = JSON.parse(wsSnap.result.content[0].text);
+    assert.equal(wsSnapJson.schema, 1);
+    assert.ok(Array.isArray(wsSnapJson.snapshots));
+    assert.ok(wsSnapJson.snapshots.length >= 1);
+
+    const sid = wsSnapJson.snapshots[0].id;
+    assert.ok(typeof sid === "string" && sid.length > 0);
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 6,
+      method: "tools/call",
+      params: { name: "rmemo_ws_focus_compare", arguments: { root: tmp, fromId: sid, toId: sid } }
+    });
+    await waitFor(() => {
+      const lines2 = parseJsonLines(mcp.getOut());
+      return lines2.some((x) => x.id === 6);
+    });
+    const lines2 = parseJsonLines(mcp.getOut());
+    const wsCmp = lines2.find((x) => x.id === 6);
+    const wsCmpJson = JSON.parse(wsCmp.result.content[0].text);
+    assert.equal(wsCmpJson.schema, 1);
+    assert.ok(wsCmpJson.diff);
+    assert.equal(wsCmpJson.diff.changedCount, 0);
   } finally {
     mcp.closeIn();
     try {

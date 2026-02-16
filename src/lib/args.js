@@ -132,6 +132,10 @@ Options:
   --once                     For watch: run at most one refresh tick and exit (test/script friendly)
   --no-sync                  For watch: do not run rmemo sync on refresh
   --only <list>              For ws batch: comma-separated subproject dirs to include
+  --save                     For ws batch focus: save a workspace-focus snapshot
+  --compare-latest           For ws batch focus: compare with latest saved snapshot
+  --tag <name>               For ws batch focus --save: snapshot tag label
+  --limit <n>                For ws focus-history list: max snapshots to print (default: 20)
   --no-git                   Don't use git for scanning (fallback to filesystem walk)
   --provider <mock|openai>   For embed build: embeddings provider (default: mock)
   --model <id>               For embed build: embeddings model id (openai)

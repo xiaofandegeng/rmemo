@@ -223,7 +223,9 @@ Then fetch:
 - `GET /search?q=...` (keyword search)
 - `GET /search?mode=semantic&q=...` (semantic search; requires `rmemo embed build`)
 - `GET /ws/list?only=apps/a,apps/b` (detected monorepo subprojects)
-- `GET /ws/focus?q=...&mode=semantic|keyword` (cross-workspace aggregated focus results)
+- `GET /ws/focus?q=...&mode=semantic|keyword` (cross-workspace aggregated focus results; supports `save=1`, `compareLatest=1`, `tag=...`)
+- `GET /ws/focus/snapshots?limit=20` (workspace focus snapshot history)
+- `GET /ws/focus/compare?from=<id>&to=<id>` (compare two workspace focus snapshots)
 
 Optional: enable write actions (token required):
 
@@ -305,6 +307,8 @@ Read tool:
 - `rmemo_embed_jobs_governance_benchmark`
 - `rmemo_ws_list`
 - `rmemo_ws_focus`
+- `rmemo_ws_focus_snapshots`
+- `rmemo_ws_focus_compare`
 
 ## Integrations (MCP Config Snippets)
 
@@ -366,6 +370,8 @@ rmemo ws focus apps/admin-web "auth token refresh" --mode keyword
 rmemo ws batch handoff
 rmemo ws batch pr --base origin/main
 rmemo ws batch focus "auth token refresh" --mode keyword --format json
+rmemo ws batch focus "auth token refresh" --mode keyword --format json --save --compare-latest --tag daily
+rmemo ws focus-history list --format json
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 
