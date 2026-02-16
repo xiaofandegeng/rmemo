@@ -59,6 +59,14 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, n));
 }
 
+function throwIfAborted(signal) {
+  if (signal && signal.aborted) {
+    const err = new Error("Embeddings build aborted");
+    err.code = "ABORT_ERR";
+    throw err;
+  }
+}
+
 function mockEmbedOne(text, dim) {
   const v = new Float32Array(dim);
   const tokens = String(text || "")
@@ -205,7 +213,7 @@ function createMockEmbedder({ dim }) {
   };
 }
 
-function createOpenAiEmbedder({ apiKey, model }) {
+function createOpenAiEmbedder({ apiKey, model, signal }) {
   if (!apiKey) throw new Error("Missing OPENAI_API_KEY (or pass --api-key)");
   const m = model || "text-embedding-3-small";
 
@@ -216,6 +224,7 @@ function createOpenAiEmbedder({ apiKey, model }) {
     embedBatch: async (texts) => {
       const r = await fetch("https://api.openai.com/v1/embeddings", {
         method: "POST",
+        signal,
         headers: {
           authorization: `Bearer ${apiKey}`,
           "content-type": "application/json"
@@ -240,10 +249,10 @@ function createOpenAiEmbedder({ apiKey, model }) {
   };
 }
 
-export function createEmbedder({ provider = "mock", dim = 128, apiKey = "", model = "" } = {}) {
+export function createEmbedder({ provider = "mock", dim = 128, apiKey = "", model = "", signal = null } = {}) {
   const p = String(provider || "mock").toLowerCase();
   if (p === "mock") return createMockEmbedder({ dim: Number(dim || 128) });
-  if (p === "openai") return createOpenAiEmbedder({ apiKey: apiKey || process.env.OPENAI_API_KEY || "", model });
+  if (p === "openai") return createOpenAiEmbedder({ apiKey: apiKey || process.env.OPENAI_API_KEY || "", model, signal });
   throw new Error(`Unknown provider: ${provider}`);
 }
 
@@ -509,11 +518,12 @@ export async function buildEmbeddingsIndex(
     maxTotalChunks = defaultEmbeddingConfig().maxTotalChunks,
     parallelism = defaultEmbeddingConfig().parallelism,
     batchDelayMs = defaultEmbeddingConfig().batchDelayMs,
+    signal = null,
     onProgress = null,
     force = false
   } = {}
 ) {
-  const embedder = createEmbedder({ provider, dim, apiKey, model });
+  const embedder = createEmbedder({ provider, dim, apiKey, model, signal });
   const startedAt = new Date().toISOString();
   const wantConfig = {
     provider: embedder.provider,
@@ -552,6 +562,7 @@ export async function buildEmbeddingsIndex(
   let reusedFiles = 0;
   let reusedItems = 0;
   for (const d of docList) {
+    throwIfAborted(signal);
     const fileRel = path.relative(root, d.abs).replace(/\\/g, "/");
     const fk = fileKey(d.kind, fileRel);
 
@@ -637,6 +648,7 @@ export async function buildEmbeddingsIndex(
 
   const toEmbed = [];
   for (const c of chunks) {
+    throwIfAborted(signal);
     const old = prevById.get(c.id);
     if (old && old.textHash === c.textHash && old.vectorB64) {
       outItems.push({ ...c, vectorB64: old.vectorB64, scoreHint: old.scoreHint || undefined });
@@ -674,10 +686,13 @@ export async function buildEmbeddingsIndex(
   emitProgress("start", { parallelism: par, batchDelayMs: delayMs });
 
   async function processBatch(batchIndex) {
+    throwIfAborted(signal);
     const i = batchIndex * BATCH;
     const batch = toEmbed.slice(i, i + BATCH);
     if (delayMs > 0 && batchIndex > 0) await sleep(delayMs);
+    throwIfAborted(signal);
     const vecs = await embedder.embedBatch(batch.map((x) => x.text));
+    throwIfAborted(signal);
     for (let j = 0; j < batch.length; j++) {
       const vec = vecs[j];
       outItems.push({ ...batch[j], vectorB64: encodeVector(vec) });

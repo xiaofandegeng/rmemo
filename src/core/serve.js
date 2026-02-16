@@ -27,6 +27,7 @@ import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
 import { refreshRepoMemory, watchRepo } from "./watch.js";
+import { createEmbedJobsController } from "./embed_jobs.js";
 
 function json(res, code, obj) {
   const s = JSON.stringify(obj, null, 2) + "\n";
@@ -398,7 +399,8 @@ async function searchInText({ file, text, q, maxHits = 50 }) {
 }
 
 export function createServeHandler(root, opts = {}) {
-  const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer, events, watchState, getWatchCtl } = opts;
+  const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer, events, watchState, getWatchCtl, getEmbedJobs } = opts;
+  const embedJobs = getEmbedJobs?.() || createEmbedJobsController(root, { events, maxHistory: 50 });
 
   return async function handler(req, res) {
     const url = new URL(req.url || "/", `http://${host}:${port || 80}`);
@@ -752,6 +754,65 @@ export function createServeHandler(root, opts = {}) {
         }
       }
 
+      if (req.method === "GET" && url.pathname === "/embed/jobs") {
+        const out = embedJobs?.status?.() || {
+          schema: 1,
+          generatedAt: new Date().toISOString(),
+          active: null,
+          queued: [],
+          history: []
+        };
+        return json(res, 200, { ok: true, ...out });
+      }
+
+      if (req.method === "POST" && url.pathname === "/embed/jobs") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const args = {};
+        if (body.provider !== undefined) args.provider = String(body.provider);
+        if (body.model !== undefined) args.model = String(body.model);
+        if (body.apiKey !== undefined) args.apiKey = String(body.apiKey);
+        if (body.dim !== undefined) args.dim = Number(body.dim);
+        if (body.kinds !== undefined) {
+          const kinds = parseKindsList(body.kinds);
+          if (!kinds.length) return badRequest(res, "kinds must be a non-empty list/string when provided");
+          args.kinds = kinds;
+        }
+        if (body.recentDays !== undefined) args.recentDays = Number(body.recentDays);
+        if (body.maxChunksPerFile !== undefined) args.maxChunksPerFile = Number(body.maxChunksPerFile);
+        if (body.maxCharsPerChunk !== undefined) args.maxCharsPerChunk = Number(body.maxCharsPerChunk);
+        if (body.overlapChars !== undefined) args.overlapChars = Number(body.overlapChars);
+        if (body.maxTotalChunks !== undefined) args.maxTotalChunks = Number(body.maxTotalChunks);
+        if (body.parallelism !== undefined) args.parallelism = Number(body.parallelism);
+        if (body.parallel !== undefined) args.parallelism = Number(body.parallel);
+        if (body.batchDelayMs !== undefined) args.batchDelayMs = Number(body.batchDelayMs);
+        if (body.force !== undefined) args.force = !!body.force;
+
+        const job = embedJobs?.enqueue?.(args, {
+          trigger: String(body.trigger || "api"),
+          reason: String(body.reason || "")
+        });
+        return json(res, 200, { ok: true, job });
+      }
+
+      const jobM = req.method === "GET" ? url.pathname.match(/^\/embed\/jobs\/([^/]+)$/) : null;
+      if (jobM) {
+        const id = decodeURIComponent(jobM[1] || "");
+        const job = embedJobs?.getJob?.(id);
+        if (!job) return notFound(res, "embed job not found");
+        return json(res, 200, { ok: true, job });
+      }
+
+      const cancelM = req.method === "POST" ? url.pathname.match(/^\/embed\/jobs\/([^/]+)\/cancel$/) : null;
+      if (cancelM) {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const id = decodeURIComponent(cancelM[1] || "");
+        const r = embedJobs?.cancel?.(id);
+        if (!r?.ok) return notFound(res, "embed job not found");
+        return json(res, 200, { ok: true, result: r });
+      }
+
       if (req.method === "GET" && url.pathname === "/embed/plan") {
         const format = String(url.searchParams.get("format") || "json").toLowerCase();
         if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
@@ -1033,6 +1094,7 @@ export async function startServe(root, opts = {}) {
     lastRefresh: null
   };
   const watchCtl = createWatchController(root, { events, watchState });
+  const embedJobs = createEmbedJobsController(root, { events, maxHistory: 50 });
   const handler = createServeHandler(root, {
     host,
     port,
@@ -1044,7 +1106,8 @@ export async function startServe(root, opts = {}) {
     getServer: () => server,
     events,
     watchState,
-    getWatchCtl: () => watchCtl
+    getWatchCtl: () => watchCtl,
+    getEmbedJobs: () => embedJobs
   });
 
   server = http.createServer((req, res) => {

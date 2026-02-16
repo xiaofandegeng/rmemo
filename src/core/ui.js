@@ -224,11 +224,15 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                     <button class="btn secondary" id="loadEmbedStatus">Embed Status</button>
                     <button class="btn secondary" id="loadEmbedPlan">Embed Plan</button>
                     <button class="btn secondary" id="doEmbedBuild">Embed Build</button>
+                    <button class="btn secondary" id="enqueueEmbedJob">Enqueue Job</button>
+                    <button class="btn secondary" id="loadEmbedJobs">Jobs</button>
                   </div>
                   <div style="height: 8px;"></div>
                   <div class="row">
                     <input id="embedParallelism" type="text" placeholder="parallelism (mock)" style="width: 180px;" />
                     <input id="embedBatchDelayMs" type="text" placeholder="batchDelayMs (openai)" style="width: 200px;" />
+                    <input id="cancelEmbedJobId" type="text" placeholder="cancel job id" style="width: 220px;" />
+                    <button class="btn secondary" id="cancelEmbedJob">Cancel Job</button>
                   </div>
 
                   <div style="height: 10px;"></div>
@@ -548,6 +552,40 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Embed Build";
       }
 
+      async function enqueueEmbedJob() {
+        err(""); msg("Enqueueing embed build job...");
+        const p = Number((qs("#embedParallelism").value || "").trim());
+        const d = Number((qs("#embedBatchDelayMs").value || "").trim());
+        const body = {};
+        if (Number.isFinite(p) && p > 0) body.parallelism = p;
+        if (Number.isFinite(d) && d >= 0) body.batchDelayMs = d;
+        const j = await apiPost("/embed/jobs", body);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Job Enqueued";
+      }
+
+      async function loadEmbedJobs() {
+        err(""); msg("Loading embed jobs...");
+        const j = await apiFetch("/embed/jobs", { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Jobs";
+      }
+
+      async function cancelEmbedJob() {
+        err(""); msg("Canceling embed job...");
+        const id = (qs("#cancelEmbedJobId").value || "").trim();
+        if (!id) return msg("Missing job id.");
+        const j = await apiPost("/embed/jobs/" + encodeURIComponent(id) + "/cancel", {});
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Job Cancel";
+      }
+
       async function doRefreshRepo() {
         err(""); msg("Refreshing repo memory...");
         const sync = !!qs("#refreshSync").checked;
@@ -621,6 +659,24 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("embed:build:err", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:build:err"); }
         });
+        evt.addEventListener("embed:job:queued", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:queued"); }
+        });
+        evt.addEventListener("embed:job:start", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:start"); }
+        });
+        evt.addEventListener("embed:job:progress", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:progress"); }
+        });
+        evt.addEventListener("embed:job:ok", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:ok"); }
+        });
+        evt.addEventListener("embed:job:err", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:err"); }
+        });
+        evt.addEventListener("embed:job:canceled", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:job:canceled"); }
+        });
       }
 
       qs("#saveToken").addEventListener("click", saveToken);
@@ -640,6 +696,9 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadEmbedStatus").addEventListener("click", () => loadEmbedStatus().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadEmbedPlan").addEventListener("click", () => loadEmbedPlan().catch((e) => { err(String(e)); msg(""); }));
       qs("#doEmbedBuild").addEventListener("click", () => doEmbedBuild().catch((e) => { err(String(e)); msg(""); }));
+      qs("#enqueueEmbedJob").addEventListener("click", () => enqueueEmbedJob().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadEmbedJobs").addEventListener("click", () => loadEmbedJobs().catch((e) => { err(String(e)); msg(""); }));
+      qs("#cancelEmbedJob").addEventListener("click", () => cancelEmbedJob().catch((e) => { err(String(e)); msg(""); }));
       qs("#doRefreshRepo").addEventListener("click", () => doRefreshRepo().catch((e) => { err(String(e)); msg(""); }));
       qs("#startEvents").addEventListener("click", () => startEvents());
       qs("#stopEvents").addEventListener("click", () => stopEvents());

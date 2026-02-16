@@ -1254,16 +1254,33 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     method: "tools/call",
     params: { name: "rmemo_log", arguments: { root: tmp, kind: "Note", text: "MCP write test" } }
   });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 5,
+    method: "tools/call",
+    params: {
+      name: "rmemo_embed_job_enqueue",
+      arguments: { root: tmp, provider: "mock", dim: 32, kinds: ["rules", "todos", "context"], parallelism: 2 }
+    }
+  });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 6,
+    method: "tools/call",
+    params: { name: "rmemo_embed_jobs", arguments: {} }
+  });
 
   await waitFor(() => {
     const lines = parseJsonLines(mcp.getOut());
-    return lines.some((x) => x.id === 4) ? true : false;
+    return lines.some((x) => x.id === 6) ? true : false;
   });
 
   const lines = parseJsonLines(mcp.getOut());
   const list = lines.find((x) => x.id === 2);
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_todo_add"));
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_log"));
+  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_job_enqueue"));
+  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs"));
 
   const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
   assert.ok(todosMd.includes("Add MCP write tools"));
@@ -1273,6 +1290,15 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
   assert.ok(jFiles.length >= 1);
   const j = await fs.readFile(path.join(journalDir, jFiles[0]), "utf8");
   assert.ok(j.includes("MCP write test"));
+
+  const jobs = lines.find((x) => x.id === 6);
+  const jobsJson = JSON.parse(jobs.result.content[0].text);
+  assert.equal(jobsJson.schema, 1);
+  assert.ok(
+    (jobsJson.active && jobsJson.active.id) ||
+      (Array.isArray(jobsJson.queued) && jobsJson.queued.length >= 0) ||
+      (Array.isArray(jobsJson.history) && jobsJson.history.length >= 0)
+  );
 
   mcp.closeIn();
   try {

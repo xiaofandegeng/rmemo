@@ -210,6 +210,7 @@ Then fetch:
 - `GET /diagnostics/export?format=json|md` (status + watch + events bundle)
 - `GET /embed/status?format=json|md` (embeddings health/status)
 - `GET /embed/plan?format=json|md` (preview reuse/embed actions before build)
+- `GET /embed/jobs`, `GET /embed/jobs/:id` (background embeddings jobs)
 - `GET /watch` (watch runtime status)
 - `GET /status?format=json`
 - `GET /context`
@@ -243,6 +244,8 @@ Write endpoints:
 - `POST /embed/auto`
 - `POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}`
   - emits SSE events: `embed:build:start`, `embed:build:progress`, `embed:build:ok`, `embed:build:err`
+- `POST /embed/jobs {provider?,model?,dim?,parallelism?,batchDelayMs?,...}` (enqueue async build)
+- `POST /embed/jobs/:id/cancel`
 
 ## MCP Server (stdio)
 
@@ -267,6 +270,11 @@ Write tools:
 - `rmemo_sync`
 - `rmemo_embed_auto`
 - `rmemo_embed_build`
+- `rmemo_embed_job_enqueue`
+- `rmemo_embed_job_cancel`
+
+Read tool:
+- `rmemo_embed_jobs`
 
 ## Integrations (MCP Config Snippets)
 

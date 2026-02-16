@@ -260,6 +260,9 @@ Done:
   - `POST /embed/build` (trigger build from config or overrides)
   - Parallel embedding workers for mock provider (`parallelism`) + OpenAI batch throttle (`batchDelayMs`)
   - Build progress event stream over SSE: `embed:build:start|progress|ok|err`
+  - Background embeddings job queue:
+    - `POST /embed/jobs`, `GET /embed/jobs`, `GET /embed/jobs/:id`, `POST /embed/jobs/:id/cancel`
+    - SSE events: `embed:job:queued|start|progress|ok|err|canceled`
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:
@@ -273,6 +276,7 @@ Done:
   - `rmemo_embed_status` (index/config/up-to-date status)
   - `rmemo_embed_plan` (preview next build actions)
   - `rmemo_embed_build` (write tool; requires `--allow-write`)
+  - `rmemo_embed_jobs` / `rmemo_embed_job_enqueue` / `rmemo_embed_job_cancel` (MCP process-local queue)
 
 ## v1.9 (Semantic Memory) (Planned)
 

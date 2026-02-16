@@ -51,6 +51,18 @@ async function run(handler, reqOpts) {
   return { status: res.statusCode, headers: res.headers, body };
 }
 
+async function waitFor(fn, { timeoutMs = 3000, intervalMs = 40 } = {}) {
+  const start = Date.now();
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    const ok = await fn();
+    if (ok) return;
+    if (Date.now() - start > timeoutMs) throw new Error("waitFor timeout");
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
 test("serve handler: /health and /ui are always unauthenticated", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
   const events = createEventsBus();
@@ -289,6 +301,47 @@ test("serve handler: /embed/status /embed/plan and /embed/build work", async () 
   const pmd = await run(rw, { method: "GET", url: "/embed/plan?format=md&token=t" });
   assert.equal(pmd.status, 200);
   assert.ok(pmd.body.includes("# Embeddings Build Plan"));
+});
+
+test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
+  await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
+  await fs.mkdir(path.join(root, "src"), { recursive: true });
+  await fs.writeFile(path.join(root, "src", "index.js"), "console.log('hi')\n", "utf8");
+
+  const events = createEventsBus();
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events });
+
+  const before = await run(handler, { method: "GET", url: "/embed/jobs?token=t" });
+  assert.equal(before.status, 200);
+  assert.ok(before.body.includes("\"queued\""));
+
+  const enq = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs?token=t",
+    bodyObj: { provider: "mock", dim: 32, kinds: ["rules", "todos", "context"], recentDays: 7, parallelism: 2 }
+  });
+  assert.equal(enq.status, 200);
+  const enqJson = JSON.parse(enq.body);
+  assert.equal(enqJson.ok, true);
+  assert.ok(enqJson.job && enqJson.job.id);
+  const jobId = enqJson.job.id;
+
+  await waitFor(async () => {
+    const s = await run(handler, { method: "GET", url: "/embed/jobs?token=t" });
+    const j = JSON.parse(s.body);
+    return (
+      (j.active && j.active.id === jobId && (j.active.status === "running" || j.active.status === "queued")) ||
+      Array.isArray(j.history) && j.history.some((x) => x.id === jobId)
+    );
+  });
+
+  const one = await run(handler, { method: "GET", url: `/embed/jobs/${encodeURIComponent(jobId)}?token=t` });
+  assert.equal(one.status, 200);
+  assert.ok(one.body.includes(jobId));
+
+  const missingCancel = await run(handler, { method: "POST", url: "/embed/jobs/does-not-exist/cancel?token=t", bodyObj: {} });
+  assert.equal(missingCancel.status, 404);
 });
 
 test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWrite + token)", async () => {

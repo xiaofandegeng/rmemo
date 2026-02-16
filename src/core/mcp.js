@@ -27,6 +27,7 @@ import { generateFocus } from "./focus.js";
 import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
+import { createEmbedJobsController } from "./embed_jobs.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -326,6 +327,11 @@ function toolsList() {
         recentDays: { type: "number" }
       },
       additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs", "List embeddings background jobs in this MCP process (active/queued/history).", {
+      type: "object",
+      properties: {},
+      additionalProperties: false
     })
   ];
 
@@ -389,6 +395,31 @@ function toolsListWithWrite({ allowWrite } = {}) {
       properties: { root: rootProp },
       additionalProperties: false
     }),
+    tool("rmemo_embed_job_enqueue", "Enqueue an embeddings build job (async background in this MCP process).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        provider: { type: "string", enum: ["mock", "openai"] },
+        model: { type: "string" },
+        apiKey: { type: "string" },
+        dim: { type: "number" },
+        parallelism: { type: "number" },
+        batchDelayMs: { type: "number" },
+        kinds: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
+          description: "Comma-separated or array: rules,todos,context,journal,sessions,handoff,pr"
+        },
+        recentDays: { type: "number" },
+        force: { type: "boolean", default: false }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_job_cancel", "Cancel a queued/running embeddings job by id.", {
+      type: "object",
+      properties: { jobId: { type: "string" } },
+      required: ["jobId"],
+      additionalProperties: false
+    }),
     tool("rmemo_embed_build", "Build embeddings index now (uses config if enabled, unless overridden).", {
       type: "object",
       properties: {
@@ -416,7 +447,7 @@ function toolsListWithWrite({ allowWrite } = {}) {
   ]);
 }
 
-async function handleToolCall(serverRoot, name, args, logger, { allowWrite } = {}) {
+async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embedJobs } = {}) {
   const root = args?.root ? path.resolve(String(args.root)) : serverRoot;
 
   const requireWrite = () => {
@@ -635,6 +666,39 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite } = {
     return JSON.stringify({ ok: true, result: { meta: built.meta } }, null, 2);
   }
 
+  if (name === "rmemo_embed_job_enqueue") {
+    requireWrite();
+    const params = {};
+    if (args?.provider !== undefined) params.provider = String(args.provider);
+    if (args?.model !== undefined) params.model = String(args.model);
+    if (args?.apiKey !== undefined) params.apiKey = String(args.apiKey);
+    if (args?.dim !== undefined) params.dim = Number(args.dim);
+    if (args?.parallelism !== undefined) params.parallelism = Number(args.parallelism);
+    if (args?.batchDelayMs !== undefined) params.batchDelayMs = Number(args.batchDelayMs);
+    if (args?.kinds !== undefined) {
+      const kinds = parseKindsList(args.kinds);
+      if (!kinds.length) throw new Error("kinds must be a non-empty list/string when provided");
+      params.kinds = kinds;
+    }
+    if (args?.recentDays !== undefined) params.recentDays = Number(args.recentDays);
+    if (args?.force !== undefined) params.force = !!args.force;
+    const job = embedJobs?.enqueue?.(params, { trigger: "mcp", reason: "tool" });
+    return JSON.stringify({ ok: true, job }, null, 2);
+  }
+
+  if (name === "rmemo_embed_job_cancel") {
+    requireWrite();
+    const jobId = String(args?.jobId || "").trim();
+    if (!jobId) throw new Error("Missing jobId");
+    const r = embedJobs?.cancel?.(jobId) || { ok: false, error: "job_not_found" };
+    return JSON.stringify({ ok: !!r.ok, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_embed_jobs") {
+    const s = embedJobs?.status?.() || { schema: 1, generatedAt: new Date().toISOString(), active: null, queued: [], history: [] };
+    return JSON.stringify(s, null, 2);
+  }
+
   logger.warn(`Unknown tool call: ${name}`);
   throw new Error(`Unknown tool: ${name}`);
 }
@@ -647,6 +711,7 @@ export async function startMcpServer({ root, logLevel = "info", allowWrite = fal
 
   let inited = false;
   const tools = toolsListWithWrite({ allowWrite });
+  const embedJobs = createEmbedJobsController(serverRoot, { maxHistory: 40 });
 
   let buf = "";
   process.stdin.setEncoding("utf8");
@@ -699,7 +764,7 @@ export async function startMcpServer({ root, logLevel = "info", allowWrite = fal
             const name = params?.name;
             const args = params?.arguments || {};
             if (!name || typeof name !== "string") throw new Error("Missing tool name");
-            const out = await handleToolCall(serverRoot, name, args, logger, { allowWrite });
+            const out = await handleToolCall(serverRoot, name, args, logger, { allowWrite, embedJobs });
             reply(id, { content: [{ type: "text", text: out }] });
             return;
           }

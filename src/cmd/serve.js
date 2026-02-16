@@ -74,6 +74,7 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /diagnostics/export?format=json|md\n`);
   process.stdout.write(`- GET /embed/status?format=json|md\n`);
   process.stdout.write(`- GET /embed/plan?format=json|md&provider=mock&parallelism=4\n`);
+  process.stdout.write(`- GET /embed/jobs, /embed/jobs/:id\n`);
   process.stdout.write(`- GET /watch\n`);
   process.stdout.write(`- GET /status?format=json|md\n`);
   process.stdout.write(`- GET /context\n`);
@@ -95,6 +96,8 @@ export async function cmdServe({ flags }) {
     process.stdout.write(`- POST /sync\n`);
     process.stdout.write(`- POST /embed/auto\n`);
     process.stdout.write(`- POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}\n`);
+    process.stdout.write(`- POST /embed/jobs {provider?,model?,dim?,parallelism?,batchDelayMs?,...}\n`);
+    process.stdout.write(`- POST /embed/jobs/:id/cancel\n`);
   }
   if (allowShutdown) process.stdout.write(`- POST /shutdown\n`);
 

@@ -214,6 +214,7 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /diagnostics/export?format=json|md`（一键导出 status+watch+events 诊断包）
 - `GET /embed/status?format=json|md`（embeddings 健康/状态）
 - `GET /embed/plan?format=json|md`（构建前预演：复用/重算哪些文件）
+- `GET /embed/jobs`、`GET /embed/jobs/:id`（后台 embeddings 任务）
 - `GET /watch`（watch 运行状态）
 - `GET /status?format=json`
 - `GET /context`
@@ -247,6 +248,8 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 - `POST /embed/auto`
 - `POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}`
   - 会推送 SSE 事件：`embed:build:start`、`embed:build:progress`、`embed:build:ok`、`embed:build:err`
+- `POST /embed/jobs {provider?,model?,dim?,parallelism?,batchDelayMs?,...}`（异步排队构建）
+- `POST /embed/jobs/:id/cancel`
 
 ## MCP Server（stdio）
 
@@ -271,6 +274,11 @@ rmemo mcp --root . --allow-write
 - `rmemo_sync`
 - `rmemo_embed_auto`
 - `rmemo_embed_build`
+- `rmemo_embed_job_enqueue`
+- `rmemo_embed_job_cancel`
+
+读取 tool：
+- `rmemo_embed_jobs`
 
 ## 集成（MCP 配置片段）
 
