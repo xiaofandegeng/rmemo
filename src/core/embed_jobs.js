@@ -859,6 +859,109 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     };
   }
 
+  function scoreGovernanceReplay({ report, candidateConfig, prediction }) {
+    const m = report?.metrics || {};
+    const by = m.errorClassCounts || {};
+    const failureRate = Number(m.failureRate || 0);
+    const reliability = 100 * (1 - failureRate);
+    const penalty =
+      Number(by.rate_limit || 0) * 8 +
+      Number(by.auth || 0) * 10 +
+      Number(by.config || 0) * 9 +
+      Number(by.network || 0) * 6 +
+      Number(by.runtime || 0) * 4;
+    const throughput = Math.max(0, Number(candidateConfig.maxConcurrent || 1) - 1) * 4;
+    let templateBias = 0;
+    if (candidateConfig.retryTemplate === "conservative") templateBias = failureRate <= 0.2 ? -2 : 3;
+    if (candidateConfig.retryTemplate === "aggressive") templateBias = failureRate <= 0.2 ? 3 : -9;
+    const actionBonus = prediction?.wouldApply ? 2 : 0;
+    const score = reliability - penalty + throughput + templateBias + actionBonus;
+    return { score, reliability, penalty, throughput, templateBias, actionBonus };
+  }
+
+  function benchmarkGovernance({
+    candidates = [],
+    windowSizes = [],
+    mode = "apply_top",
+    assumeNoCooldown = true
+  } = {}) {
+    const baseWindows = Array.isArray(windowSizes) && windowSizes.length ? windowSizes : [10, 20, 30];
+    const ws = baseWindows
+      .map((x) => Number(x))
+      .filter((x) => Number.isFinite(x) && x >= 5 && x <= 200)
+      .map((x) => Math.floor(x));
+    const defaultCandidates = [
+      { name: "safe-conservative", patch: { maxConcurrent: 1, retryTemplate: "conservative", governanceWindow: 20 } },
+      { name: "balanced-default", patch: { maxConcurrent: 2, retryTemplate: "balanced", governanceWindow: 20 } },
+      { name: "throughput-aggressive", patch: { maxConcurrent: 3, retryTemplate: "aggressive", governanceWindow: 20 } }
+    ];
+    const inputCandidates = Array.isArray(candidates) && candidates.length ? candidates : defaultCandidates;
+    const normalized = inputCandidates.map((c, i) => ({
+      name: String(c?.name || `candidate_${i + 1}`),
+      patch: { ...(c?.patch || {}) }
+    }));
+
+    const rows = [];
+    for (const c of normalized) {
+      for (const w of ws) {
+        const patch = { ...c.patch, governanceWindow: w };
+        const sim = simulateGovernance({
+          configPatch: patch,
+          mode,
+          assumeNoCooldown
+        });
+        const report = sim.report || {};
+        const candidateConfig = sim.simulatedConfig || {};
+        const sc = scoreGovernanceReplay({
+          report,
+          candidateConfig,
+          prediction: sim.prediction
+        });
+        rows.push({
+          candidate: c.name,
+          window: w,
+          score: Number(sc.score.toFixed(3)),
+          scoreBreakdown: sc,
+          simulatedConfig: candidateConfig,
+          metrics: report.metrics || {},
+          topRecommendation: sim.prediction?.topRecommendation || null,
+          prediction: sim.prediction || null
+        });
+      }
+    }
+    const grouped = new Map();
+    for (const r of rows) {
+      const old = grouped.get(r.candidate) || { candidate: r.candidate, runs: [], meanScore: 0, minScore: Number.POSITIVE_INFINITY, maxScore: Number.NEGATIVE_INFINITY };
+      old.runs.push(r);
+      old.meanScore = old.runs.reduce((s, x) => s + Number(x.score || 0), 0) / old.runs.length;
+      old.minScore = Math.min(old.minScore, Number(r.score || 0));
+      old.maxScore = Math.max(old.maxScore, Number(r.score || 0));
+      grouped.set(r.candidate, old);
+    }
+    const ranking = Array.from(grouped.values())
+      .map((x) => ({ ...x, meanScore: Number(x.meanScore.toFixed(3)), minScore: Number(x.minScore.toFixed(3)), maxScore: Number(x.maxScore.toFixed(3)) }))
+      .sort((a, b) => Number(b.meanScore) - Number(a.meanScore));
+    const best = ranking[0] || null;
+    return {
+      ok: true,
+      schema: 1,
+      generatedAt: now(),
+      baselineConfig: policyConfigSnapshot(config),
+      mode,
+      assumeNoCooldown: !!assumeNoCooldown,
+      windows: ws,
+      ranking,
+      rows,
+      recommendation: best
+        ? {
+            candidate: best.candidate,
+            meanScore: best.meanScore,
+            rationale: `best meanScore=${best.meanScore}, range=[${best.minScore}, ${best.maxScore}] over ${best.runs.length} replay windows`
+          }
+        : null
+    };
+  }
+
   // Seed first version snapshot after controller bootstrap.
   maybeCreatePolicyVersion({ source: "init", reason: "initial_policy", changedKeys: Object.keys(policyConfigSnapshot()) });
 
@@ -872,6 +975,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     getFailureClusters,
     getGovernanceReport,
     simulateGovernance,
+    benchmarkGovernance,
     listPolicyVersions,
     retryJob,
     retryFailed,

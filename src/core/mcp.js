@@ -370,6 +370,26 @@ function toolsList() {
         governanceAutoSwitchTemplate: { type: "boolean" }
       },
       additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_governance_benchmark", "Replay benchmark across candidate governance policies and windows.", {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["recommend", "apply_top"], default: "apply_top" },
+        assumeNoCooldown: { type: "boolean", default: true },
+        windowSizes: { type: "array", items: { type: "number" } },
+        candidates: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              patch: { type: "object" }
+            },
+            additionalProperties: true
+          }
+        }
+      },
+      additionalProperties: false
     })
   ];
 
@@ -858,6 +878,20 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const r = embedJobs?.simulateGovernance?.({
       configPatch,
       mode: args?.mode !== undefined ? String(args.mode) : "recommend",
+      assumeNoCooldown: args?.assumeNoCooldown !== undefined ? !!args.assumeNoCooldown : true
+    }) || { ok: false, error: "governance_not_available" };
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_embed_jobs_governance_benchmark") {
+    const candidates = Array.isArray(args?.candidates)
+      ? args.candidates.map((x, i) => ({ name: String(x?.name || `candidate_${i + 1}`), patch: { ...(x?.patch || {}) } }))
+      : undefined;
+    const windowSizes = Array.isArray(args?.windowSizes) ? args.windowSizes.map((x) => Number(x)) : undefined;
+    const r = embedJobs?.benchmarkGovernance?.({
+      candidates,
+      windowSizes,
+      mode: args?.mode !== undefined ? String(args.mode) : "apply_top",
       assumeNoCooldown: args?.assumeNoCooldown !== undefined ? !!args.assumeNoCooldown : true
     }) || { ok: false, error: "governance_not_available" };
     return JSON.stringify({ ok: true, result: r }, null, 2);

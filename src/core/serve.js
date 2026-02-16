@@ -871,6 +871,29 @@ export function createServeHandler(root, opts = {}) {
         }
       }
 
+      if (req.method === "POST" && url.pathname === "/embed/jobs/governance/benchmark") {
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        try {
+          const candidates = Array.isArray(body.candidates)
+            ? body.candidates.map((x, i) => ({
+                name: String(x?.name || `candidate_${i + 1}`),
+                patch: { ...(x?.patch || {}) }
+              }))
+            : undefined;
+          const windowSizes = Array.isArray(body.windowSizes) ? body.windowSizes.map((x) => Number(x)) : undefined;
+          const r = embedJobs?.benchmarkGovernance?.({
+            candidates,
+            windowSizes,
+            mode: body.mode !== undefined ? String(body.mode) : "apply_top",
+            assumeNoCooldown: body.assumeNoCooldown !== undefined ? !!body.assumeNoCooldown : true
+          });
+          return json(res, 200, { ok: true, result: r || null });
+        } catch (e) {
+          return badRequest(res, e?.message || String(e));
+        }
+      }
+
       if (req.method === "POST" && url.pathname === "/embed/jobs/governance/rollback") {
         if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
         const body = await readBodyJsonOr400(req, res);

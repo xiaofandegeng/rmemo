@@ -305,6 +305,12 @@ Done:
     - UI simulation controls:
       - mode selector
       - one-click dry-run output panel
+  - Task governance v6 (strategy benchmark replay):
+    - Benchmark API: `POST /embed/jobs/governance/benchmark`
+    - Replay multiple candidate policies across multiple governance windows
+    - Produce score ranking + recommendation (with rationale)
+    - MCP benchmark tool: `rmemo_embed_jobs_governance_benchmark`
+    - UI benchmark controls and result panel
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

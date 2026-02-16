@@ -452,6 +452,22 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
   assert.ok(govSim.body.includes("\"prediction\""));
   assert.ok(govSim.body.includes("\"simulatedConfig\""));
 
+  const govBenchmark = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs/governance/benchmark?token=t",
+    bodyObj: {
+      mode: "apply_top",
+      windowSizes: [10, 20],
+      candidates: [
+        { name: "safe", patch: { maxConcurrent: 1, retryTemplate: "conservative" } },
+        { name: "balanced", patch: { maxConcurrent: 2, retryTemplate: "balanced" } }
+      ]
+    }
+  });
+  assert.equal(govBenchmark.status, 200);
+  assert.ok(govBenchmark.body.includes("\"ranking\""));
+  assert.ok(govBenchmark.body.includes("\"recommendation\""));
+
   const rollback = await run(handler, {
     method: "POST",
     url: "/embed/jobs/governance/rollback?token=t",

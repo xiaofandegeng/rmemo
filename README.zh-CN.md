@@ -261,6 +261,7 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 - `POST /embed/jobs/governance/config {governanceEnabled?,governanceWindow?,governanceFailureRateHigh?,...}`（设置自动治理策略）
 - `POST /embed/jobs/governance/apply`（立即应用当前最佳治理建议）
 - `POST /embed/jobs/governance/simulate`（治理策略 dry-run / 影响预估）
+- `POST /embed/jobs/governance/benchmark`（多策略回放基准测试与排序）
 - `POST /embed/jobs/governance/rollback {versionId}`（按版本回滚治理策略）
 
 ## MCP Server（stdio）
@@ -301,6 +302,7 @@ rmemo mcp --root . --allow-write
 - `rmemo_embed_jobs_governance`
 - `rmemo_embed_jobs_governance_history`
 - `rmemo_embed_jobs_governance_simulate`
+- `rmemo_embed_jobs_governance_benchmark`
 
 ## 集成（MCP 配置片段）
 

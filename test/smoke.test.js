@@ -1317,10 +1317,19 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
         arguments: { mode: "apply_top", governanceEnabled: true, governanceWindow: 10, governanceFailureRateHigh: 0.3, retryTemplate: "balanced" }
       }
     });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 15,
+      method: "tools/call",
+      params: {
+        name: "rmemo_embed_jobs_governance_benchmark",
+        arguments: { mode: "apply_top", windowSizes: [10, 20] }
+      }
+    });
 
     await waitFor(() => {
       const lines = parseJsonLines(mcp.getOut());
-      return lines.some((x) => x.id === 14) ? true : false;
+      return lines.some((x) => x.id === 15) ? true : false;
     });
 
     const lines = parseJsonLines(mcp.getOut());
@@ -1338,6 +1347,7 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_history"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_rollback"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_simulate"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_benchmark"));
 
     const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
     assert.ok(todosMd.includes("Add MCP write tools"));
@@ -1415,6 +1425,13 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.ok(govSimJson.result);
     assert.ok(govSimJson.result.prediction);
     assert.ok(govSimJson.result.simulatedConfig);
+
+    const govBench = lines.find((x) => x.id === 15);
+    const govBenchJson = JSON.parse(govBench.result.content[0].text);
+    assert.equal(govBenchJson.ok, true);
+    assert.ok(govBenchJson.result);
+    assert.ok(Array.isArray(govBenchJson.result.ranking));
+    assert.ok(govBenchJson.result.recommendation);
   } finally {
     mcp.closeIn();
     try {
