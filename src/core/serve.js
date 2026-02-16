@@ -807,6 +807,12 @@ export function createServeHandler(root, opts = {}) {
         return json(res, 200, { ok: true, report });
       }
 
+      if (req.method === "GET" && url.pathname === "/embed/jobs/governance/history") {
+        const limit = url.searchParams.get("limit") !== null ? Number(url.searchParams.get("limit")) : 20;
+        const versions = embedJobs?.listPolicyVersions?.({ limit }) || [];
+        return json(res, 200, { ok: true, schema: 1, generatedAt: new Date().toISOString(), versions });
+      }
+
       if (req.method === "POST" && url.pathname === "/embed/jobs/governance/config") {
         if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
         const body = await readBodyJsonOr400(req, res);
@@ -835,6 +841,17 @@ export function createServeHandler(root, opts = {}) {
         const source = body.source !== undefined ? String(body.source) : "api";
         const r = embedJobs?.applyTopGovernanceRecommendation?.({ source }) || { ok: false, error: "governance_not_available" };
         if (!r.ok) return badRequest(res, r.error || "no governance recommendation");
+        return json(res, 200, { ok: true, result: r });
+      }
+
+      if (req.method === "POST" && url.pathname === "/embed/jobs/governance/rollback") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const versionId = body.versionId !== undefined ? String(body.versionId) : "";
+        const source = body.source !== undefined ? String(body.source) : "api";
+        const r = embedJobs?.rollbackPolicyVersion?.(versionId, { source }) || { ok: false, error: "governance_not_available" };
+        if (!r.ok) return badRequest(res, r.error || "rollback failed");
         return json(res, 200, { ok: true, result: r });
       }
 

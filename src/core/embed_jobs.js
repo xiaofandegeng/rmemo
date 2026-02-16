@@ -52,7 +52,9 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     lastEvaluatedAt: null,
     lastActionAt: null,
     lastAction: null,
-    history: []
+    history: [],
+    policySeq: 0,
+    policyVersions: []
   };
   const stats = {
     queued: 0,
@@ -234,6 +236,52 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     };
   }
 
+  function policyConfigSnapshot() {
+    return {
+      maxConcurrent: config.maxConcurrent,
+      retryTemplate: config.retryTemplate,
+      defaultPriority: config.defaultPriority,
+      governanceEnabled: config.governanceEnabled,
+      governanceWindow: config.governanceWindow,
+      governanceMinSample: config.governanceMinSample,
+      governanceFailureRateHigh: config.governanceFailureRateHigh,
+      governanceCooldownMs: config.governanceCooldownMs,
+      governanceAutoScaleConcurrency: config.governanceAutoScaleConcurrency,
+      governanceAutoSwitchTemplate: config.governanceAutoSwitchTemplate
+    };
+  }
+
+  function maybeCreatePolicyVersion({ source = "system", reason = "", changedKeys = [] } = {}) {
+    const cur = policyConfigSnapshot();
+    const curStr = JSON.stringify(cur);
+    const last = governance.policyVersions[0];
+    const lastStr = last ? JSON.stringify(last.config || {}) : "";
+    if (last && lastStr === curStr) return null;
+    const v = {
+      id: `gv_${Date.now()}_${++governance.policySeq}`,
+      at: now(),
+      source: String(source || "system"),
+      reason: String(reason || ""),
+      changedKeys: Array.isArray(changedKeys) ? changedKeys.slice(0, 30) : [],
+      config: cur
+    };
+    governance.policyVersions.unshift(v);
+    while (governance.policyVersions.length > 80) governance.policyVersions.pop();
+    events?.emit?.({
+      type: "embed:jobs:governance:versioned",
+      versionId: v.id,
+      source: v.source,
+      reason: v.reason,
+      changedKeys: v.changedKeys
+    });
+    return v;
+  }
+
+  function listPolicyVersions({ limit = 20 } = {}) {
+    const cap = Math.max(1, Math.min(200, Number(limit || 20)));
+    return governance.policyVersions.slice(0, cap);
+  }
+
   function pushGovernanceAction(action) {
     governance.lastActionAt = action.at;
     governance.lastAction = action;
@@ -340,7 +388,8 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
         lastEvaluatedAt: governance.lastEvaluatedAt,
         lastActionAt: governance.lastActionAt,
         lastAction: governance.lastAction,
-        recentActions: governance.history.slice(0, 10)
+        recentActions: governance.history.slice(0, 10),
+        recentPolicyVersions: governance.policyVersions.slice(0, 10)
       },
       metrics: {
         sample,
@@ -363,7 +412,7 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     if (config.governanceAutoSwitchTemplate && rec.action.retryTemplate !== undefined) patch.retryTemplate = rec.action.retryTemplate;
     if (!Object.keys(patch).length) return { ok: false, error: "no_effective_action" };
     const before = { maxConcurrent: config.maxConcurrent, retryTemplate: config.retryTemplate };
-    const after = setConfig(patch);
+    const after = setConfig(patch, { source: `governance:${source}`, reason: rec.code || "governance_action" });
     const action = {
       at: now(),
       source,
@@ -604,7 +653,8 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     return { ok: false, id: jobId, error: "job_not_found" };
   }
 
-  function setConfig(partial = {}) {
+  function setConfig(partial = {}, meta = {}) {
+    const before = { ...config };
     if (partial.maxConcurrent !== undefined) {
       const n = Number(partial.maxConcurrent);
       if (!Number.isFinite(n) || n < 1 || n > 8) {
@@ -644,6 +694,10 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     }
     if (partial.governanceAutoScaleConcurrency !== undefined) config.governanceAutoScaleConcurrency = !!partial.governanceAutoScaleConcurrency;
     if (partial.governanceAutoSwitchTemplate !== undefined) config.governanceAutoSwitchTemplate = !!partial.governanceAutoSwitchTemplate;
+    const changedKeys = Object.keys(config).filter((k) => config[k] !== before[k]);
+    const source = meta?.source || "manual";
+    const reason = meta?.reason || "";
+    if (changedKeys.length) maybeCreatePolicyVersion({ source, reason, changedKeys });
     events?.emit?.({ type: "embed:jobs:config", config: { ...config } });
     void runNext();
     return { ...config };
@@ -725,6 +779,25 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     return { ok: true, report, action: r.action };
   }
 
+  function rollbackPolicyVersion(versionId, { source = "manual" } = {}) {
+    const id = String(versionId || "").trim();
+    if (!id) return { ok: false, error: "missing_version_id" };
+    const v = governance.policyVersions.find((x) => x.id === id);
+    if (!v) return { ok: false, error: "version_not_found", versionId: id };
+    const cfg = setConfig({ ...(v.config || {}) }, { source: `rollback:${source}`, reason: `rollback:${id}` });
+    const action = {
+      at: now(),
+      source: `rollback:${source}`,
+      versionId: id,
+      toConfig: policyConfigSnapshot()
+    };
+    events?.emit?.({ type: "embed:jobs:governance:rollback", ...action });
+    return { ok: true, versionId: id, config: cfg, action };
+  }
+
+  // Seed first version snapshot after controller bootstrap.
+  maybeCreatePolicyVersion({ source: "init", reason: "initial_policy", changedKeys: Object.keys(policyConfigSnapshot()) });
+
   return {
     enqueue,
     status: snapshot,
@@ -734,9 +807,11 @@ export function createEmbedJobsController(root, { events, maxHistory = 50 } = {}
     getConfig,
     getFailureClusters,
     getGovernanceReport,
+    listPolicyVersions,
     retryJob,
     retryFailed,
     applyTopGovernanceRecommendation,
+    rollbackPolicyVersion,
     retryTemplates: () => ({ ...RETRY_TEMPLATES })
   };
 }

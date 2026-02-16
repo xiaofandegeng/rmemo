@@ -345,6 +345,13 @@ function toolsList() {
       type: "object",
       properties: {},
       additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_governance_history", "List governance policy versions for embed jobs.", {
+      type: "object",
+      properties: {
+        limit: { type: "number", default: 20 }
+      },
+      additionalProperties: false
     })
   ];
 
@@ -515,6 +522,15 @@ function toolsListWithWrite({ allowWrite } = {}) {
       properties: {
         source: { type: "string", default: "mcp" }
       },
+      additionalProperties: false
+    }),
+    tool("rmemo_embed_jobs_governance_rollback", "Rollback governance policy by version id.", {
+      type: "object",
+      properties: {
+        versionId: { type: "string" },
+        source: { type: "string", default: "mcp" }
+      },
+      required: ["versionId"],
       additionalProperties: false
     })
   ]);
@@ -802,6 +818,12 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     return JSON.stringify({ ok: true, report }, null, 2);
   }
 
+  if (name === "rmemo_embed_jobs_governance_history") {
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const versions = embedJobs?.listPolicyVersions?.({ limit }) || [];
+    return JSON.stringify({ ok: true, schema: 1, generatedAt: new Date().toISOString(), versions }, null, 2);
+  }
+
   if (name === "rmemo_embed_jobs_config") {
     const action = String(args?.action || "get").toLowerCase();
     if (action === "get") {
@@ -869,6 +891,16 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const source = args?.source !== undefined ? String(args.source) : "mcp";
     const r = embedJobs?.applyTopGovernanceRecommendation?.({ source }) || { ok: false, error: "governance_not_available" };
     if (!r.ok) throw new Error(r.error || "no recommendation");
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_embed_jobs_governance_rollback") {
+    requireWrite();
+    const versionId = String(args?.versionId || "").trim();
+    if (!versionId) throw new Error("Missing versionId");
+    const source = args?.source !== undefined ? String(args.source) : "mcp";
+    const r = embedJobs?.rollbackPolicyVersion?.(versionId, { source }) || { ok: false, error: "governance_not_available" };
+    if (!r.ok) throw new Error(r.error || "rollback failed");
     return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 

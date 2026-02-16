@@ -217,6 +217,7 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /embed/jobs`、`GET /embed/jobs/:id`（后台 embeddings 任务）
 - `GET /embed/jobs/failures?limit=20&errorClass=config`（失败任务聚类，便于治理）
 - `GET /embed/jobs/governance`（健康度指标 + 治理建议）
+- `GET /embed/jobs/governance/history?limit=20`（治理策略版本历史）
 - `GET /embed/jobs/config`（任务调度配置）
 - `GET /watch`（watch 运行状态）
 - `GET /status?format=json`
@@ -259,6 +260,7 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 - `POST /embed/jobs/retry-failed {limit?,errorClass?,clusterKey?,priority?,retryTemplate?}`（批量重试失败任务）
 - `POST /embed/jobs/governance/config {governanceEnabled?,governanceWindow?,governanceFailureRateHigh?,...}`（设置自动治理策略）
 - `POST /embed/jobs/governance/apply`（立即应用当前最佳治理建议）
+- `POST /embed/jobs/governance/rollback {versionId}`（按版本回滚治理策略）
 
 ## MCP Server（stdio）
 
@@ -290,11 +292,13 @@ rmemo mcp --root . --allow-write
 - `rmemo_embed_jobs_retry_failed`
 - `rmemo_embed_jobs_governance_config`
 - `rmemo_embed_jobs_governance_apply`
+- `rmemo_embed_jobs_governance_rollback`
 
 读取 tool：
 - `rmemo_embed_jobs`
 - `rmemo_embed_jobs_failures`
 - `rmemo_embed_jobs_governance`
+- `rmemo_embed_jobs_governance_history`
 
 ## 集成（MCP 配置片段）
 

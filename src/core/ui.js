@@ -266,8 +266,14 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                     <input id="govWindow" type="text" placeholder="gov window (jobs)" style="width: 180px;" />
                     <input id="govFailureRateHigh" type="text" placeholder="gov failure threshold (0~1)" style="width: 220px;" />
                     <button class="btn secondary" id="loadEmbedGovernance">Governance</button>
+                    <button class="btn secondary" id="loadEmbedGovernanceHistory">Gov History</button>
                     <button class="btn secondary" id="saveEmbedGovernance">Save Governance</button>
                     <button class="btn secondary" id="applyEmbedGovernance">Apply Top Suggestion</button>
+                  </div>
+                  <div style="height: 8px;"></div>
+                  <div class="row">
+                    <input id="govVersionId" type="text" placeholder="governance version id to rollback" style="min-width: 280px; flex: 1;" />
+                    <button class="btn secondary" id="rollbackEmbedGovernance">Rollback Version</button>
                   </div>
 
                   <div style="height: 10px;"></div>
@@ -748,6 +754,28 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Embed Governance Apply";
       }
 
+      async function loadEmbedGovernanceHistory() {
+        err(""); msg("Loading governance history...");
+        const j = await apiFetch("/embed/jobs/governance/history?limit=40", { accept: "application/json", json: true });
+        const first = j && Array.isArray(j.versions) && j.versions.length ? j.versions[0] : null;
+        if (first && first.id) qs("#govVersionId").value = first.id;
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Governance History";
+      }
+
+      async function rollbackEmbedGovernance() {
+        err(""); msg("Rolling back governance policy...");
+        const versionId = (qs("#govVersionId").value || "").trim();
+        if (!versionId) return msg("Missing governance version id.");
+        const j = await apiPost("/embed/jobs/governance/rollback", { versionId, source: "ui" });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Governance Rollback";
+      }
+
       async function doRefreshRepo() {
         err(""); msg("Refreshing repo memory...");
         const sync = !!qs("#refreshSync").checked;
@@ -851,10 +879,21 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("embed:jobs:governance:action", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:governance:action"); }
           loadEmbedGovernance().catch(() => {});
+          loadEmbedGovernanceHistory().catch(() => {});
           loadEmbedJobsConfig().catch(() => {});
         });
         evt.addEventListener("embed:jobs:governance:skip", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:governance:skip"); }
+        });
+        evt.addEventListener("embed:jobs:governance:versioned", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:governance:versioned"); }
+          loadEmbedGovernanceHistory().catch(() => {});
+        });
+        evt.addEventListener("embed:jobs:governance:rollback", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:governance:rollback"); }
+          loadEmbedGovernance().catch(() => {});
+          loadEmbedGovernanceHistory().catch(() => {});
+          loadEmbedJobsConfig().catch(() => {});
         });
         evt.addEventListener("embed:jobs:config", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "embed:jobs:config"); }
@@ -888,8 +927,10 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadEmbedFailures").addEventListener("click", () => loadEmbedFailures().catch((e) => { err(String(e)); msg(""); }));
       qs("#retryFailedEmbedJobs").addEventListener("click", () => retryFailedEmbedJobs().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadEmbedGovernance").addEventListener("click", () => loadEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadEmbedGovernanceHistory").addEventListener("click", () => loadEmbedGovernanceHistory().catch((e) => { err(String(e)); msg(""); }));
       qs("#saveEmbedGovernance").addEventListener("click", () => saveEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#applyEmbedGovernance").addEventListener("click", () => applyEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
+      qs("#rollbackEmbedGovernance").addEventListener("click", () => rollbackEmbedGovernance().catch((e) => { err(String(e)); msg(""); }));
       qs("#doRefreshRepo").addEventListener("click", () => doRefreshRepo().catch((e) => { err(String(e)); msg(""); }));
       qs("#startEvents").addEventListener("click", () => startEvents());
       qs("#stopEvents").addEventListener("click", () => stopEvents());

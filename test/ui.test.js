@@ -24,6 +24,8 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/embed/jobs/governance"));
   assert.ok(html.includes("/embed/jobs/governance/config"));
   assert.ok(html.includes("/embed/jobs/governance/apply"));
+  assert.ok(html.includes("/embed/jobs/governance/history"));
+  assert.ok(html.includes("/embed/jobs/governance/rollback"));
   assert.ok(html.includes("/embed/jobs/\" + encodeURIComponent(id) + \"/retry"));
   assert.ok(html.includes("embedPriority"));
   assert.ok(html.includes("embedRetryTemplate"));
@@ -36,12 +38,15 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("govEnabled"));
   assert.ok(html.includes("govWindow"));
   assert.ok(html.includes("govFailureRateHigh"));
+  assert.ok(html.includes("govVersionId"));
   assert.ok(html.includes("embed:job:progress"));
   assert.ok(html.includes("embed:job:retry"));
   assert.ok(html.includes("embed:job:requeued"));
   assert.ok(html.includes("embed:jobs:retry-failed"));
   assert.ok(html.includes("embed:jobs:governance:action"));
   assert.ok(html.includes("embed:jobs:governance:skip"));
+  assert.ok(html.includes("embed:jobs:governance:versioned"));
+  assert.ok(html.includes("embed:jobs:governance:rollback"));
   assert.ok(html.includes("embed:jobs:config"));
   assert.ok(html.includes("embed:build:progress"));
   assert.ok(html.includes("/refresh"));

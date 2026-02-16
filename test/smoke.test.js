@@ -1296,10 +1296,22 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       method: "tools/call",
       params: { name: "rmemo_embed_jobs_governance_apply", arguments: { source: "test" } }
     });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 12,
+      method: "tools/call",
+      params: { name: "rmemo_embed_jobs_governance_history", arguments: { limit: 10 } }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 13,
+      method: "tools/call",
+      params: { name: "rmemo_embed_jobs_governance_rollback", arguments: { versionId: "no-such-version", source: "test" } }
+    });
 
     await waitFor(() => {
       const lines = parseJsonLines(mcp.getOut());
-      return lines.some((x) => x.id === 11) ? true : false;
+      return lines.some((x) => x.id === 13) ? true : false;
     });
 
     const lines = parseJsonLines(mcp.getOut());
@@ -1314,6 +1326,8 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_config"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_apply"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_history"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_rollback"));
 
     const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
     assert.ok(todosMd.includes("Add MCP write tools"));
@@ -1371,6 +1385,18 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       const govApplyJson = JSON.parse(govApply.result.content[0].text);
       assert.equal(govApplyJson.ok, true);
       assert.ok(govApplyJson.result);
+    }
+
+    const govHist = lines.find((x) => x.id === 12);
+    const govHistJson = JSON.parse(govHist.result.content[0].text);
+    assert.equal(govHistJson.ok, true);
+    assert.ok(Array.isArray(govHistJson.versions));
+    assert.ok(govHistJson.versions.length >= 1);
+
+    const govRollback = lines.find((x) => x.id === 13);
+    assert.ok(govRollback.error || govRollback.result);
+    if (govRollback.error) {
+      assert.ok(String(govRollback.error.message || "").includes("version_not_found"));
     }
   } finally {
     mcp.closeIn();

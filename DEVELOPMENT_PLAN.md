@@ -284,6 +284,17 @@ Done:
       - `rmemo_embed_jobs_governance`
       - `rmemo_embed_jobs_governance_config`
       - `rmemo_embed_jobs_governance_apply`
+  - Task governance v4 (policy versioning + rollback):
+    - Auto version snapshots whenever governance/scheduler policy changes
+    - Governance history API: `GET /embed/jobs/governance/history`
+    - Governance rollback API: `POST /embed/jobs/governance/rollback`
+    - Governance version events: `embed:jobs:governance:versioned`, `embed:jobs:governance:rollback`
+    - MCP tools:
+      - `rmemo_embed_jobs_governance_history`
+      - `rmemo_embed_jobs_governance_rollback`
+    - UI support:
+      - policy history viewer
+      - rollback by version id
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

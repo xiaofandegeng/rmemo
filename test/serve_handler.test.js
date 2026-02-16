@@ -422,6 +422,13 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
   assert.equal(govSet.status, 200);
   assert.ok(govSet.body.includes("\"governanceEnabled\": true"));
 
+  const govHist = await run(handler, { method: "GET", url: "/embed/jobs/governance/history?token=t&limit=10" });
+  assert.equal(govHist.status, 200);
+  const govHistJson = JSON.parse(govHist.body);
+  assert.equal(govHistJson.ok, true);
+  assert.ok(Array.isArray(govHistJson.versions));
+  assert.ok(govHistJson.versions.length >= 1);
+
   const govApply = await run(handler, {
     method: "POST",
     url: "/embed/jobs/governance/apply?token=t",
@@ -429,6 +436,14 @@ test("serve handler: /embed/jobs enqueue/list/get/cancel", async () => {
   });
   // depending on recommendation availability, may be 200 (applied) or 400 (no recommendation).
   assert.ok(govApply.status === 200 || govApply.status === 400);
+
+  const rollback = await run(handler, {
+    method: "POST",
+    url: "/embed/jobs/governance/rollback?token=t",
+    bodyObj: { versionId: govHistJson.versions[0].id, source: "test" }
+  });
+  assert.equal(rollback.status, 200);
+  assert.ok(rollback.body.includes("\"versionId\""));
 });
 
 test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWrite + token)", async () => {
