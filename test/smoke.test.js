@@ -1295,6 +1295,79 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   }
 });
 
+test("rmemo mcp workspace tools list and focus across subprojects", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-mcp-ws-"));
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "mono", private: true, workspaces: ["apps/*"] }, null, 2) + "\n",
+    "utf8"
+  );
+  const apps = ["apps/a", "apps/b"];
+  for (const d of apps) {
+    const abs = path.join(tmp, d);
+    await fs.mkdir(path.join(abs, ".repo-memory"), { recursive: true });
+    await fs.writeFile(path.join(abs, "package.json"), JSON.stringify({ name: d.replace("/", "-"), private: true }, null, 2) + "\n", "utf8");
+    await fs.writeFile(path.join(abs, ".repo-memory", "rules.md"), "# Rules\n- auth token flow is tracked.\n", "utf8");
+    await fs.writeFile(path.join(abs, ".repo-memory", "todos.md"), "## Next\n- verify auth token flow\n\n## Blockers\n- (none)\n", "utf8");
+  }
+
+  const mcp = startNodeStdio([rmemoBin, "--root", tmp, "--no-git", "mcp"]);
+  try {
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "0" } }
+    });
+    mcp.writeLine({ jsonrpc: "2.0", method: "notifications/initialized", params: {} });
+    mcp.writeLine({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name: "rmemo_ws_list", arguments: { root: tmp, noGit: true } }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: { name: "rmemo_ws_focus", arguments: { root: tmp, q: "auth token flow", mode: "keyword", noGit: true } }
+    });
+
+    await waitFor(() => {
+      const lines = parseJsonLines(mcp.getOut());
+      return lines.some((x) => x.id === 4);
+    });
+
+    const lines = parseJsonLines(mcp.getOut());
+    const list = lines.find((x) => x.id === 2);
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_list"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus"));
+
+    const wsList = lines.find((x) => x.id === 3);
+    const wsListJson = JSON.parse(wsList.result.content[0].text);
+    assert.equal(wsListJson.schema, 1);
+    assert.ok(Array.isArray(wsListJson.subprojects));
+    assert.equal(wsListJson.subprojects.length, 2);
+
+    const wsFocus = lines.find((x) => x.id === 4);
+    const wsFocusJson = JSON.parse(wsFocus.result.content[0].text);
+    assert.equal(wsFocusJson.schema, 1);
+    assert.ok(Array.isArray(wsFocusJson.results));
+    assert.equal(wsFocusJson.results.length, 2);
+    assert.ok(wsFocusJson.results.every((x) => x.ok === true));
+  } finally {
+    mcp.closeIn();
+    try {
+      mcp.p.kill("SIGTERM");
+    } catch {
+      // ignore
+    }
+  }
+});
+
 test("rmemo mcp --allow-write exposes write tools and can update repo memory", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-mcpw-"));

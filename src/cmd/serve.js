@@ -83,6 +83,8 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /journal, /journal/YYYY-MM-DD.md\n`);
   process.stdout.write(`- GET /search?q=... (mode=keyword|semantic)\n`);
   process.stdout.write(`- GET /focus?q=... (mode=semantic|keyword)\n`);
+  process.stdout.write(`- GET /ws/list?only=apps/a,apps/b\n`);
+  process.stdout.write(`- GET /ws/focus?q=... (mode=semantic|keyword&only=...)\n`);
   if (allowRefresh) process.stdout.write(`- GET /handoff?refresh=1, /pr?refresh=1\n`);
   if (allowWrite) {
     process.stdout.write(`- POST /refresh {sync?,embed?}\n`);

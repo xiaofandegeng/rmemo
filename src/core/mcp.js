@@ -28,6 +28,7 @@ import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
+import { batchWorkspaceFocus, listWorkspaces } from "./workspaces.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -299,6 +300,40 @@ function toolsList() {
         maxHits: { type: "number", default: 50 },
         recentDays: { type: "number", default: 14 },
         includeStatus: { type: "boolean", default: true }
+      },
+      required: ["q"],
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_list", "List detected monorepo subprojects from root manifest scan.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        noGit: { type: "boolean", default: false },
+        maxFiles: { type: "number", default: 4000 },
+        only: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
+          description: "Optional subset of subproject dirs."
+        }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus", "Run focus query across all detected subprojects and return aggregated results.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        q: { type: "string" },
+        mode: { type: "string", enum: ["semantic", "keyword"], default: "semantic" },
+        k: { type: "number", default: 8 },
+        minScore: { type: "number", default: 0.15 },
+        maxHits: { type: "number", default: 50 },
+        recentDays: { type: "number", default: 14 },
+        includeStatus: { type: "boolean", default: false },
+        noGit: { type: "boolean", default: false },
+        maxFiles: { type: "number", default: 4000 },
+        only: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
+          description: "Optional subset of subproject dirs."
+        }
       },
       required: ["q"],
       additionalProperties: false
@@ -720,6 +755,33 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
 
     const r = await generateFocus(root, { q, mode, format, k, minScore, maxHits, recentDays, includeStatus });
     return format === "json" ? JSON.stringify(r.json, null, 2) : r.markdown;
+  }
+
+  if (name === "rmemo_ws_list") {
+    const r = await listWorkspaces(root, {
+      preferGit: args?.noGit ? false : true,
+      maxFiles: Number(args?.maxFiles || 4000),
+      onlyDirs: args?.only
+    });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus") {
+    const q = String(args?.q || "").trim();
+    if (!q) throw new Error("Missing q");
+    const r = await batchWorkspaceFocus(root, {
+      q,
+      mode: args?.mode !== undefined ? String(args.mode) : "semantic",
+      k: args?.k !== undefined ? Number(args.k) : 8,
+      minScore: args?.minScore !== undefined ? Number(args.minScore) : 0.15,
+      maxHits: args?.maxHits !== undefined ? Number(args.maxHits) : 50,
+      recentDays: args?.recentDays !== undefined ? Number(args.recentDays) : 14,
+      includeStatus: args?.includeStatus !== undefined ? !!args.includeStatus : false,
+      preferGit: args?.noGit ? false : true,
+      maxFiles: Number(args?.maxFiles || 4000),
+      onlyDirs: args?.only
+    });
+    return JSON.stringify(r, null, 2);
   }
 
   if (name === "rmemo_embed_status") {

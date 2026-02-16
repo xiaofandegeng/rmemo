@@ -333,6 +333,15 @@ Done:
   - Support `--mode semantic|keyword` and `--format md|json`
   - Batch output includes per-workspace hit count + top hit summary
   - Persist batch summary to `.repo-memory/ws.md` for next-day handoff context
+- Workspace intelligence v3 (serve + MCP aggregation APIs):
+  - HTTP:
+    - `GET /ws/list` list subprojects (supports `only=...`)
+    - `GET /ws/focus?q=...` aggregate focus results across subprojects
+  - MCP:
+    - `rmemo_ws_list`
+    - `rmemo_ws_focus`
+  - Shared core:
+    - `src/core/workspaces.js` for reusable workspace listing + batch focus
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

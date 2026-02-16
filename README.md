@@ -222,6 +222,8 @@ Then fetch:
 - `GET /todos?format=json`
 - `GET /search?q=...` (keyword search)
 - `GET /search?mode=semantic&q=...` (semantic search; requires `rmemo embed build`)
+- `GET /ws/list?only=apps/a,apps/b` (detected monorepo subprojects)
+- `GET /ws/focus?q=...&mode=semantic|keyword` (cross-workspace aggregated focus results)
 
 Optional: enable write actions (token required):
 
@@ -301,6 +303,8 @@ Read tool:
 - `rmemo_embed_jobs_governance_history`
 - `rmemo_embed_jobs_governance_simulate`
 - `rmemo_embed_jobs_governance_benchmark`
+- `rmemo_ws_list`
+- `rmemo_ws_focus`
 
 ## Integrations (MCP Config Snippets)
 

@@ -226,6 +226,8 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /todos?format=json`
 - `GET /search?q=...`（关键字检索）
 - `GET /search?mode=semantic&q=...`（语义检索；需要先执行 `rmemo embed build`）
+- `GET /ws/list?only=apps/a,apps/b`（列出检测到的 monorepo 子项目）
+- `GET /ws/focus?q=...&mode=semantic|keyword`（跨子项目聚合 focus 检索）
 
 可选：开启写入操作（必须设置 token）：
 
@@ -305,6 +307,8 @@ rmemo mcp --root . --allow-write
 - `rmemo_embed_jobs_governance_history`
 - `rmemo_embed_jobs_governance_simulate`
 - `rmemo_embed_jobs_governance_benchmark`
+- `rmemo_ws_list`
+- `rmemo_ws_focus`
 
 ## 集成（MCP 配置片段）
 

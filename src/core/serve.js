@@ -28,6 +28,7 @@ import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
 import { refreshRepoMemory, watchRepo } from "./watch.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
+import { batchWorkspaceFocus, listWorkspaces } from "./workspaces.js";
 
 function json(res, code, obj) {
   const s = JSON.stringify(obj, null, 2) + "\n";
@@ -1257,6 +1258,42 @@ export function createServeHandler(root, opts = {}) {
         const out = await generateFocus(root, { q, mode, format, k, minScore, maxHits, recentDays, includeStatus });
         if (format === "json") return json(res, 200, out.json);
         return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/list") {
+        const maxFiles = Number(url.searchParams.get("maxFiles") || 4000);
+        const preferGit = url.searchParams.get("noGit") === "1" ? false : true;
+        const onlyDirs = String(url.searchParams.get("only") || "");
+        const out = await listWorkspaces(root, { preferGit, maxFiles, onlyDirs });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus") {
+        const q = String(url.searchParams.get("q") || "").trim();
+        if (!q) return badRequest(res, "Missing q");
+        const mode = String(url.searchParams.get("mode") || "semantic").toLowerCase();
+        if (mode !== "semantic" && mode !== "keyword") return badRequest(res, "mode must be semantic|keyword");
+        const k = Number(url.searchParams.get("k") || 8);
+        const minScore = Number(url.searchParams.get("minScore") || url.searchParams.get("min-score") || 0.15);
+        const maxHits = Number(url.searchParams.get("maxHits") || 50);
+        const recentDays = Number(url.searchParams.get("recentDays") || 14);
+        const includeStatus = url.searchParams.get("includeStatus") === "1";
+        const maxFiles = Number(url.searchParams.get("maxFiles") || 4000);
+        const preferGit = url.searchParams.get("noGit") === "1" ? false : true;
+        const onlyDirs = String(url.searchParams.get("only") || "");
+        const out = await batchWorkspaceFocus(root, {
+          q,
+          mode,
+          k,
+          minScore,
+          maxHits,
+          recentDays,
+          includeStatus,
+          preferGit,
+          maxFiles,
+          onlyDirs
+        });
+        return json(res, 200, out);
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {

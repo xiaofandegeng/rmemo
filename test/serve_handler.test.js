@@ -563,3 +563,43 @@ test("serve handler: POST /watch/start and /watch/stop control watch state", asy
   assert.equal(s2.status, 200);
   assert.ok(s2.body.includes("\"enabled\": false"));
 });
+
+test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-ws-"));
+  await fs.writeFile(
+    path.join(root, "package.json"),
+    JSON.stringify({ name: "mono", private: true, workspaces: ["apps/*"] }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - 'apps/*'\n", "utf8");
+
+  const apps = ["apps/a", "apps/b"];
+  for (const d of apps) {
+    const abs = path.join(root, d);
+    await fs.mkdir(path.join(abs, ".repo-memory"), { recursive: true });
+    await fs.writeFile(path.join(abs, "package.json"), JSON.stringify({ name: d.replace("/", "-"), private: true }, null, 2) + "\n", "utf8");
+    await fs.writeFile(path.join(abs, ".repo-memory", "rules.md"), "# Rules\n- auth token flow is tracked.\n", "utf8");
+    await fs.writeFile(path.join(abs, ".repo-memory", "todos.md"), "## Next\n- verify auth token flow\n\n## Blockers\n- (none)\n", "utf8");
+  }
+
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: false, events: createEventsBus() });
+
+  const ls = await run(handler, { method: "GET", url: "/ws/list?token=t" });
+  assert.equal(ls.status, 200);
+  const lsJson = JSON.parse(ls.body);
+  assert.equal(lsJson.schema, 1);
+  assert.ok(Array.isArray(lsJson.subprojects));
+  assert.equal(lsJson.subprojects.length, 2);
+
+  const focus = await run(handler, {
+    method: "GET",
+    url: "/ws/focus?token=t&q=auth%20token%20flow&mode=keyword&noGit=1&includeStatus=0"
+  });
+  assert.equal(focus.status, 200);
+  const focusJson = JSON.parse(focus.body);
+  assert.equal(focusJson.schema, 1);
+  assert.equal(focusJson.q, "auth token flow");
+  assert.ok(Array.isArray(focusJson.results));
+  assert.equal(focusJson.results.length, 2);
+  assert.ok(focusJson.results.every((x) => x.ok === true));
+});
