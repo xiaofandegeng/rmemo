@@ -344,6 +344,138 @@ export async function embeddingsUpToDate(
   return { ok: true };
 }
 
+export async function planEmbeddingsBuild(
+  root,
+  {
+    provider = "mock",
+    model = "",
+    apiKey = "",
+    dim = 128,
+    kinds = defaultEmbeddingConfig().kinds,
+    recentDays = defaultEmbeddingConfig().recentDays,
+    maxChunksPerFile = defaultEmbeddingConfig().maxChunksPerFile,
+    maxCharsPerChunk = defaultEmbeddingConfig().maxCharsPerChunk,
+    overlapChars = defaultEmbeddingConfig().overlapChars,
+    maxTotalChunks = defaultEmbeddingConfig().maxTotalChunks
+  } = {}
+) {
+  const embedder = createEmbedder({ provider, dim, apiKey, model });
+  const wantConfig = {
+    provider: embedder.provider,
+    model: embedder.model,
+    dim: embedder.provider === "mock" ? Number(embedder.dim) : undefined,
+    kinds,
+    recentDays,
+    maxChunksPerFile,
+    maxCharsPerChunk,
+    overlapChars,
+    maxTotalChunks
+  };
+
+  const [meta, idx] = await Promise.all([loadEmbeddingsMeta(root), loadEmbeddingsIndex(root)]);
+  const hasIndex = !!idx;
+  const hasMeta = !!meta;
+  const canReuse = sameConfig(meta, wantConfig);
+  const prevFiles = idx && idx.files && typeof idx.files === "object" ? idx.files : {};
+  const docs = await buildDocList(root, { kinds, recentDays });
+
+  const docsSet = new Set();
+  for (const d of docs) docsSet.add(fileKey(d.kind, path.relative(root, d.abs).replace(/\\/g, "/")));
+
+  const gitOk = canReuse && (await hasGit()) && (await isGitRepo(root));
+  const curHead = gitOk ? await gitHead(root) : "";
+  const prevHead = gitOk ? String(meta?.gitHead || "") : "";
+  const dirty = gitOk ? await gitStatusChangedFiles(root) : new Set();
+  const changedByCommits =
+    gitOk && prevHead && curHead && prevHead !== curHead ? await gitDiffNameOnly(root, prevHead, curHead, { pathspec: "." }) : new Set();
+
+  const files = [];
+  for (const d of docs) {
+    const fileRel = path.relative(root, d.abs).replace(/\\/g, "/");
+    const fk = fileKey(d.kind, fileRel);
+    // eslint-disable-next-line no-await-in-loop
+    const stamp = await currentFileStamp(d.abs);
+    const prev = prevFiles[fk];
+    let action = "embed";
+    let reason = "new_file";
+    if (!hasIndex || !hasMeta) {
+      action = "embed";
+      reason = "missing_index_or_meta";
+    } else if (!canReuse) {
+      action = "embed";
+      reason = "config_changed";
+    } else if (!prev) {
+      action = "embed";
+      reason = "file_not_indexed";
+    } else if (gitOk && prevHead && curHead) {
+      if (dirty.has(fileRel)) {
+        action = "embed";
+        reason = "file_dirty";
+      } else if (changedByCommits.has(fileRel)) {
+        action = "embed";
+        reason = "file_changed_in_git";
+      } else {
+        action = "reuse";
+        reason = "unchanged";
+      }
+    } else if (
+      stamp &&
+      Number(prev.size) === Number(stamp.size) &&
+      Number(prev.mtimeMs) === Number(stamp.mtimeMs)
+    ) {
+      action = "reuse";
+      reason = "mtime_size_unchanged";
+    } else {
+      action = "embed";
+      reason = "file_changed";
+    }
+
+    files.push({
+      kind: d.kind,
+      file: fileRel,
+      action,
+      reason,
+      indexedChunkIds: Array.isArray(prev?.ids) ? prev.ids.length : 0
+    });
+  }
+
+  const staleIndexedFiles = Object.keys(prevFiles || {}).filter((k) => !docsSet.has(k));
+  files.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
+  const reuseCount = files.filter((f) => f.action === "reuse").length;
+  const embedCount = files.filter((f) => f.action !== "reuse").length;
+  const upToDate = Boolean(
+    hasIndex &&
+      hasMeta &&
+      canReuse &&
+      embedCount === 0 &&
+      staleIndexedFiles.length === 0
+  );
+
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    config: wantConfig,
+    hasIndex,
+    hasMeta,
+    canReuseConfig: canReuse,
+    git: {
+      enabled: gitOk,
+      prevHead: prevHead || null,
+      curHead: curHead || null
+    },
+    summary: {
+      totalFiles: files.length,
+      reuseFiles: reuseCount,
+      embedFiles: embedCount,
+      staleIndexedFiles: staleIndexedFiles.length,
+      upToDate
+    },
+    staleIndexedFiles,
+    files
+  };
+}
+
 export async function buildEmbeddingsIndex(
   root,
   {

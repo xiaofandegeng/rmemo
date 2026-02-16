@@ -222,6 +222,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                     <button class="btn secondary" id="doSync">Sync</button>
                     <button class="btn secondary" id="doEmbedAuto">Embed Auto</button>
                     <button class="btn secondary" id="loadEmbedStatus">Embed Status</button>
+                    <button class="btn secondary" id="loadEmbedPlan">Embed Plan</button>
                     <button class="btn secondary" id="doEmbedBuild">Embed Build</button>
                   </div>
 
@@ -514,6 +515,15 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Embed Status";
       }
 
+      async function loadEmbedPlan() {
+        err(""); msg("Planning embeddings build...");
+        const j = await apiFetch("/embed/plan?format=json", { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Embed Plan";
+      }
+
       async function doEmbedBuild() {
         err(""); msg("Building embeddings...");
         const j = await apiPost("/embed/build", {});
@@ -601,6 +611,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#doSync").addEventListener("click", () => doSync().catch((e) => { err(String(e)); msg(""); }));
       qs("#doEmbedAuto").addEventListener("click", () => doEmbedAuto().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadEmbedStatus").addEventListener("click", () => loadEmbedStatus().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadEmbedPlan").addEventListener("click", () => loadEmbedPlan().catch((e) => { err(String(e)); msg(""); }));
       qs("#doEmbedBuild").addEventListener("click", () => doEmbedBuild().catch((e) => { err(String(e)); msg(""); }));
       qs("#doRefreshRepo").addEventListener("click", () => doRefreshRepo().catch((e) => { err(String(e)); msg(""); }));
       qs("#startEvents").addEventListener("click", () => startEvents());

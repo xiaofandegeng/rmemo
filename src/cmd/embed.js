@@ -1,6 +1,6 @@
 import { resolveRoot } from "../lib/paths.js";
 import { exitWithError } from "../lib/io.js";
-import { buildEmbeddingsIndex, embeddingsUpToDate, semanticSearch } from "../core/embeddings.js";
+import { buildEmbeddingsIndex, embeddingsUpToDate, planEmbeddingsBuild, semanticSearch } from "../core/embeddings.js";
 import { embedAuto } from "../core/embed_auto.js";
 import { getEmbedStatus } from "../core/embed_status.js";
 
@@ -8,6 +8,7 @@ function help() {
   return [
     "Usage:",
     "  rmemo embed build [--provider mock|openai] [--kinds <list>]",
+    "  rmemo embed plan [--provider mock|openai] [--kinds <list>] [--format md|json]",
     "  rmemo embed status [--format md|json]",
     "  rmemo embed auto [--check]",
     "  rmemo embed search <query> [--k <n>] [--min-score <n>] [--format md|json]",
@@ -19,6 +20,7 @@ function help() {
     "Examples:",
     "  rmemo embed build",
     "  rmemo embed build --provider openai --model text-embedding-3-small",
+    "  rmemo embed plan --format json",
     "  rmemo embed status --format json",
     "  rmemo embed auto",
     "  rmemo embed search \"where is auth token validated?\"",
@@ -79,6 +81,40 @@ export async function cmdEmbed({ rest, flags }) {
         `- recentDays: ${r.meta.recentDays}`
       ].join("\n") + "\n"
     );
+    return;
+  }
+
+  if (sub === "plan") {
+    const provider = flags.provider ? String(flags.provider) : "mock";
+    const model = flags.model ? String(flags.model) : "";
+    const apiKey = flags["api-key"] ? String(flags["api-key"]) : "";
+    const dim = flags.dim !== undefined ? Number(flags.dim) : 128;
+    const kinds = parseKinds(flags.kinds) || undefined;
+    const recentDays = flags["recent-days"] !== undefined ? Number(flags["recent-days"]) : undefined;
+    const format = flags.format ? String(flags.format).toLowerCase() : "md";
+    if (format !== "md" && format !== "json") return exitWithError("format must be md|json");
+
+    const r = await planEmbeddingsBuild(root, { provider, model, apiKey, dim, kinds, recentDays });
+    if (format === "json") {
+      process.stdout.write(JSON.stringify(r, null, 2) + "\n");
+      return;
+    }
+    const lines = [];
+    lines.push("# Embeddings Build Plan\n");
+    lines.push(`- root: ${r.root}`);
+    lines.push(`- upToDate: ${r.summary.upToDate ? "yes" : "no"}`);
+    lines.push(`- files: total=${r.summary.totalFiles}, reuse=${r.summary.reuseFiles}, embed=${r.summary.embedFiles}`);
+    lines.push(`- staleIndexedFiles: ${r.summary.staleIndexedFiles}`);
+    if (r.staleIndexedFiles.length) {
+      lines.push("\n## Stale Indexed Files");
+      for (const s of r.staleIndexedFiles) lines.push(`- ${s}`);
+    }
+    lines.push("\n## File Actions");
+    if (!r.files.length) lines.push("- (no files)");
+    for (const f of r.files) {
+      lines.push(`- [${f.action}] ${f.file} (${f.kind}) reason=${f.reason} indexedChunkIds=${f.indexedChunkIds}`);
+    }
+    process.stdout.write(lines.join("\n").trimEnd() + "\n");
     return;
   }
 

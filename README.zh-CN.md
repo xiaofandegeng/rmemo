@@ -213,6 +213,7 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /events/export?format=json|md&limit=200`（导出最近事件）
 - `GET /diagnostics/export?format=json|md`（一键导出 status+watch+events 诊断包）
 - `GET /embed/status?format=json|md`（embeddings 健康/状态）
+- `GET /embed/plan?format=json|md`（构建前预演：复用/重算哪些文件）
 - `GET /watch`（watch 运行状态）
 - `GET /status?format=json`
 - `GET /context`
@@ -254,7 +255,7 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 rmemo mcp --root .
 ```
 
-它会暴露一组 tools（示例）：`rmemo_status`、`rmemo_context`、`rmemo_handoff`、`rmemo_pr`、`rmemo_rules`、`rmemo_todos`、`rmemo_search`、`rmemo_embed_status`。
+它会暴露一组 tools（示例）：`rmemo_status`、`rmemo_context`、`rmemo_handoff`、`rmemo_pr`、`rmemo_rules`、`rmemo_todos`、`rmemo_search`、`rmemo_embed_status`、`rmemo_embed_plan`。
 
 可选：开启写入 tools（出于安全默认关闭）：
 
@@ -304,6 +305,7 @@ rmemo integrate claude-desktop --apply --config /path/to/claude_desktop_config.j
 
 ```bash
 rmemo embed build
+rmemo embed plan --format json
 rmemo embed search "auth token refresh"
 rmemo embed status --format json
 ```

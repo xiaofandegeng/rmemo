@@ -18,7 +18,7 @@ import {
 import { parseTodos } from "./todos.js";
 import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
-import { buildEmbeddingsIndex, defaultEmbeddingConfig, semanticSearch } from "./embeddings.js";
+import { buildEmbeddingsIndex, defaultEmbeddingConfig, planEmbeddingsBuild, semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
 import { renderUiHtml } from "./ui.js";
 import { addTodoBlocker, addTodoNext, removeTodoBlockerByIndex, removeTodoNextByIndex } from "./todos.js";
@@ -721,6 +721,38 @@ export function createServeHandler(root, opts = {}) {
 
         const built = await buildEmbeddingsIndex(root, args);
         return json(res, 200, { ok: true, result: { meta: built.meta } });
+      }
+
+      if (req.method === "GET" && url.pathname === "/embed/plan") {
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const provider = String(url.searchParams.get("provider") || "mock");
+        const model = String(url.searchParams.get("model") || "");
+        const dim = Number(url.searchParams.get("dim") || 128);
+        const recentDays = url.searchParams.get("recentDays") !== null ? Number(url.searchParams.get("recentDays")) : undefined;
+        const kindsRaw = url.searchParams.get("kinds");
+        const kinds = kindsRaw ? parseKindsList(kindsRaw) : undefined;
+
+        const r = await planEmbeddingsBuild(root, { provider, model, dim, kinds, recentDays });
+        if (format === "json") return json(res, 200, r);
+        const lines = [];
+        lines.push("# Embeddings Build Plan");
+        lines.push("");
+        lines.push(`- root: ${r.root}`);
+        lines.push(`- upToDate: ${r.summary.upToDate ? "yes" : "no"}`);
+        lines.push(`- files: total=${r.summary.totalFiles}, reuse=${r.summary.reuseFiles}, embed=${r.summary.embedFiles}`);
+        lines.push(`- staleIndexedFiles: ${r.summary.staleIndexedFiles}`);
+        if (r.staleIndexedFiles.length) {
+          lines.push("");
+          lines.push("## Stale Indexed Files");
+          for (const s of r.staleIndexedFiles) lines.push(`- ${s}`);
+        }
+        lines.push("");
+        lines.push("## File Actions");
+        if (!r.files.length) lines.push("- (no files)");
+        for (const f of r.files) lines.push(`- [${f.action}] ${f.file} (${f.kind}) reason=${f.reason} indexedChunkIds=${f.indexedChunkIds}`);
+        lines.push("");
+        return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
       }
 
       if (req.method === "GET" && url.pathname === "/status") {

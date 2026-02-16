@@ -22,7 +22,7 @@ import { ensureRepoMemory } from "./memory.js";
 import { generateContext } from "./context.js";
 import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
-import { buildEmbeddingsIndex, defaultEmbeddingConfig, semanticSearch } from "./embeddings.js";
+import { buildEmbeddingsIndex, defaultEmbeddingConfig, planEmbeddingsBuild, semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
 import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
@@ -309,6 +309,21 @@ function toolsList() {
         checkUpToDate: { type: "boolean", default: true }
       },
       additionalProperties: false
+    }),
+    tool("rmemo_embed_plan", "Preview which files would be reused vs embedded on the next embeddings build.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        provider: { type: "string", enum: ["mock", "openai"], default: "mock" },
+        model: { type: "string", default: "" },
+        dim: { type: "number", default: 128 },
+        kinds: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
+          description: "Comma-separated or array: rules,todos,context,journal,sessions,handoff,pr"
+        },
+        recentDays: { type: "number" }
+      },
+      additionalProperties: false
     })
   ];
 
@@ -524,6 +539,16 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite } = {
   if (name === "rmemo_embed_status") {
     const checkUpToDate = args?.checkUpToDate !== false;
     const r = await getEmbedStatus(root, { checkUpToDate });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_embed_plan") {
+    const provider = String(args?.provider || "mock");
+    const model = String(args?.model || "");
+    const dim = args?.dim !== undefined ? Number(args.dim) : 128;
+    const kinds = args?.kinds !== undefined ? parseKindsList(args.kinds) : undefined;
+    const recentDays = args?.recentDays !== undefined ? Number(args.recentDays) : undefined;
+    const r = await planEmbeddingsBuild(root, { provider, model, dim, kinds, recentDays });
     return JSON.stringify(r, null, 2);
   }
 

@@ -209,6 +209,7 @@ Then fetch:
 - `GET /events/export?format=json|md&limit=200` (export recent events)
 - `GET /diagnostics/export?format=json|md` (status + watch + events bundle)
 - `GET /embed/status?format=json|md` (embeddings health/status)
+- `GET /embed/plan?format=json|md` (preview reuse/embed actions before build)
 - `GET /watch` (watch runtime status)
 - `GET /status?format=json`
 - `GET /context`
@@ -250,7 +251,7 @@ If your AI tool supports MCP, you can run:
 rmemo mcp --root .
 ```
 
-It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`, `rmemo_embed_status`.
+It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`, `rmemo_embed_status`, `rmemo_embed_plan`.
 
 Optional: enable write tools (safety: disabled by default):
 
@@ -300,6 +301,7 @@ Build a local embeddings index (default: deterministic `mock` provider):
 
 ```bash
 rmemo embed build
+rmemo embed plan --format json
 rmemo embed search "auth token refresh"
 rmemo embed status --format json
 ```

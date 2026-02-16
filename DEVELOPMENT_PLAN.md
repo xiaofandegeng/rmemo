@@ -254,7 +254,9 @@ Done:
 - Add diagnostics bundle export: `GET /diagnostics/export?format=json|md` (status + watch + events).
 - Add embeddings operations surface:
   - `rmemo embed status` (CLI health/status summary)
+  - `rmemo embed plan` (CLI preview of reuse/embed actions)
   - `GET /embed/status?format=json|md`
+  - `GET /embed/plan?format=json|md`
   - `POST /embed/build` (trigger build from config or overrides)
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
@@ -267,6 +269,7 @@ Done:
   - `rmemo_pr` (md/json, supports refresh)
   - `rmemo_search` (keyword search)
   - `rmemo_embed_status` (index/config/up-to-date status)
+  - `rmemo_embed_plan` (preview next build actions)
   - `rmemo_embed_build` (write tool; requires `--allow-write`)
 
 ## v1.9 (Semantic Memory) (Planned)

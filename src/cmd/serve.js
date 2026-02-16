@@ -73,6 +73,7 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /events/export?format=json|md&limit=200\n`);
   process.stdout.write(`- GET /diagnostics/export?format=json|md\n`);
   process.stdout.write(`- GET /embed/status?format=json|md\n`);
+  process.stdout.write(`- GET /embed/plan?format=json|md\n`);
   process.stdout.write(`- GET /watch\n`);
   process.stdout.write(`- GET /status?format=json|md\n`);
   process.stdout.write(`- GET /context\n`);

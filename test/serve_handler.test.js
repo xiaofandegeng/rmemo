@@ -247,7 +247,7 @@ test("serve handler: /diagnostics/export supports json and md", async () => {
   assert.ok(mdDiag.body.includes("## Events"));
 });
 
-test("serve handler: /embed/status and /embed/build work", async () => {
+test("serve handler: /embed/status /embed/plan and /embed/build work", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
   await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
   await fs.mkdir(path.join(root, "src"), { recursive: true });
@@ -257,6 +257,10 @@ test("serve handler: /embed/status and /embed/build work", async () => {
   const s0 = await run(ro, { method: "GET", url: "/embed/status?format=json&token=t" });
   assert.equal(s0.status, 200);
   assert.ok(s0.body.includes("\"status\""));
+
+  const p0 = await run(ro, { method: "GET", url: "/embed/plan?format=json&token=t" });
+  assert.equal(p0.status, 200);
+  assert.ok(p0.body.includes("\"summary\""));
 
   const denied = await run(ro, { method: "POST", url: "/embed/build?token=t", bodyObj: {} });
   assert.equal(denied.status, 400);
@@ -279,6 +283,10 @@ test("serve handler: /embed/status and /embed/build work", async () => {
   const smd = await run(rw, { method: "GET", url: "/embed/status?format=md&token=t" });
   assert.equal(smd.status, 200);
   assert.ok(smd.body.includes("# Embeddings Status"));
+
+  const pmd = await run(rw, { method: "GET", url: "/embed/plan?format=md&token=t" });
+  assert.equal(pmd.status, 200);
+  assert.ok(pmd.body.includes("# Embeddings Build Plan"));
 });
 
 test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWrite + token)", async () => {
