@@ -70,6 +70,7 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /health\n`);
   process.stdout.write(`- GET /ui\n`);
   process.stdout.write(`- GET /events (SSE)\n`);
+  process.stdout.write(`- GET /events/export?format=json|md&limit=200\n`);
   process.stdout.write(`- GET /watch\n`);
   process.stdout.write(`- GET /status?format=json|md\n`);
   process.stdout.write(`- GET /context\n`);

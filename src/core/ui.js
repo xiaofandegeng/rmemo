@@ -142,6 +142,11 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                   <span class="hint" style="margin: 0;">from <span style="font-family: var(--mono)">GET /events</span></span>
                 </div>
                 <div style="height: 8px;"></div>
+                <div class="row">
+                  <button class="btn secondary" id="exportEventsJson">Export JSON</button>
+                  <button class="btn secondary" id="exportEventsMd">Export MD</button>
+                </div>
+                <div style="height: 8px;"></div>
                 <pre id="live" style="max-height: 160px;"></pre>
               </div>
 
@@ -383,6 +388,22 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
           qs("#watchOut").textContent = String(e);
         }
       }
+
+      async function exportEvents(format) {
+        err(""); msg("Exporting events...");
+        const p = "/events/export?format=" + encodeURIComponent(format) + "&limit=200";
+        if (format === "json") {
+          const j = await apiFetch(p, { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        } else {
+          const t = await apiFetch(p, { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        }
+        qs("#title").textContent = "Events Export";
+        msg("OK");
+      }
       async function doSearch() {
         err(""); msg("Searching...");
         const q = (qs("#q").value || "").trim();
@@ -545,6 +566,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#startEvents").addEventListener("click", () => startEvents());
       qs("#stopEvents").addEventListener("click", () => stopEvents());
       qs("#loadWatch").addEventListener("click", () => loadWatch().catch(() => {}));
+      qs("#exportEventsJson").addEventListener("click", () => exportEvents("json").catch((e) => { err(String(e)); msg(""); }));
+      qs("#exportEventsMd").addEventListener("click", () => exportEvents("md").catch((e) => { err(String(e)); msg(""); }));
       qs("#startWatch").addEventListener("click", () => apiPost("/watch/start", {
         intervalMs: Number((qs("#watchInterval").value || "").trim() || 2000),
         sync: !!qs("#watchSync").checked,

@@ -58,6 +58,7 @@ async function computeSignature(root, { preferGit }) {
 }
 
 export async function refreshRepoMemory(root, { preferGit, maxFiles, snipLines, recentDays, sync, embed } = {}) {
+  const t0 = Date.now();
   await ensureRepoMemory(root);
   const { manifest, index } = await scanRepo(root, { maxFiles, preferGit });
   await writeJson(manifestPath(root), manifest);
@@ -66,10 +67,23 @@ export async function refreshRepoMemory(root, { preferGit, maxFiles, snipLines, 
   const ctx = await generateContext(root, { snipLines, recentDays });
   await fs.writeFile(contextPath(root), ctx, "utf8");
 
-  if (sync) await syncAiInstructions({ root });
-  if (embed) await embedAuto(root, { checkOnly: false });
+  const syncResult = sync ? await syncAiInstructions({ root }) : null;
+  const embedResult = embed ? await embedAuto(root, { checkOnly: false }) : null;
 
-  return { schema: 1, generatedAt: nowIso(), root, manifest };
+  return {
+    schema: 1,
+    generatedAt: nowIso(),
+    durationMs: Date.now() - t0,
+    root,
+    manifest,
+    stats: {
+      fileCount: Number(manifest?.fileCount || index?.files?.length || 0),
+      usingGit: !!manifest?.usingGit,
+      repoHints: Array.isArray(manifest?.repoHints) ? manifest.repoHints : []
+    },
+    sync: syncResult,
+    embed: embedResult
+  };
 }
 
 export async function watchRepo(root, opts = {}) {
@@ -99,7 +113,15 @@ export async function watchRepo(root, opts = {}) {
     emit({ type: "refresh:start", reason });
     try {
       const r = await refreshRepoMemory(root, { preferGit, maxFiles, snipLines, recentDays, sync, embed });
-      emit({ type: "refresh:ok", reason, generatedAt: r.generatedAt });
+      emit({
+        type: "refresh:ok",
+        reason,
+        generatedAt: r.generatedAt,
+        durationMs: r.durationMs,
+        stats: r.stats,
+        sync: r.sync ? { ok: !!r.sync.ok, changed: (r.sync.results || []).filter((x) => x.changed).length } : null,
+        embed: r.embed || null
+      });
     } catch (err) {
       emit({ type: "refresh:err", reason, error: err?.message || String(err) });
     }

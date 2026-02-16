@@ -206,6 +206,8 @@ rmemo serve --root . --token devtoken --port 7357
 Then fetch:
 - `GET /ui` (local dashboard)
 - `GET /events` (SSE stream; for live updates)
+- `GET /events/export?format=json|md&limit=200` (export recent events)
+- `GET /watch` (watch runtime status)
 - `GET /status?format=json`
 - `GET /context`
 - `GET /rules`
@@ -226,6 +228,9 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 ```
 
 Write endpoints:
+- `POST /watch/start {intervalMs?,sync?,embed?}`
+- `POST /watch/stop`
+- `POST /refresh {sync?,embed?}`
 - `POST /todos/next {text}`
 - `POST /todos/blockers {text}`
 - `POST /todos/next/done {index}` (1-based)

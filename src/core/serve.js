@@ -80,6 +80,16 @@ function ssePing(res) {
   res.write(`: ping ${Date.now()}\n\n`);
 }
 
+function eventToMdLine(e) {
+  const at = e?.at || "";
+  const type = e?.type || "event";
+  const reason = e?.reason ? ` reason=${e.reason}` : "";
+  const d = e?.durationMs !== undefined ? ` durationMs=${e.durationMs}` : "";
+  const files = e?.stats?.fileCount !== undefined ? ` files=${e.stats.fileCount}` : "";
+  const err = e?.error ? ` error=${String(e.error).replace(/\s+/g, " ").slice(0, 220)}` : "";
+  return `- [${at}] ${type}${reason}${d}${files}${err}`;
+}
+
 export function createEventsBus({ max = 200 } = {}) {
   const clients = new Set();
   const history = [];
@@ -140,6 +150,14 @@ export function createWatchController(root, { events, watchState } = {}) {
         onEvent: (e) => {
           if (e.type === "refresh:ok") {
             watchState.lastOkAt = e.at;
+            watchState.lastRefresh = {
+              reason: e.reason || "watch",
+              generatedAt: e.generatedAt || null,
+              durationMs: e.durationMs ?? null,
+              stats: e.stats || null,
+              sync: e.sync || null,
+              embed: e.embed || null
+            };
           } else if (e.type === "refresh:err") {
             watchState.lastErrAt = e.at;
             watchState.lastErr = e.error || null;
@@ -418,6 +436,23 @@ export function createServeHandler(root, opts = {}) {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/events/export") {
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        const limitRaw = Number(url.searchParams.get("limit") || 200);
+        const limit = Math.min(2000, Math.max(1, Number.isFinite(limitRaw) ? limitRaw : 200));
+        const hist = (events?.history?.() || []).slice(-limit);
+        if (format === "json") {
+          return json(res, 200, { ok: true, schema: 1, root, count: hist.length, events: hist });
+        }
+        if (format === "md") {
+          const lines = ["# Events", "", `- root: ${root}`, `- count: ${hist.length}`, ""];
+          for (const e of hist) lines.push(eventToMdLine(e));
+          lines.push("");
+          return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
+        }
+        return badRequest(res, "format must be json|md");
+      }
+
       if (req.method === "GET" && url.pathname === "/watch") {
         const ws = watchState || {};
         return json(res, 200, {
@@ -434,7 +469,8 @@ export function createServeHandler(root, opts = {}) {
             clients: events?.size?.() ?? 0,
             lastOkAt: ws.lastOkAt || null,
             lastErrAt: ws.lastErrAt || null,
-            lastErr: ws.lastErr || null
+            lastErr: ws.lastErr || null,
+            lastRefresh: ws.lastRefresh || null
           }
         });
       }
@@ -472,9 +508,30 @@ export function createServeHandler(root, opts = {}) {
             sync: doSync,
             embed: doEmbed
           });
-          events?.emit?.({ type: "refresh:ok", reason: "api", generatedAt: r.generatedAt });
+          if (watchState) {
+            watchState.lastOkAt = new Date().toISOString();
+            watchState.lastRefresh = {
+              reason: "api",
+              generatedAt: r.generatedAt,
+              durationMs: r.durationMs,
+              stats: r.stats,
+              sync: r.sync ? { ok: !!r.sync.ok, changed: (r.sync.results || []).filter((x) => x.changed).length } : null,
+              embed: r.embed || null
+            };
+          }
+          events?.emit?.({
+            type: "refresh:ok",
+            reason: "api",
+            generatedAt: r.generatedAt,
+            durationMs: r.durationMs,
+            stats: r.stats
+          });
           return json(res, 200, { ok: true, result: r });
         } catch (e) {
+          if (watchState) {
+            watchState.lastErrAt = new Date().toISOString();
+            watchState.lastErr = e?.message || String(e);
+          }
           events?.emit?.({ type: "refresh:err", reason: "api", error: e?.message || String(e) });
           return json(res, 500, { ok: false, error: e?.message || String(e) });
         }
@@ -771,7 +828,8 @@ export async function startServe(root, opts = {}) {
     embed: watchEmbed,
     lastOkAt: null,
     lastErrAt: null,
-    lastErr: null
+    lastErr: null,
+    lastRefresh: null
   };
   const watchCtl = createWatchController(root, { events, watchState });
   const handler = createServeHandler(root, {

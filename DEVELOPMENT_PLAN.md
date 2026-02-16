@@ -239,6 +239,19 @@ Done:
 - Add `rmemo integrate` to output paste-ready MCP config snippets:
   - `rmemo integrate antigravity` (JSON snippet for Antigravity raw config)
 - Add `rmemo doctor` to print diagnostics (node/bin/registry/config) and common fixes.
+
+## v2.0 (Persistent Workbench) (In Progress)
+
+Goals:
+- Turn `rmemo serve` into a long-running local workbench with live events and runtime controls.
+
+Done:
+- Add SSE stream `GET /events` with keepalive + Last-Event-ID replay.
+- Add watch runtime status API `GET /watch`.
+- Add watch controls: `POST /watch/start`, `POST /watch/stop`.
+- Add one-shot refresh trigger: `POST /refresh`.
+- Add events export: `GET /events/export?format=json|md&limit=...`.
+- Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:
   - `rmemo_status`

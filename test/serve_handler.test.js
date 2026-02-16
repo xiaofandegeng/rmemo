@@ -199,6 +199,24 @@ test("serve handler: /events returns SSE stream (requires token if set)", async 
   assert.ok(authed.body.includes("refresh:ok"));
 });
 
+test("serve handler: /events/export supports json and md", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
+  const events = createEventsBus();
+  events.emit({ type: "refresh:start", reason: "test" });
+  events.emit({ type: "refresh:ok", reason: "test", durationMs: 12, stats: { fileCount: 3 } });
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", events });
+
+  const jsonExport = await run(handler, { method: "GET", url: "/events/export?format=json&limit=10&token=t" });
+  assert.equal(jsonExport.status, 200);
+  assert.ok(jsonExport.body.includes("\"events\""));
+  assert.ok(jsonExport.body.includes("\"refresh:ok\""));
+
+  const mdExport = await run(handler, { method: "GET", url: "/events/export?format=md&limit=10&token=t" });
+  assert.equal(mdExport.status, 200);
+  assert.ok(mdExport.body.includes("# Events"));
+  assert.ok(mdExport.body.includes("refresh:ok"));
+});
+
 test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWrite + token)", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
   await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");
@@ -206,16 +224,22 @@ test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWri
   await fs.writeFile(path.join(root, "src", "index.js"), "console.log('hi')\n", "utf8");
 
   const events = createEventsBus();
+  const watchState = { enabled: false, intervalMs: 2000, sync: true, embed: false, lastOkAt: null, lastErrAt: null, lastErr: null, lastRefresh: null };
   const ro = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: false, events });
   const denied = await run(ro, { method: "POST", url: "/refresh?token=t", bodyObj: {} });
   assert.equal(denied.status, 400);
 
-  const rw = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events });
+  const rw = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events, watchState });
   const r = await run(rw, { method: "POST", url: "/refresh?token=t", bodyObj: { sync: false, embed: false } });
   assert.equal(r.status, 200);
   assert.ok(await fileExists(path.join(root, ".repo-memory", "context.md")));
   assert.ok(await fileExists(path.join(root, ".repo-memory", "manifest.json")));
   assert.ok(await fileExists(path.join(root, ".repo-memory", "index.json")));
+
+  const w = await run(rw, { method: "GET", url: "/watch?token=t" });
+  assert.equal(w.status, 200);
+  assert.ok(w.body.includes("\"lastRefresh\""));
+  assert.ok(w.body.includes("\"durationMs\""));
 });
 
 test("serve handler: POST /watch/start and /watch/stop control watch state", async () => {
