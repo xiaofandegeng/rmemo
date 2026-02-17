@@ -29,16 +29,20 @@ import { getEmbedStatus } from "./embed_status.js";
 import { refreshRepoMemory, watchRepo } from "./watch.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
 import {
+  applyWorkspaceFocusAlertsActionPlan,
   appendWorkspaceFocusAlertIncident,
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   evaluateWorkspaceFocusAlerts,
+  generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsConfig,
+  getWorkspaceFocusAlertsAction,
   getWorkspaceFocusReport,
   getWorkspaceFocusTrend,
   generateWorkspaceFocusReport,
+  listWorkspaceFocusAlertsActions,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
   listWorkspaceFocusAlertIncidents,
@@ -46,7 +50,8 @@ import {
   listWorkspaces,
   setWorkspaceFocusAlertsConfig,
   saveWorkspaceFocusReport,
-  saveWorkspaceFocusSnapshot
+  saveWorkspaceFocusSnapshot,
+  saveWorkspaceFocusAlertsActionPlan
 } from "./workspaces.js";
 
 function json(res, code, obj) {
@@ -1502,6 +1507,74 @@ export function createServeHandler(root, opts = {}) {
         const out = await generateWorkspaceFocusAlertsRca(root, { incidentId, key, limit });
         if (format === "json") return json(res, 200, out.json);
         return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/action-plan") {
+        const incidentId = String(url.searchParams.get("incidentId") || "");
+        const key = String(url.searchParams.get("key") || "");
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const save = url.searchParams.get("save") === "1";
+        const tag = String(url.searchParams.get("tag") || "");
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        if (save && !allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const out = await generateWorkspaceFocusAlertsActionPlan(root, { incidentId, key, limit });
+        const saved = save ? await saveWorkspaceFocusAlertsActionPlan(root, out.json, { tag }) : null;
+        if (format === "md") {
+          let body = out.markdown;
+          if (saved) body += `Saved action plan: ${saved.id}\n`;
+          return text(res, 200, body, "text/markdown; charset=utf-8");
+        }
+        return json(res, 200, { ...out.json, savedAction: saved ? { id: saved.id, path: saved.path, tag: saved.action?.tag || null } : null });
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/actions") {
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const out = await listWorkspaceFocusAlertsActions(root, { limit });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/action-item") {
+        const id = String(url.searchParams.get("id") || "");
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (!id) return badRequest(res, "Missing action id");
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const out = await getWorkspaceFocusAlertsAction(root, id);
+        if (format === "json") return json(res, 200, out);
+        const lines = [];
+        lines.push(`# Workspace Alerts Action ${out.id}`);
+        lines.push("");
+        lines.push(`- createdAt: ${out.createdAt || "-"}`);
+        lines.push(`- tag: ${out.tag || "-"}`);
+        lines.push(`- anchorIncident: ${out.plan?.rcaAnchor?.id || "-"}`);
+        lines.push("");
+        lines.push("## Tasks");
+        const tasks = Array.isArray(out.plan?.tasks) ? out.plan.tasks : [];
+        if (!tasks.length) lines.push("- (none)");
+        else for (const t of tasks) lines.push(`- [${t.kind}] ${t.text}`);
+        lines.push("");
+        return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "POST" && url.pathname === "/ws/focus/alerts/action-apply") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const id = String(body.id || "").trim();
+        if (!id) return badRequest(res, "Missing action id");
+        const out = await applyWorkspaceFocusAlertsActionPlan(root, {
+          id,
+          includeBlockers: !!body.includeBlockers,
+          noLog: !!body.noLog,
+          maxTasks: body.maxTasks !== undefined ? Number(body.maxTasks) : 20
+        });
+        events?.emit?.({
+          type: "ws:alerts:action-applied",
+          actionId: out.actionId,
+          next: out.applied?.next?.length || 0,
+          blockers: out.applied?.blockers?.length || 0
+        });
+        return json(res, 200, { ok: true, result: out });
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {

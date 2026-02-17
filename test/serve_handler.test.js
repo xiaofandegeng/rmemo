@@ -732,4 +732,40 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   const alertsRcaJson = JSON.parse(alertsRca.body);
   assert.equal(alertsRcaJson.schema, 1);
   assert.ok(alertsRcaJson.anchor && alertsRcaJson.anchor.id === alertsCheckJson.incident.id);
+
+  const actionPlan = await run(handler, {
+    method: "GET",
+    url: `/ws/focus/alerts/action-plan?token=t&format=json&incidentId=${encodeURIComponent(alertsCheckJson.incident.id)}&save=1&tag=test-act`
+  });
+  assert.equal(actionPlan.status, 200);
+  const actionPlanJson = JSON.parse(actionPlan.body);
+  assert.equal(actionPlanJson.schema, 1);
+  assert.ok(Array.isArray(actionPlanJson.tasks));
+  assert.ok(actionPlanJson.savedAction && actionPlanJson.savedAction.id);
+
+  const actionHistory = await run(handler, { method: "GET", url: "/ws/focus/alerts/actions?token=t&limit=10" });
+  assert.equal(actionHistory.status, 200);
+  const actionHistoryJson = JSON.parse(actionHistory.body);
+  assert.equal(actionHistoryJson.schema, 1);
+  assert.ok(Array.isArray(actionHistoryJson.actions));
+  assert.ok(actionHistoryJson.actions.some((x) => x.id === actionPlanJson.savedAction.id));
+
+  const actionItem = await run(handler, {
+    method: "GET",
+    url: `/ws/focus/alerts/action-item?token=t&id=${encodeURIComponent(actionPlanJson.savedAction.id)}&format=json`
+  });
+  assert.equal(actionItem.status, 200);
+  const actionItemJson = JSON.parse(actionItem.body);
+  assert.equal(actionItemJson.id, actionPlanJson.savedAction.id);
+  assert.ok(actionItemJson.plan && Array.isArray(actionItemJson.plan.tasks));
+
+  const actionApply = await run(handler, {
+    method: "POST",
+    url: "/ws/focus/alerts/action-apply?token=t",
+    bodyObj: { id: actionPlanJson.savedAction.id, includeBlockers: true, maxTasks: 10 }
+  });
+  assert.equal(actionApply.status, 200);
+  const actionApplyJson = JSON.parse(actionApply.body);
+  assert.equal(actionApplyJson.ok, true);
+  assert.ok(actionApplyJson.result && actionApplyJson.result.actionId === actionPlanJson.savedAction.id);
 });

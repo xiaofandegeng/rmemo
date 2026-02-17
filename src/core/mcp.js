@@ -29,15 +29,19 @@ import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
 import {
+  applyWorkspaceFocusAlertsActionPlan,
   appendWorkspaceFocusAlertIncident,
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   evaluateWorkspaceFocusAlerts,
+  generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsConfig,
+  getWorkspaceFocusAlertsAction,
   getWorkspaceFocusReport,
   getWorkspaceFocusTrend,
+  listWorkspaceFocusAlertsActions,
   generateWorkspaceFocusReport,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
@@ -46,7 +50,8 @@ import {
   listWorkspaces,
   setWorkspaceFocusAlertsConfig,
   saveWorkspaceFocusReport,
-  saveWorkspaceFocusSnapshot
+  saveWorkspaceFocusSnapshot,
+  saveWorkspaceFocusAlertsActionPlan
 } from "./workspaces.js";
 
 const SERVER_NAME = "rmemo";
@@ -465,6 +470,36 @@ function toolsList() {
       },
       additionalProperties: false
     }),
+    tool("rmemo_ws_focus_alerts_action_plan", "Generate actionable remediation plan from workspace alerts RCA.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        incidentId: { type: "string" },
+        key: { type: "string" },
+        limit: { type: "number", default: 20 },
+        format: { type: "string", enum: ["json", "md"], default: "json" },
+        save: { type: "boolean", default: false },
+        tag: { type: "string", default: "" }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_actions", "List saved workspace alerts action plans.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limit: { type: "number", default: 20 }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_action_get", "Get one saved workspace alerts action plan by id.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        id: { type: "string" }
+      },
+      required: ["id"],
+      additionalProperties: false
+    }),
     tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
       type: "object",
       properties: {
@@ -782,6 +817,18 @@ function toolsListWithWrite({ allowWrite } = {}) {
         source: { type: "string", default: "ws-alert-mcp" }
       },
       additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_action_apply", "Apply one saved workspace alerts action plan to todos/journal.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        id: { type: "string" },
+        includeBlockers: { type: "boolean", default: false },
+        noLog: { type: "boolean", default: false },
+        maxTasks: { type: "number", default: 20 }
+      },
+      required: ["id"],
+      additionalProperties: false
     })
   ]);
 }
@@ -1034,6 +1081,37 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const format = String(args?.format || "json").toLowerCase();
     const r = await generateWorkspaceFocusAlertsRca(root, { incidentId, key, limit });
     return format === "md" ? r.markdown : JSON.stringify(r.json, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_action_plan") {
+    const incidentId = String(args?.incidentId || "");
+    const key = String(args?.key || "");
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const format = String(args?.format || "json").toLowerCase();
+    const save = args?.save === true;
+    const tag = String(args?.tag || "");
+    if (save) requireWrite();
+    const r = await generateWorkspaceFocusAlertsActionPlan(root, { incidentId, key, limit });
+    const saved = save ? await saveWorkspaceFocusAlertsActionPlan(root, r.json, { tag }) : null;
+    if (format === "md") {
+      let md = r.markdown;
+      if (saved) md += `Saved action plan: ${saved.id}\n`;
+      return md;
+    }
+    return JSON.stringify({ ...r.json, savedAction: saved ? { id: saved.id, path: saved.path, tag: saved.action?.tag || null } : null }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_actions") {
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const r = await listWorkspaceFocusAlertsActions(root, { limit });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_action_get") {
+    const id = String(args?.id || "").trim();
+    if (!id) throw new Error("Missing action id");
+    const r = await getWorkspaceFocusAlertsAction(root, id);
+    return JSON.stringify(r, null, 2);
   }
 
   if (name === "rmemo_embed_status") {
@@ -1387,6 +1465,19 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     }
     const incident = await appendWorkspaceFocusAlertIncident(root, { alerts, autoGovernance: auto, source, key });
     return JSON.stringify({ ok: true, alerts, autoGovernance: auto, incident: { id: incident.id, createdAt: incident.createdAt } }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_action_apply") {
+    requireWrite();
+    const id = String(args?.id || "").trim();
+    if (!id) throw new Error("Missing action id");
+    const r = await applyWorkspaceFocusAlertsActionPlan(root, {
+      id,
+      includeBlockers: args?.includeBlockers === true,
+      noLog: args?.noLog === true,
+      maxTasks: args?.maxTasks !== undefined ? Number(args.maxTasks) : 20
+    });
+    return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 
   logger.warn(`Unknown tool call: ${name}`);

@@ -393,6 +393,18 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
               <div style="height: 8px;"></div>
               <div class="row">
                 <input id="wsIncidentId" type="text" placeholder="incident id (optional for RCA)" style="width: 380px;" />
+                <input id="wsActionId" type="text" placeholder="action id (for show/apply)" style="width: 380px;" />
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <button class="btn secondary" id="showWsAlertsActionPlan">WS Alerts Action Plan</button>
+                <button class="btn secondary" id="loadWsAlertsActionHistory">WS Alerts Action History</button>
+                <button class="btn secondary" id="showWsAlertsAction">WS Alerts Action</button>
+                <button class="btn secondary" id="applyWsAlertsAction">WS Alerts Apply</button>
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsActionIncludeBlockers" type="checkbox" />
+                  <span class="hint" style="margin:0;">include blockers</span>
+                </label>
               </div>
               <div style="height: 8px;"></div>
               <div class="row">
@@ -853,6 +865,77 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         }
         msg("OK");
         qs("#title").textContent = "Workspace Alerts RCA";
+      }
+
+      async function showWsAlertsActionPlan() {
+        err(""); msg("Generating workspace alerts action plan...");
+        const key = (qs("#wsTrendKey").value || "").trim();
+        const incidentId = (qs("#wsIncidentId").value || "").trim();
+        const tab = qs("#out").dataset.tab || "json";
+        const fmt = tab === "md" ? "md" : "json";
+        let p = "/ws/focus/alerts/action-plan?format=" + encodeURIComponent(fmt) + "&limit=20&save=1&tag=ui";
+        if (key) p += "&key=" + encodeURIComponent(key);
+        if (incidentId) p += "&incidentId=" + encodeURIComponent(incidentId);
+        if (fmt === "md") {
+          const t = await apiFetch(p, { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        } else {
+          const j = await apiFetch(p, { accept: "application/json", json: true });
+          if (j && j.savedAction && j.savedAction.id) qs("#wsActionId").value = j.savedAction.id;
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        }
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Plan";
+      }
+
+      async function loadWsAlertsActionHistory() {
+        err(""); msg("Loading workspace alerts action history...");
+        const j = await apiFetch("/ws/focus/alerts/actions?limit=30", { accept: "application/json", json: true });
+        const first = j && Array.isArray(j.actions) && j.actions.length ? j.actions[0] : null;
+        if (first && first.id) qs("#wsActionId").value = first.id;
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action History";
+      }
+
+      async function showWsAlertsAction() {
+        err(""); msg("Loading workspace alerts action...");
+        const id = (qs("#wsActionId").value || "").trim();
+        if (!id) return msg("Missing action id.");
+        const tab = qs("#out").dataset.tab || "json";
+        const fmt = tab === "md" ? "md" : "json";
+        const p = "/ws/focus/alerts/action-item?id=" + encodeURIComponent(id) + "&format=" + encodeURIComponent(fmt);
+        if (fmt === "md") {
+          const t = await apiFetch(p, { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        } else {
+          const j = await apiFetch(p, { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        }
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action";
+      }
+
+      async function applyWsAlertsAction() {
+        err(""); msg("Applying workspace alerts action...");
+        const id = (qs("#wsActionId").value || "").trim();
+        if (!id) return msg("Missing action id.");
+        const body = {
+          id,
+          includeBlockers: !!qs("#wsActionIncludeBlockers").checked,
+          noLog: false,
+          maxTasks: 20
+        };
+        const j = await apiPost("/ws/focus/alerts/action-apply", body);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Apply";
       }
 
       async function addTodo() {
@@ -1321,6 +1404,10 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
             pushLive(ev.data || "ws:alerts:incident");
           }
         });
+        evt.addEventListener("ws:alerts:action-applied", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "ws:alerts:action-applied"); }
+          loadTodos().catch(() => {});
+        });
       }
 
       qs("#saveToken").addEventListener("click", saveToken);
@@ -1347,6 +1434,10 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#runWsAlertsAuto").addEventListener("click", () => runWsAlertsAuto().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsAlertsHistory").addEventListener("click", () => loadWsAlertsHistory().catch((e) => { err(String(e)); msg(""); }));
       qs("#showWsAlertsRca").addEventListener("click", () => showWsAlertsRca().catch((e) => { err(String(e)); msg(""); }));
+      qs("#showWsAlertsActionPlan").addEventListener("click", () => showWsAlertsActionPlan().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsAlertsActionHistory").addEventListener("click", () => loadWsAlertsActionHistory().catch((e) => { err(String(e)); msg(""); }));
+      qs("#showWsAlertsAction").addEventListener("click", () => showWsAlertsAction().catch((e) => { err(String(e)); msg(""); }));
+      qs("#applyWsAlertsAction").addEventListener("click", () => applyWsAlertsAction().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

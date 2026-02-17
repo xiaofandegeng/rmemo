@@ -235,6 +235,9 @@ Then fetch:
 - `GET /ws/focus/alerts/config` (get workspace alert policy config)
 - `GET /ws/focus/alerts/history?limit=20&key=<trendKey>&level=high|medium` (recent alert incidents timeline)
 - `GET /ws/focus/alerts/rca?incidentId=<id>&key=<trendKey>&format=json|md&limit=20` (RCA pack from alert timeline)
+- `GET /ws/focus/alerts/action-plan?incidentId=<id>&key=<trendKey>&format=json|md&limit=20&save=1&tag=<name>` (generate actionable remediation plan)
+- `GET /ws/focus/alerts/actions?limit=20` (saved action plans)
+- `GET /ws/focus/alerts/action-item?id=<actionId>&format=json|md` (one saved action plan)
 
 Optional: enable write actions (token required):
 
@@ -275,6 +278,7 @@ Write endpoints:
 - `POST /embed/jobs/governance/rollback {versionId}` (rollback to a governance policy version)
 - `POST /ws/focus/alerts/config {enabled?,minReports?,maxRegressedErrors?,maxAvgChangedCount?,maxChangedCount?,autoGovernanceEnabled?,autoGovernanceCooldownMs?}`
 - `POST /ws/focus/alerts/check?autoGovernance=1&source=ws-alert`
+- `POST /ws/focus/alerts/action-apply {id,includeBlockers?,noLog?,maxTasks?}`
 
 ## MCP Server (stdio)
 
@@ -329,8 +333,12 @@ Read tool:
 - `rmemo_ws_focus_alerts_config`
 - `rmemo_ws_focus_alerts_history`
 - `rmemo_ws_focus_alerts_rca`
+- `rmemo_ws_focus_alerts_action_plan`
+- `rmemo_ws_focus_alerts_actions`
+- `rmemo_ws_focus_alerts_action_get`
 - `rmemo_ws_focus_alerts_config_set` (write tool)
 - `rmemo_ws_focus_alerts_check` (write tool; optional auto-governance)
+- `rmemo_ws_focus_alerts_action_apply` (write tool)
 
 ## Integrations (MCP Config Snippets)
 
@@ -404,6 +412,10 @@ rmemo ws alerts --format json --limit-groups 20 --limit-reports 200
 rmemo ws alerts check --format json --key "keyword::auth token refresh"
 rmemo ws alerts history --format json --limit 20 --level high
 rmemo ws alerts rca --format md --incident <incidentId> --limit 20
+rmemo ws alerts action-plan --format json --incident <incidentId> --save --tag daily-action
+rmemo ws alerts action-history --format json --limit 20
+rmemo ws alerts action-show --format json --action <actionId>
+rmemo ws alerts action-apply --format json --action <actionId> --include-blockers --max-tasks 10
 rmemo ws alerts config set --alerts-enabled --alerts-min-reports 2 --alerts-max-regressed-errors 0 --alerts-max-avg-changed 8 --alerts-max-changed 20 --alerts-auto-governance
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```

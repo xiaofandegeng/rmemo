@@ -10,13 +10,18 @@ import { cmdSync } from "./sync.js";
 import { cmdEmbed } from "./embed.js";
 import { generateFocus } from "../core/focus.js";
 import {
+  applyWorkspaceFocusAlertsActionPlan,
   appendWorkspaceFocusAlertIncident,
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsRca,
+  getWorkspaceFocusAlertsAction,
   getWorkspaceFocusReport,
   generateWorkspaceFocusReport,
+  saveWorkspaceFocusAlertsActionPlan,
+  listWorkspaceFocusAlertsActions,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
   listWorkspaceFocusAlertIncidents,
@@ -73,6 +78,10 @@ function wsHelp() {
     "  rmemo ws alerts config [show|set]",
     "  rmemo ws alerts history [--format md|json] [--limit <n>] [--key <trendKey>] [--level high|medium]",
     "  rmemo ws alerts rca [--format md|json] [--incident <id>] [--key <trendKey>] [--limit <n>]",
+    "  rmemo ws alerts action-plan [--format md|json] [--incident <id>] [--key <trendKey>] [--limit <n>] [--save] [--tag <name>]",
+    "  rmemo ws alerts action-history [--format md|json] [--limit <n>]",
+    "  rmemo ws alerts action-show --action <id> [--format md|json]",
+    "  rmemo ws alerts action-apply --action <id> [--include-blockers] [--no-log] [--max-tasks <n>]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -320,6 +329,10 @@ export async function cmdWs({ rest, flags }) {
   const limitReports = Number(flags["limit-reports"] || 200);
   const trendKey = flags.key ? String(flags.key) : "";
   const incidentId = flags.incident ? String(flags.incident) : "";
+  const actionId = flags.action ? String(flags.action) : "";
+  const includeBlockers = !!flags["include-blockers"];
+  const noLog = !!flags["no-log"];
+  const maxTasks = Number(flags["max-tasks"] || 20);
 
   if (!sub || sub === "help") {
     process.stdout.write(wsHelp() + "\n");
@@ -682,6 +695,75 @@ export async function cmdWs({ rest, flags }) {
       const out = await generateWorkspaceFocusAlertsRca(root, { incidentId, key: trendKey, limit });
       if (format === "json") process.stdout.write(JSON.stringify(out.json, null, 2) + "\n");
       else process.stdout.write(out.markdown);
+      return;
+    }
+    if (op === "action-plan") {
+      const limit = Number(flags.limit || 20);
+      const save = !!flags.save;
+      const tag = flags.tag ? String(flags.tag) : "";
+      const out = await generateWorkspaceFocusAlertsActionPlan(root, { incidentId, key: trendKey, limit });
+      const saved = save ? await saveWorkspaceFocusAlertsActionPlan(root, out.json, { tag }) : null;
+      if (format === "json") {
+        process.stdout.write(JSON.stringify({ ...out.json, savedAction: saved ? { id: saved.id, path: saved.path, tag: saved.action?.tag || null } : null }, null, 2) + "\n");
+      } else {
+        process.stdout.write(out.markdown);
+        if (saved) process.stdout.write(`Saved action plan: ${saved.id}\n`);
+      }
+      return;
+    }
+    if (op === "action-history") {
+      const limit = Number(flags.limit || 20);
+      const out = await listWorkspaceFocusAlertsActions(root, { limit });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        const lines = [];
+        lines.push("# Workspace Alerts Action Plans\n");
+        lines.push(`Root: ${root}`);
+        lines.push("");
+        if (!out.actions.length) lines.push("No action plans.\n");
+        else {
+          for (const a of out.actions) {
+            lines.push(`- ${a.id} @ ${a.createdAt} tasks=${a.summary?.totalTasks ?? 0}${a.tag ? ` tag=${a.tag}` : ""}`);
+          }
+          lines.push("");
+        }
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    if (op === "action-show") {
+      if (!actionId) {
+        process.stderr.write("Usage: rmemo ws alerts action-show --action <id>\n");
+        process.exitCode = 2;
+        return;
+      }
+      const out = await getWorkspaceFocusAlertsAction(root, actionId);
+      if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      else {
+        const lines = [];
+        lines.push(`# Workspace Alerts Action ${out.id}\n`);
+        lines.push(`Created: ${out.createdAt || "-"}`);
+        lines.push(`Tag: ${out.tag || "-"}`);
+        lines.push(`Anchor: ${out.plan?.rcaAnchor?.id || "-"}`);
+        lines.push("");
+        lines.push("## Tasks\n");
+        const tasks = Array.isArray(out.plan?.tasks) ? out.plan.tasks : [];
+        if (!tasks.length) lines.push("- (none)");
+        else for (const t of tasks) lines.push(`- [${t.kind}] ${t.text}`);
+        lines.push("");
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    if (op === "action-apply") {
+      if (!actionId) {
+        process.stderr.write("Usage: rmemo ws alerts action-apply --action <id>\n");
+        process.exitCode = 2;
+        return;
+      }
+      const out = await applyWorkspaceFocusAlertsActionPlan(root, { id: actionId, includeBlockers, noLog, maxTasks });
+      process.stdout.write(format === "json" ? JSON.stringify(out, null, 2) + "\n" : `Applied action ${out.actionId}: next=${out.applied?.next?.length || 0}, blockers=${out.applied?.blockers?.length || 0}\n`);
       return;
     }
     process.stderr.write(`Unknown subcommand: ws alerts ${op}\n\n`);

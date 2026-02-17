@@ -432,6 +432,27 @@ Done:
   - UI:
     - `WS Alerts History` and `WS Alerts RCA` actions
     - incident id input for RCA anchor selection
+- Workspace intelligence v11 (RCA action plan + one-click apply):
+  - Generate actionable task plan from RCA (`next` + optional `blocker`)
+  - Persist action plans under `.repo-memory/ws-focus/actions/*.json`
+  - CLI:
+    - `rmemo ws alerts action-plan [--save --tag <name>]`
+    - `rmemo ws alerts action-history`
+    - `rmemo ws alerts action-show --action <id>`
+    - `rmemo ws alerts action-apply --action <id> [--include-blockers]`
+  - HTTP:
+    - `GET /ws/focus/alerts/action-plan`
+    - `GET /ws/focus/alerts/actions`
+    - `GET /ws/focus/alerts/action-item`
+    - `POST /ws/focus/alerts/action-apply`
+  - MCP:
+    - `rmemo_ws_focus_alerts_action_plan`
+    - `rmemo_ws_focus_alerts_actions`
+    - `rmemo_ws_focus_alerts_action_get`
+    - `rmemo_ws_focus_alerts_action_apply` (write)
+  - UI:
+    - `WS Alerts Action Plan / History / Show / Apply`
+    - action id input + include-blockers toggle
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

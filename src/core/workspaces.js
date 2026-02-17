@@ -2,8 +2,13 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { scanRepo } from "./scan.js";
 import { generateFocus } from "./focus.js";
+import { addTodoBlocker, addTodoNext } from "./todos.js";
+import { appendJournalEntry } from "./journal.js";
 import { fileExists, readJson, writeJson } from "../lib/io.js";
 import {
+  wsFocusAlertsActionPath,
+  wsFocusAlertsActionsDir,
+  wsFocusAlertsActionsIndexPath,
   wsFocusAlertsConfigPath,
   wsFocusAlertsHistoryPath,
   wsFocusDir,
@@ -856,5 +861,198 @@ export async function generateWorkspaceFocusAlertsRca(root, { incidentId = "", k
   return {
     json: rca,
     markdown: markdownFromRca(rca)
+  };
+}
+
+function makeAlertsActionId() {
+  const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `act-${iso}-${rand}`;
+}
+
+function toActionTask(text, { kind = "next", source = "rca" } = {}) {
+  return {
+    id: `task-${Math.random().toString(36).slice(2, 10)}`,
+    kind: String(kind || "next"),
+    text: String(text || "").trim(),
+    source: String(source || "rca")
+  };
+}
+
+function buildAlertsActionPlanFromRca(rca) {
+  const tasks = [];
+  const recommendations = Array.isArray(rca?.recommendations) ? rca.recommendations : [];
+  for (const rec of recommendations) {
+    if (rec) tasks.push(toActionTask(rec, { kind: "next", source: "recommendation" }));
+  }
+  const topReasons = Array.isArray(rca?.stats?.topReasons) ? rca.stats.topReasons : [];
+  for (const r of topReasons.slice(0, 3)) {
+    tasks.push(toActionTask(`Investigate alert reason: ${r.reason} (frequency ${r.count}).`, { kind: "next", source: "reason" }));
+  }
+  if ((rca?.stats?.maxRegressed ?? 0) > 0) {
+    tasks.push(toActionTask("Add/refresh regression tests for the recently regressed workspace flows.", { kind: "next", source: "regression" }));
+  }
+  if ((rca?.stats?.levelCount?.high ?? 0) > 0) {
+    tasks.push(toActionTask("Temporarily block high-risk refactors until high alerts drop below threshold.", { kind: "blocker", source: "high_alert" }));
+  }
+  const dedup = new Set();
+  const uniq = [];
+  for (const t of tasks) {
+    const key = `${t.kind}::${t.text}`;
+    if (!t.text || dedup.has(key)) continue;
+    dedup.add(key);
+    uniq.push(t);
+  }
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root: rca?.root || "",
+    rcaAnchor: rca?.anchor ? { id: rca.anchor.id, createdAt: rca.anchor.createdAt, key: rca.anchor.key || "" } : null,
+    summary: {
+      totalTasks: uniq.length,
+      nextCount: uniq.filter((x) => x.kind === "next").length,
+      blockerCount: uniq.filter((x) => x.kind === "blocker").length
+    },
+    tasks: uniq
+  };
+}
+
+function markdownFromAlertsActionPlan(plan) {
+  const lines = [];
+  lines.push("# Workspace Alerts Action Plan");
+  lines.push("");
+  lines.push(`- generatedAt: ${plan.generatedAt}`);
+  lines.push(`- anchorIncident: ${plan.rcaAnchor?.id || "-"}`);
+  lines.push(`- tasks: ${plan.summary?.totalTasks || 0}`);
+  lines.push("");
+  lines.push("## Next");
+  const next = (plan.tasks || []).filter((x) => x.kind === "next");
+  if (!next.length) lines.push("- (none)");
+  else for (const t of next) lines.push(`- ${t.text}`);
+  lines.push("");
+  lines.push("## Blockers");
+  const blockers = (plan.tasks || []).filter((x) => x.kind === "blocker");
+  if (!blockers.length) lines.push("- (none)");
+  else for (const t of blockers) lines.push(`- ${t.text}`);
+  lines.push("");
+  return lines.join("\n") + "\n";
+}
+
+async function readWorkspaceFocusAlertsActionsIndex(root) {
+  const p = wsFocusAlertsActionsIndexPath(root);
+  if (!(await fileExists(p))) return { schema: 1, updatedAt: null, actions: [] };
+  try {
+    const j = await readJson(p);
+    return {
+      schema: 1,
+      updatedAt: j?.updatedAt || null,
+      actions: Array.isArray(j?.actions) ? j.actions : []
+    };
+  } catch {
+    return { schema: 1, updatedAt: null, actions: [] };
+  }
+}
+
+export async function generateWorkspaceFocusAlertsActionPlan(root, { incidentId = "", key = "", limit = 20 } = {}) {
+  const rca = await generateWorkspaceFocusAlertsRca(root, { incidentId, key, limit });
+  const plan = buildAlertsActionPlanFromRca(rca.json);
+  return {
+    json: plan,
+    markdown: markdownFromAlertsActionPlan(plan)
+  };
+}
+
+export async function saveWorkspaceFocusAlertsActionPlan(root, plan, { tag = "" } = {}) {
+  const id = makeAlertsActionId();
+  const doc = {
+    schema: 1,
+    id,
+    createdAt: new Date().toISOString(),
+    tag: String(tag || "").trim() || null,
+    plan
+  };
+  await fs.mkdir(wsFocusAlertsActionsDir(root), { recursive: true });
+  await writeJson(wsFocusAlertsActionPath(root, id), doc);
+  const index = await readWorkspaceFocusAlertsActionsIndex(root);
+  index.actions.unshift({
+    id,
+    createdAt: doc.createdAt,
+    tag: doc.tag,
+    anchorIncidentId: String(plan?.rcaAnchor?.id || ""),
+    summary: {
+      totalTasks: Number(plan?.summary?.totalTasks || 0),
+      nextCount: Number(plan?.summary?.nextCount || 0),
+      blockerCount: Number(plan?.summary?.blockerCount || 0)
+    }
+  });
+  index.actions = index.actions.slice(0, 300);
+  index.updatedAt = new Date().toISOString();
+  await writeJson(wsFocusAlertsActionsIndexPath(root), index);
+  return { id, path: wsFocusAlertsActionPath(root, id), action: doc };
+}
+
+export async function listWorkspaceFocusAlertsActions(root, { limit = 20 } = {}) {
+  const lim = Math.min(300, Math.max(1, Number(limit || 20)));
+  const index = await readWorkspaceFocusAlertsActionsIndex(root);
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    actions: index.actions.slice(0, lim)
+  };
+}
+
+export async function getWorkspaceFocusAlertsAction(root, id) {
+  const aid = String(id || "").trim();
+  if (!aid) throw new Error("Missing action id");
+  const p = wsFocusAlertsActionPath(root, aid);
+  if (!(await fileExists(p))) throw new Error("action_not_found");
+  const doc = await readJson(p);
+  return {
+    schema: 1,
+    id: doc?.id || aid,
+    createdAt: doc?.createdAt || null,
+    tag: doc?.tag || null,
+    plan: doc?.plan || null
+  };
+}
+
+export async function applyWorkspaceFocusAlertsActionPlan(root, { id = "", includeBlockers = false, noLog = false, maxTasks = 20 } = {}) {
+  const doc = await getWorkspaceFocusAlertsAction(root, id);
+  const tasks = Array.isArray(doc?.plan?.tasks) ? doc.plan.tasks : [];
+  const limit = Math.min(200, Math.max(1, Number(maxTasks || 20)));
+  const picked = tasks.slice(0, limit);
+  const applied = { next: [], blockers: [] };
+  for (const t of picked) {
+    if (t.kind === "blocker") {
+      if (!includeBlockers) continue;
+      // eslint-disable-next-line no-await-in-loop
+      await addTodoBlocker(root, t.text);
+      applied.blockers.push(t.text);
+    } else {
+      // eslint-disable-next-line no-await-in-loop
+      await addTodoNext(root, t.text);
+      applied.next.push(t.text);
+    }
+  }
+  let journalPath = null;
+  if (!noLog) {
+    const lines = [];
+    lines.push(`Applied workspace alerts action plan: ${doc.id}`);
+    lines.push(`Tasks appended: next=${applied.next.length}, blockers=${applied.blockers.length}`);
+    if (doc.plan?.rcaAnchor?.id) lines.push(`Anchor incident: ${doc.plan.rcaAnchor.id}`);
+    if (applied.next.length) lines.push(`Next: ${applied.next.join(" | ")}`);
+    if (applied.blockers.length) lines.push(`Blockers: ${applied.blockers.join(" | ")}`);
+    journalPath = await appendJournalEntry(root, { kind: "WS Alerts Plan", text: lines.join("\n") });
+  }
+  return {
+    schema: 1,
+    appliedAt: new Date().toISOString(),
+    root,
+    actionId: doc.id,
+    includeBlockers: !!includeBlockers,
+    noLog: !!noLog,
+    applied,
+    journalPath
   };
 }
