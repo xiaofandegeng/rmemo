@@ -32,9 +32,12 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  getWorkspaceFocusReport,
   generateWorkspaceFocusReport,
+  listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
   listWorkspaces,
+  saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot
 } from "./workspaces.js";
 
@@ -374,8 +377,27 @@ function toolsList() {
         fromId: { type: "string" },
         toId: { type: "string" },
         format: { type: "string", enum: ["json", "md"], default: "json" },
-        maxItems: { type: "number", default: 50 }
+        maxItems: { type: "number", default: 50 },
+        save: { type: "boolean", default: false },
+        tag: { type: "string", default: "" }
       },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_report_history", "List saved workspace-focus drift reports.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limit: { type: "number", default: 20 }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_report_get", "Get one saved workspace-focus drift report by id.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        id: { type: "string" }
+      },
+      required: ["id"],
       additionalProperties: false
     }),
     tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
@@ -855,9 +877,28 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const toId = String(args?.toId || "").trim();
     const format = String(args?.format || "json").toLowerCase();
     const maxItems = args?.maxItems !== undefined ? Number(args.maxItems) : 50;
+    const save = args?.save === true;
+    const tag = String(args?.tag || "");
     const r = await generateWorkspaceFocusReport(root, { fromId, toId, maxItems });
-    if (format === "md") return r.markdown;
-    return JSON.stringify(r.json, null, 2);
+    const saved = save ? await saveWorkspaceFocusReport(root, r.json, { tag }) : null;
+    if (format === "md") {
+      let md = r.markdown;
+      if (saved) md += `Saved report: ${saved.id}\n`;
+      return md;
+    }
+    return JSON.stringify({ ...r.json, savedReport: saved ? { id: saved.id, path: saved.path, tag: saved.report?.tag || null } : null }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_report_history") {
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const r = await listWorkspaceFocusReports(root, { limit });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_report_get") {
+    const id = String(args?.id || "").trim();
+    const r = await getWorkspaceFocusReport(root, id);
+    return JSON.stringify(r, null, 2);
   }
 
   if (name === "rmemo_embed_status") {

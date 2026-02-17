@@ -13,8 +13,11 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  getWorkspaceFocusReport,
   generateWorkspaceFocusReport,
+  listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
+  saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot
 } from "../core/workspaces.js";
 import { ensureRepoMemory } from "../core/memory.js";
@@ -52,7 +55,9 @@ function wsHelp() {
     "  rmemo ws batch focus <query> [--mode semantic|keyword] [--format md|json]",
     "  rmemo ws focus-history list [--limit <n>]",
     "  rmemo ws focus-history compare <fromId> <toId>",
-    "  rmemo ws focus-history report [<fromId> <toId>] [--format md|json]",
+    "  rmemo ws focus-history report [<fromId> <toId>] [--format md|json] [--save-report] [--report-tag <name>]",
+    "  rmemo ws report-history list [--limit <n>]",
+    "  rmemo ws report-history show <reportId> [--format md|json]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -60,7 +65,8 @@ function wsHelp() {
     "- For batch: `--only` is a comma-separated list of subproject dirs (e.g. apps/admin-web,apps/miniapp).",
     "- For batch embed: use `--check` to audit (non-zero if any workspace is out of date).",
     "- For batch focus: use `--save` to write snapshot; `--compare-latest` to compare with latest saved snapshot.",
-    "- Use `ws focus-history list|compare|report` to inspect workspace focus trend."
+    "- Use `ws focus-history list|compare|report` to inspect workspace focus trend.",
+    "- Use `ws report-history list|show` to inspect saved drift reports."
   ].join("\n");
 }
 
@@ -291,6 +297,8 @@ export async function cmdWs({ rest, flags }) {
   const saveFocusSnapshot = !!flags.save;
   const compareLatest = !!flags["compare-latest"];
   const snapshotTag = flags.tag ? String(flags.tag) : "";
+  const saveReport = !!flags["save-report"];
+  const reportTag = flags["report-tag"] ? String(flags["report-tag"]) : "";
 
   if (!sub || sub === "help") {
     process.stdout.write(wsHelp() + "\n");
@@ -428,14 +436,70 @@ export async function cmdWs({ rest, flags }) {
       const toId = String(rest[3] || "").trim();
       const maxItems = Number(flags["max-items"] || 50);
       const r = await generateWorkspaceFocusReport(root, { fromId, toId, maxItems });
+      const saved = saveReport ? await saveWorkspaceFocusReport(root, r.json, { tag: reportTag }) : null;
       if (format === "json") {
-        process.stdout.write(JSON.stringify(r.json, null, 2) + "\n");
+        process.stdout.write(JSON.stringify({ ...r.json, savedReport: saved ? { id: saved.id, path: saved.path, tag: saved.report?.tag || null } : null }, null, 2) + "\n");
       } else {
         process.stdout.write(r.markdown);
+        if (saved) process.stdout.write(`Saved report: ${saved.id}\n`);
       }
       return;
     }
     process.stderr.write(`Unknown subcommand: ws focus-history ${op}\n\n`);
+    process.stderr.write(wsHelp() + "\n");
+    process.exitCode = 2;
+    return;
+  }
+
+  if (sub === "report-history") {
+    const op = String(rest[1] || "list").trim();
+    if (op === "list") {
+      const limit = Number(flags.limit || 20);
+      const out = await listWorkspaceFocusReports(root, { limit });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        const lines = [];
+        lines.push("# Workspace Focus Reports\n");
+        lines.push(`Root: ${root}\n`);
+        if (!out.reports.length) {
+          lines.push("No saved reports.\n");
+        } else {
+          for (const r of out.reports) {
+            lines.push(`- ${r.id} from=${r.fromId} to=${r.toId} changed=${r.summary?.changedCount ?? 0}${r.tag ? ` tag=${r.tag}` : ""}`);
+          }
+          lines.push("");
+        }
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    if (op === "show") {
+      const reportId = String(rest[2] || "").trim();
+      if (!reportId) {
+        process.stderr.write("Usage: rmemo ws report-history show <reportId>\n");
+        process.exitCode = 2;
+        return;
+      }
+      const out = await getWorkspaceFocusReport(root, reportId);
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        process.stdout.write([
+          `# Workspace Focus Report ${out.id}\n`,
+          `Created: ${out.createdAt || "-"}`,
+          `Tag: ${out.tag || "-"}`,
+          `\n## Summary\n`,
+          `- changedCount: ${out.report?.summary?.changedCount ?? 0}`,
+          `- increased: ${out.report?.summary?.increased ?? 0}`,
+          `- decreased: ${out.report?.summary?.decreased ?? 0}`,
+          `- regressedErrors: ${out.report?.summary?.regressedErrors ?? 0}`,
+          ""
+        ].join("\n"));
+      }
+      return;
+    }
+    process.stderr.write(`Unknown subcommand: ws report-history ${op}\n\n`);
     process.stderr.write(wsHelp() + "\n");
     process.exitCode = 2;
     return;

@@ -137,6 +137,8 @@ Options:
   --tag <name>               For ws batch focus --save: snapshot tag label
   --limit <n>                For ws focus-history list: max snapshots to print (default: 20)
   --max-items <n>            For ws focus-history report: max change items in markdown/json top list
+  --save-report              For ws focus-history report: save generated drift report to history
+  --report-tag <name>        For ws focus-history report --save-report: report tag label
   --no-git                   Don't use git for scanning (fallback to filesystem walk)
   --provider <mock|openai>   For embed build: embeddings provider (default: mock)
   --model <id>               For embed build: embeddings model id (openai)

@@ -638,7 +638,7 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
     handler,
     {
       method: "GET",
-      url: `/ws/focus/report?token=t&format=json&from=${encodeURIComponent(focusJson.snapshot.id)}&to=${encodeURIComponent(focusJson2.snapshot.id)}&maxItems=5`
+      url: `/ws/focus/report?token=t&format=json&from=${encodeURIComponent(focusJson.snapshot.id)}&to=${encodeURIComponent(focusJson2.snapshot.id)}&maxItems=5&save=1&tag=serve-rpt`
     }
   );
   assert.equal(report.status, 200);
@@ -646,6 +646,7 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   assert.equal(reportJson.schema, 1);
   assert.ok(reportJson.summary);
   assert.ok(Array.isArray(reportJson.topChanges));
+  assert.ok(reportJson.savedReport && reportJson.savedReport.id);
 
   const reportMd = await run(
     handler,
@@ -656,4 +657,19 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   );
   assert.equal(reportMd.status, 200);
   assert.ok(reportMd.body.includes("# Workspace Focus Drift Report"));
+
+  const reportHistory = await run(handler, { method: "GET", url: "/ws/focus/reports?token=t&limit=10" });
+  assert.equal(reportHistory.status, 200);
+  const reportHistoryJson = JSON.parse(reportHistory.body);
+  assert.ok(Array.isArray(reportHistoryJson.reports));
+  assert.ok(reportHistoryJson.reports.some((x) => x.id === reportJson.savedReport.id));
+
+  const oneReport = await run(handler, {
+    method: "GET",
+    url: `/ws/focus/report-item?token=t&id=${encodeURIComponent(reportJson.savedReport.id)}&format=json`
+  });
+  assert.equal(oneReport.status, 200);
+  const oneReportJson = JSON.parse(oneReport.body);
+  assert.equal(oneReportJson.id, reportJson.savedReport.id);
+  assert.ok(oneReportJson.report);
 });

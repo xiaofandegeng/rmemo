@@ -362,6 +362,20 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <button class="btn secondary" id="doWsCompare">WS Compare</button>
                 <button class="btn secondary" id="doWsReport">WS Report</button>
               </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsSaveReport" type="checkbox" />
+                  <span class="hint" style="margin:0;">save report</span>
+                </label>
+                <input id="wsReportTag" type="text" placeholder="report tag (optional)" style="width: 220px;" />
+                <button class="btn secondary" id="loadWsReports">WS Reports</button>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <input id="wsReportId" type="text" placeholder="saved report id" style="width: 380px;" />
+                <button class="btn secondary" id="showWsReport">Show WS Report</button>
+              </div>
               <div class="hint">Use existing query + mode above; outputs aggregated JSON from <span style="font-family: var(--mono)">/ws/list</span> and <span style="font-family: var(--mono)">/ws/focus</span>.</div>
             </div>
 
@@ -624,11 +638,47 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         err(""); msg("Generating workspace drift report...");
         const from = (qs("#wsFromId").value || "").trim();
         const to = (qs("#wsToId").value || "").trim();
+        const save = !!qs("#wsSaveReport").checked;
+        const tag = (qs("#wsReportTag").value || "").trim();
         const tab = qs("#out").dataset.tab || "json";
         const fmt = tab === "md" ? "md" : "json";
         let p = "/ws/focus/report?format=" + encodeURIComponent(fmt);
         if (from) p += "&from=" + encodeURIComponent(from);
         if (to) p += "&to=" + encodeURIComponent(to);
+        if (save) p += "&save=1";
+        if (tag) p += "&tag=" + encodeURIComponent(tag);
+        if (fmt === "md") {
+          const t = await apiFetch(p, { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        } else {
+          const j = await apiFetch(p, { accept: "application/json", json: true });
+          if (j && j.savedReport && j.savedReport.id) qs("#wsReportId").value = j.savedReport.id;
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        }
+        msg("OK");
+        qs("#title").textContent = "Workspace Drift Report";
+      }
+
+      async function loadWsReports() {
+        err(""); msg("Loading workspace report history...");
+        const j = await apiFetch("/ws/focus/reports?limit=30", { accept: "application/json", json: true });
+        const first = j && Array.isArray(j.reports) && j.reports.length ? j.reports[0] : null;
+        if (first && first.id) qs("#wsReportId").value = first.id;
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Report History";
+      }
+
+      async function showWsReport() {
+        err(""); msg("Loading workspace report...");
+        const id = (qs("#wsReportId").value || "").trim();
+        if (!id) return msg("Missing report id.");
+        const tab = qs("#out").dataset.tab || "json";
+        const fmt = tab === "md" ? "md" : "json";
+        const p = "/ws/focus/report-item?id=" + encodeURIComponent(id) + "&format=" + encodeURIComponent(fmt);
         if (fmt === "md") {
           const t = await apiFetch(p, { accept: "text/markdown" });
           out(t);
@@ -639,7 +689,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
           setTab("json");
         }
         msg("OK");
-        qs("#title").textContent = "Workspace Drift Report";
+        qs("#title").textContent = "Workspace Saved Report";
       }
 
       async function addTodo() {
@@ -1115,6 +1165,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadWsSnapshots").addEventListener("click", () => loadWsSnapshots().catch((e) => { err(String(e)); msg(""); }));
       qs("#doWsCompare").addEventListener("click", () => doWsCompare().catch((e) => { err(String(e)); msg(""); }));
       qs("#doWsReport").addEventListener("click", () => doWsReport().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsReports").addEventListener("click", () => loadWsReports().catch((e) => { err(String(e)); msg(""); }));
+      qs("#showWsReport").addEventListener("click", () => showWsReport().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

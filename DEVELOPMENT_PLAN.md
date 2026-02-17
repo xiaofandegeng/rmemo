@@ -371,6 +371,20 @@ Done:
     - `rmemo_ws_focus_report`
   - UI:
     - `WS Report` button (uses selected output tab as md/json format)
+- Workspace intelligence v7 (drift report registry + recall):
+  - Persist generated drift reports under `.repo-memory/ws-focus/reports/*.json`
+  - CLI:
+    - `rmemo ws focus-history report ... --save-report --report-tag <name>`
+    - `rmemo ws report-history list|show`
+  - HTTP:
+    - `/ws/focus/report` supports `save=1&tag=...`
+    - `GET /ws/focus/reports`
+    - `GET /ws/focus/report-item?id=<reportId>`
+  - MCP:
+    - `rmemo_ws_focus_report_history`
+    - `rmemo_ws_focus_report_get`
+  - UI:
+    - `WS Reports` list + `Show WS Report` by report id
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

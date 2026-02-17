@@ -3,7 +3,14 @@ import fs from "node:fs/promises";
 import { scanRepo } from "./scan.js";
 import { generateFocus } from "./focus.js";
 import { fileExists, readJson, writeJson } from "../lib/io.js";
-import { wsFocusIndexPath, wsFocusSnapshotPath, wsFocusSnapshotsDir } from "../lib/paths.js";
+import {
+  wsFocusIndexPath,
+  wsFocusReportPath,
+  wsFocusReportsDir,
+  wsFocusReportsIndexPath,
+  wsFocusSnapshotPath,
+  wsFocusSnapshotsDir
+} from "../lib/paths.js";
 
 function splitList(raw) {
   if (!raw) return [];
@@ -124,6 +131,12 @@ function makeSnapshotId() {
   return `${iso}-${rand}`;
 }
 
+function makeReportId() {
+  const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `rpt-${iso}-${rand}`;
+}
+
 async function readWsFocusIndex(root) {
   const p = wsFocusIndexPath(root);
   if (!(await fileExists(p))) return { schema: 1, updatedAt: null, snapshots: [] };
@@ -133,6 +146,18 @@ async function readWsFocusIndex(root) {
     return { schema: 1, updatedAt: j?.updatedAt || null, snapshots: list };
   } catch {
     return { schema: 1, updatedAt: null, snapshots: [] };
+  }
+}
+
+async function readWsFocusReportsIndex(root) {
+  const p = wsFocusReportsIndexPath(root);
+  if (!(await fileExists(p))) return { schema: 1, updatedAt: null, reports: [] };
+  try {
+    const j = await readJson(p);
+    const list = Array.isArray(j?.reports) ? j.reports : [];
+    return { schema: 1, updatedAt: j?.updatedAt || null, reports: list };
+  } catch {
+    return { schema: 1, updatedAt: null, reports: [] };
   }
 }
 
@@ -317,6 +342,18 @@ function markdownFromReport(r, { maxItems = 50 } = {}) {
   return lines.join("\n");
 }
 
+function reportSummaryForHistory(report) {
+  return {
+    changedCount: Number(report?.summary?.changedCount || 0),
+    increased: Number(report?.summary?.increased || 0),
+    decreased: Number(report?.summary?.decreased || 0),
+    regressedErrors: Number(report?.summary?.regressedErrors || 0),
+    recovered: Number(report?.summary?.recovered || 0),
+    added: Number(report?.summary?.added || 0),
+    removed: Number(report?.summary?.removed || 0)
+  };
+}
+
 export async function generateWorkspaceFocusReport(root, { fromId = "", toId = "", maxItems = 50 } = {}) {
   let from = String(fromId || "").trim();
   let to = String(toId || "").trim();
@@ -363,5 +400,62 @@ export async function generateWorkspaceFocusReport(root, { fromId = "", toId = "
   return {
     json: report,
     markdown: markdownFromReport(report, { maxItems })
+  };
+}
+
+export async function saveWorkspaceFocusReport(root, report, { tag = "" } = {}) {
+  const id = makeReportId();
+  const p = wsFocusReportPath(root, id);
+  const doc = {
+    schema: 1,
+    id,
+    createdAt: new Date().toISOString(),
+    tag: String(tag || "").trim() || null,
+    report
+  };
+  await fs.mkdir(wsFocusReportsDir(root), { recursive: true });
+  await writeJson(p, doc);
+
+  const index = await readWsFocusReportsIndex(root);
+  index.reports.unshift({
+    id,
+    createdAt: doc.createdAt,
+    tag: doc.tag,
+    fromId: String(report?.from?.id || ""),
+    toId: String(report?.to?.id || ""),
+    query: String(report?.query || ""),
+    mode: String(report?.mode || ""),
+    summary: reportSummaryForHistory(report)
+  });
+  index.reports = index.reports.slice(0, 200);
+  index.updatedAt = new Date().toISOString();
+  await writeJson(wsFocusReportsIndexPath(root), index);
+  return { id, path: p, report: doc };
+}
+
+export async function listWorkspaceFocusReports(root, { limit = 20 } = {}) {
+  const index = await readWsFocusReportsIndex(root);
+  const lim = Math.min(200, Math.max(1, Number(limit || 20)));
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    reports: index.reports.slice(0, lim)
+  };
+}
+
+export async function getWorkspaceFocusReport(root, id) {
+  const rid = String(id || "").trim();
+  if (!rid) throw new Error("Missing report id");
+  const p = wsFocusReportPath(root, rid);
+  if (!(await fileExists(p))) throw new Error("report_not_found");
+  const doc = await readJson(p);
+  const report = doc?.report || {};
+  return {
+    schema: 1,
+    id: doc?.id || rid,
+    createdAt: doc?.createdAt || null,
+    tag: doc?.tag || null,
+    report
   };
 }

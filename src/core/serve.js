@@ -32,9 +32,12 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  getWorkspaceFocusReport,
   generateWorkspaceFocusReport,
+  listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
   listWorkspaces,
+  saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot
 } from "./workspaces.js";
 
@@ -1332,10 +1335,47 @@ export function createServeHandler(root, opts = {}) {
         const toId = String(url.searchParams.get("to") || "").trim();
         const format = String(url.searchParams.get("format") || "json").toLowerCase();
         const maxItems = Number(url.searchParams.get("maxItems") || 50);
+        const save = url.searchParams.get("save") === "1";
+        const tag = String(url.searchParams.get("tag") || "");
         if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
         const out = await generateWorkspaceFocusReport(root, { fromId, toId, maxItems });
-        if (format === "md") return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
-        return json(res, 200, out.json);
+        const saved = save ? await saveWorkspaceFocusReport(root, out.json, { tag }) : null;
+        if (format === "md") {
+          let body = out.markdown;
+          if (saved) body += `Saved report: ${saved.id}\n`;
+          return text(res, 200, body, "text/markdown; charset=utf-8");
+        }
+        return json(res, 200, { ...out.json, savedReport: saved ? { id: saved.id, path: saved.path, tag: saved.report?.tag || null } : null });
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/reports") {
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const out = await listWorkspaceFocusReports(root, { limit });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/report-item") {
+        const id = String(url.searchParams.get("id") || "").trim();
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (!id) return badRequest(res, "Missing report id");
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const out = await getWorkspaceFocusReport(root, id);
+        if (format === "json") return json(res, 200, out);
+        const report = out?.report || {};
+        const lines = [];
+        lines.push(`# Workspace Focus Report ${out.id}\n`);
+        lines.push(`Created: ${out.createdAt || "-"}`);
+        lines.push(`Tag: ${out.tag || "-"}`);
+        lines.push(`From: ${report?.from?.id || "-"}`);
+        lines.push(`To: ${report?.to?.id || "-"}`);
+        lines.push("");
+        lines.push("## Summary\n");
+        lines.push(`- changedCount: ${report?.summary?.changedCount ?? 0}`);
+        lines.push(`- increased: ${report?.summary?.increased ?? 0}`);
+        lines.push(`- decreased: ${report?.summary?.decreased ?? 0}`);
+        lines.push(`- regressedErrors: ${report?.summary?.regressedErrors ?? 0}`);
+        lines.push("");
+        return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {
