@@ -32,6 +32,8 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  evaluateWorkspaceFocusAlerts,
+  getWorkspaceFocusAlertsConfig,
   getWorkspaceFocusReport,
   getWorkspaceFocusTrend,
   generateWorkspaceFocusReport,
@@ -39,6 +41,7 @@ import {
   listWorkspaceFocusSnapshots,
   listWorkspaceFocusTrends,
   listWorkspaces,
+  setWorkspaceFocusAlertsConfig,
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot
 } from "./workspaces.js";
@@ -421,6 +424,23 @@ function toolsList() {
       required: ["key"],
       additionalProperties: false
     }),
+    tool("rmemo_ws_focus_alerts", "Evaluate workspace-focus trend alerts using saved reports and current alert config.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        key: { type: "string" },
+        limitGroups: { type: "number", default: 20 },
+        limitReports: { type: "number", default: 200 }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_config", "Get workspace-focus alert configuration.", {
+      type: "object",
+      properties: {
+        root: rootProp
+      },
+      additionalProperties: false
+    }),
     tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
       type: "object",
       properties: {
@@ -712,6 +732,32 @@ function toolsListWithWrite({ allowWrite } = {}) {
         }
       },
       additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_config_set", "Set workspace-focus alert configuration (write tool).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        enabled: { type: "boolean" },
+        minReports: { type: "number" },
+        maxRegressedErrors: { type: "number" },
+        maxAvgChangedCount: { type: "number" },
+        maxChangedCount: { type: "number" },
+        autoGovernanceEnabled: { type: "boolean" },
+        autoGovernanceCooldownMs: { type: "number" }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_check", "Evaluate alerts and optionally trigger auto-governance apply.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        key: { type: "string" },
+        limitGroups: { type: "number", default: 20 },
+        limitReports: { type: "number", default: 200 },
+        autoGovernance: { type: "boolean", default: false },
+        source: { type: "string", default: "ws-alert-mcp" }
+      },
+      additionalProperties: false
     })
   ]);
 }
@@ -934,6 +980,19 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const limit = args?.limit !== undefined ? Number(args.limit) : 100;
     const r = await getWorkspaceFocusTrend(root, { key, limit });
     return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts") {
+    const key = String(args?.key || "");
+    const limitGroups = args?.limitGroups !== undefined ? Number(args.limitGroups) : 20;
+    const limitReports = args?.limitReports !== undefined ? Number(args.limitReports) : 200;
+    const r = await evaluateWorkspaceFocusAlerts(root, { key, limitGroups, limitReports });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_config") {
+    const config = await getWorkspaceFocusAlertsConfig(root);
+    return JSON.stringify({ schema: 1, root, config }, null, 2);
   }
 
   if (name === "rmemo_embed_status") {
@@ -1237,6 +1296,55 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     }) || { ok: false, error: "governance_not_available" };
     if (!r.ok) throw new Error(r.error || "benchmark adopt failed");
     return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_config_set") {
+    requireWrite();
+    const patch = {
+      enabled: args?.enabled,
+      minReports: args?.minReports,
+      maxRegressedErrors: args?.maxRegressedErrors,
+      maxAvgChangedCount: args?.maxAvgChangedCount,
+      maxChangedCount: args?.maxChangedCount,
+      autoGovernanceEnabled: args?.autoGovernanceEnabled,
+      autoGovernanceCooldownMs: args?.autoGovernanceCooldownMs
+    };
+    const config = await setWorkspaceFocusAlertsConfig(root, patch);
+    return JSON.stringify({ ok: true, config }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_check") {
+    const key = String(args?.key || "");
+    const limitGroups = args?.limitGroups !== undefined ? Number(args.limitGroups) : 20;
+    const limitReports = args?.limitReports !== undefined ? Number(args.limitReports) : 200;
+    const autoGovernance = args?.autoGovernance === true;
+    const source = String(args?.source || "ws-alert-mcp");
+    if (autoGovernance) requireWrite();
+    const alerts = await evaluateWorkspaceFocusAlerts(root, { key, limitGroups, limitReports });
+    let auto = { attempted: false, triggered: false, reason: "disabled" };
+    if (autoGovernance) {
+      const cfg = alerts?.config || {};
+      const hasHigh = (alerts?.alerts || []).some((x) => x.level === "high");
+      const now = Date.now();
+      const lastAtMs = cfg.lastAutoGovernanceAt ? Date.parse(cfg.lastAutoGovernanceAt) : 0;
+      const cooldownMs = Number(cfg.autoGovernanceCooldownMs || 0);
+      if (!cfg.autoGovernanceEnabled) {
+        auto = { attempted: true, triggered: false, reason: "auto_governance_disabled" };
+      } else if (!hasHigh) {
+        auto = { attempted: true, triggered: false, reason: "no_high_alert" };
+      } else if (lastAtMs && now - lastAtMs < cooldownMs) {
+        auto = { attempted: true, triggered: false, reason: "cooldown", retryAfterMs: cooldownMs - (now - lastAtMs) };
+      } else {
+        const r = embedJobs?.applyTopGovernanceRecommendation?.({ source }) || { ok: false, error: "governance_not_available" };
+        if (r.ok) {
+          const cfg2 = await setWorkspaceFocusAlertsConfig(root, { lastAutoGovernanceAt: new Date().toISOString() });
+          auto = { attempted: true, triggered: true, result: r, config: cfg2 };
+        } else {
+          auto = { attempted: true, triggered: false, reason: r.error || "governance_apply_failed", result: r };
+        }
+      }
+    }
+    return JSON.stringify({ ok: true, alerts, autoGovernance: auto }, null, 2);
   }
 
   logger.warn(`Unknown tool call: ${name}`);

@@ -32,6 +32,8 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  evaluateWorkspaceFocusAlerts,
+  getWorkspaceFocusAlertsConfig,
   getWorkspaceFocusReport,
   getWorkspaceFocusTrend,
   generateWorkspaceFocusReport,
@@ -39,6 +41,7 @@ import {
   listWorkspaceFocusSnapshots,
   listWorkspaceFocusTrends,
   listWorkspaces,
+  setWorkspaceFocusAlertsConfig,
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot
 } from "./workspaces.js";
@@ -1408,6 +1411,73 @@ export function createServeHandler(root, opts = {}) {
         for (const p of out.series) lines.push(`- ${p.createdAt}: changed=${p.changedCount}, regressedErrors=${p.regressedErrors}`);
         lines.push("");
         return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts") {
+        const limitGroups = Number(url.searchParams.get("limitGroups") || 20);
+        const limitReports = Number(url.searchParams.get("limitReports") || 200);
+        const key = String(url.searchParams.get("key") || "");
+        const out = await evaluateWorkspaceFocusAlerts(root, { limitGroups, limitReports, key });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/config") {
+        const cfg = await getWorkspaceFocusAlertsConfig(root);
+        return json(res, 200, { schema: 1, root, config: cfg });
+      }
+
+      if (req.method === "POST" && url.pathname === "/ws/focus/alerts/config") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const patch = {
+          enabled: body.enabled,
+          minReports: body.minReports,
+          maxRegressedErrors: body.maxRegressedErrors,
+          maxAvgChangedCount: body.maxAvgChangedCount,
+          maxChangedCount: body.maxChangedCount,
+          autoGovernanceEnabled: body.autoGovernanceEnabled,
+          autoGovernanceCooldownMs: body.autoGovernanceCooldownMs
+        };
+        const cfg = await setWorkspaceFocusAlertsConfig(root, patch);
+        events?.emit?.({ type: "ws:alerts:config", config: cfg });
+        return json(res, 200, { ok: true, config: cfg });
+      }
+
+      if (req.method === "POST" && url.pathname === "/ws/focus/alerts/check") {
+        const autoGovernance = url.searchParams.get("autoGovernance") === "1";
+        const source = String(url.searchParams.get("source") || "ws-alert");
+        if (autoGovernance && !allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const out = await evaluateWorkspaceFocusAlerts(root, {});
+        let auto = { attempted: false, triggered: false, reason: "disabled" };
+        if (autoGovernance) {
+          const cfg = out?.config || {};
+          auto.attempted = true;
+          const hasHigh = (out?.alerts || []).some((x) => x.level === "high");
+          const now = Date.now();
+          const lastAtMs = cfg.lastAutoGovernanceAt ? Date.parse(cfg.lastAutoGovernanceAt) : 0;
+          const cooldownMs = Number(cfg.autoGovernanceCooldownMs || 0);
+          if (!cfg.autoGovernanceEnabled) {
+            auto = { attempted: true, triggered: false, reason: "auto_governance_disabled" };
+          } else if (!hasHigh) {
+            auto = { attempted: true, triggered: false, reason: "no_high_alert" };
+          } else if (lastAtMs && now - lastAtMs < cooldownMs) {
+            auto = { attempted: true, triggered: false, reason: "cooldown", retryAfterMs: cooldownMs - (now - lastAtMs) };
+          } else {
+            const embedJobs = getEmbedJobs?.();
+            const r = embedJobs?.applyTopGovernanceRecommendation?.({ source }) || { ok: false, error: "governance_not_available" };
+            if (r.ok) {
+              const cfg2 = await setWorkspaceFocusAlertsConfig(root, { lastAutoGovernanceAt: new Date().toISOString() });
+              auto = { attempted: true, triggered: true, result: r, config: cfg2 };
+              events?.emit?.({ type: "ws:alerts:auto-governance", ok: true, source, alerts: out.summary });
+            } else {
+              auto = { attempted: true, triggered: false, reason: r.error || "governance_apply_failed", result: r };
+              events?.emit?.({ type: "ws:alerts:auto-governance", ok: false, source, error: r.error || "failed" });
+            }
+          }
+        }
+        events?.emit?.({ type: "ws:alerts:check", summary: out.summary, autoGovernance: auto });
+        return json(res, 200, { ok: true, alerts: out, autoGovernance: auto });
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {

@@ -19,6 +19,9 @@ import {
   listWorkspaceFocusSnapshots,
   listWorkspaceFocusTrends,
   getWorkspaceFocusTrend,
+  evaluateWorkspaceFocusAlerts,
+  getWorkspaceFocusAlertsConfig,
+  setWorkspaceFocusAlertsConfig,
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot
 } from "../core/workspaces.js";
@@ -62,6 +65,8 @@ function wsHelp() {
     "  rmemo ws report-history show <reportId> [--format md|json]",
     "  rmemo ws trend [--format md|json] [--limit-groups <n>] [--limit-reports <n>]",
     "  rmemo ws trend show <trendKey> [--format md|json] [--limit <n>]",
+    "  rmemo ws alerts [--format md|json] [--limit-groups <n>] [--limit-reports <n>] [--key <trendKey>]",
+    "  rmemo ws alerts config [show|set]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -71,7 +76,8 @@ function wsHelp() {
     "- For batch focus: use `--save` to write snapshot; `--compare-latest` to compare with latest saved snapshot.",
     "- Use `ws focus-history list|compare|report` to inspect workspace focus trend.",
     "- Use `ws report-history list|show` to inspect saved drift reports.",
-    "- Use `ws trend` to inspect long-term drift trends grouped by query/mode."
+    "- Use `ws trend` to inspect long-term drift trends grouped by query/mode.",
+    "- Use `ws alerts` to monitor risky trend drift and optional auto-governance hooks."
   ].join("\n");
 }
 
@@ -306,6 +312,7 @@ export async function cmdWs({ rest, flags }) {
   const reportTag = flags["report-tag"] ? String(flags["report-tag"]) : "";
   const limitGroups = Number(flags["limit-groups"] || 20);
   const limitReports = Number(flags["limit-reports"] || 200);
+  const trendKey = flags.key ? String(flags.key) : "";
 
   if (!sub || sub === "help") {
     process.stdout.write(wsHelp() + "\n");
@@ -567,6 +574,60 @@ export async function cmdWs({ rest, flags }) {
       return;
     }
     process.stderr.write(`Unknown subcommand: ws trend ${op}\n\n`);
+    process.stderr.write(wsHelp() + "\n");
+    process.exitCode = 2;
+    return;
+  }
+
+  if (sub === "alerts") {
+    const op = String(rest[1] || "").trim();
+    if (!op) {
+      const out = await evaluateWorkspaceFocusAlerts(root, { limitGroups, limitReports, key: trendKey });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        const lines = [];
+        lines.push("# Workspace Focus Alerts\n");
+        lines.push(`Root: ${root}`);
+        lines.push(`Alerts: ${out.summary?.alertCount ?? 0} (high=${out.summary?.high ?? 0}, medium=${out.summary?.medium ?? 0})\n`);
+        if (!out.alerts.length) {
+          lines.push("No active alerts.\n");
+        } else {
+          for (const a of out.alerts) {
+            lines.push(`- [${a.level}] ${a.key} reports=${a.reports} regressed=${a.regressedErrors} avgChanged=${a.avgChangedCount}`);
+            for (const r of a.reasons) lines.push(`  - ${r}`);
+          }
+          lines.push("");
+        }
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    if (op === "config") {
+      const action = String(rest[2] || "show").trim();
+      if (action === "show") {
+        const cfg = await getWorkspaceFocusAlertsConfig(root);
+        process.stdout.write(format === "json" ? JSON.stringify(cfg, null, 2) + "\n" : `# WS Alerts Config\n\n${JSON.stringify(cfg, null, 2)}\n`);
+        return;
+      }
+      if (action === "set") {
+        const patch = {};
+        if (flags["alerts-enabled"] !== undefined) patch.enabled = !!flags["alerts-enabled"];
+        if (flags["alerts-min-reports"] !== undefined) patch.minReports = Number(flags["alerts-min-reports"]);
+        if (flags["alerts-max-regressed-errors"] !== undefined) patch.maxRegressedErrors = Number(flags["alerts-max-regressed-errors"]);
+        if (flags["alerts-max-avg-changed"] !== undefined) patch.maxAvgChangedCount = Number(flags["alerts-max-avg-changed"]);
+        if (flags["alerts-max-changed"] !== undefined) patch.maxChangedCount = Number(flags["alerts-max-changed"]);
+        if (flags["alerts-auto-governance"] !== undefined) patch.autoGovernanceEnabled = !!flags["alerts-auto-governance"];
+        if (flags["alerts-cooldown-ms"] !== undefined) patch.autoGovernanceCooldownMs = Number(flags["alerts-cooldown-ms"]);
+        const cfg = await setWorkspaceFocusAlertsConfig(root, patch);
+        process.stdout.write(JSON.stringify(cfg, null, 2) + "\n");
+        return;
+      }
+      process.stderr.write("Usage: rmemo ws alerts config [show|set]\n");
+      process.exitCode = 2;
+      return;
+    }
+    process.stderr.write(`Unknown subcommand: ws alerts ${op}\n\n`);
     process.stderr.write(wsHelp() + "\n");
     process.exitCode = 2;
     return;

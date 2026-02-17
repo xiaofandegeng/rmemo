@@ -1140,6 +1140,43 @@ test("rmemo ws focus snapshots can be saved, listed and compared", async () => {
   assert.equal(trendShowJson.key, trendJson.groups[0].key);
   assert.ok(Array.isArray(trendShowJson.series));
 
+  const alerts = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "alerts", "--limit-groups", "10", "--limit-reports", "100"]);
+  assert.equal(alerts.code, 0, alerts.err || alerts.out);
+  const alertsJson = JSON.parse(alerts.out);
+  assert.equal(alertsJson.schema, 1);
+  assert.ok(alertsJson.summary);
+
+  const alertsCfgSet = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "alerts",
+    "config",
+    "set",
+    "--alerts-enabled",
+    "--alerts-min-reports",
+    "1",
+    "--alerts-max-regressed-errors",
+    "0",
+    "--alerts-max-avg-changed",
+    "0",
+    "--alerts-max-changed",
+    "0",
+    "--alerts-auto-governance"
+  ]);
+  assert.equal(alertsCfgSet.code, 0, alertsCfgSet.err || alertsCfgSet.out);
+  const alertsCfgJson = JSON.parse(alertsCfgSet.out);
+  assert.equal(alertsCfgJson.schema, 1);
+  assert.equal(alertsCfgJson.minReports, 1);
+
+  const alertsCfgShow = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "alerts", "config", "show"]);
+  assert.equal(alertsCfgShow.code, 0, alertsCfgShow.err || alertsCfgShow.out);
+  const alertsCfgShowJson = JSON.parse(alertsCfgShow.out);
+  assert.equal(alertsCfgShowJson.schema, 1);
+
   const reportMd = await runNode([rmemoBin, "--root", tmp, "ws", "focus-history", "report", j1.snapshot.id, j2.snapshot.id, "--format", "md"]);
   assert.equal(reportMd.code, 0, reportMd.err || reportMd.out);
   assert.ok(reportMd.out.includes("# Workspace Focus Drift Report"));
@@ -1498,6 +1535,8 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_report_get"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_trends"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_trend_get"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_config"));
 
     const wsList = lines.find((x) => x.id === 3);
     const wsListJson = JSON.parse(wsList.result.content[0].text);
@@ -1648,6 +1687,36 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     const wsTrendGetJson = JSON.parse(wsTrendGet.result.content[0].text);
     assert.equal(wsTrendGetJson.key, trendKey);
     assert.ok(Array.isArray(wsTrendGetJson.series));
+
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 13,
+      method: "tools/call",
+      params: { name: "rmemo_ws_focus_alerts", arguments: { root: tmp, limitGroups: 10, limitReports: 100 } }
+    });
+    await waitFor(() => {
+      const lines9 = parseJsonLines(mcp.getOut());
+      return lines9.some((x) => x.id === 13);
+    });
+    const lines9 = parseJsonLines(mcp.getOut());
+    const wsAlerts = lines9.find((x) => x.id === 13);
+    const wsAlertsJson = JSON.parse(wsAlerts.result.content[0].text);
+    assert.equal(wsAlertsJson.schema, 1);
+
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 14,
+      method: "tools/call",
+      params: { name: "rmemo_ws_focus_alerts_config", arguments: { root: tmp } }
+    });
+    await waitFor(() => {
+      const lines10 = parseJsonLines(mcp.getOut());
+      return lines10.some((x) => x.id === 14);
+    });
+    const lines10 = parseJsonLines(mcp.getOut());
+    const wsAlertsCfg = lines10.find((x) => x.id === 14);
+    const wsAlertsCfgJson = JSON.parse(wsAlertsCfg.result.content[0].text);
+    assert.equal(wsAlertsCfgJson.schema, 1);
   } finally {
     mcp.closeIn();
     try {
@@ -1805,6 +1874,8 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_simulate"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_benchmark"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_benchmark_adopt"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_config_set"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_check"));
 
     const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
     assert.ok(todosMd.includes("Add MCP write tools"));

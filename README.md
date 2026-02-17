@@ -231,6 +231,8 @@ Then fetch:
 - `GET /ws/focus/report-item?id=<reportId>&format=json|md` (get one saved workspace drift report)
 - `GET /ws/focus/trends?limitGroups=20&limitReports=200` (workspace trend board grouped by query/mode)
 - `GET /ws/focus/trend?key=<trendKey>&format=json|md&limit=100` (get one trend series by key)
+- `GET /ws/focus/alerts?limitGroups=20&limitReports=200&key=<trendKey>` (evaluate drift alerts from trend groups)
+- `GET /ws/focus/alerts/config` (get workspace alert policy config)
 
 Optional: enable write actions (token required):
 
@@ -269,6 +271,8 @@ Write endpoints:
 - `POST /embed/jobs/governance/benchmark` (replay benchmark across policy candidates/windows)
 - `POST /embed/jobs/governance/benchmark/adopt` (benchmark then adopt top candidate if score/gap gates pass)
 - `POST /embed/jobs/governance/rollback {versionId}` (rollback to a governance policy version)
+- `POST /ws/focus/alerts/config {enabled?,minReports?,maxRegressedErrors?,maxAvgChangedCount?,maxChangedCount?,autoGovernanceEnabled?,autoGovernanceCooldownMs?}`
+- `POST /ws/focus/alerts/check?autoGovernance=1&source=ws-alert`
 
 ## MCP Server (stdio)
 
@@ -319,6 +323,10 @@ Read tool:
 - `rmemo_ws_focus_report_get`
 - `rmemo_ws_focus_trends`
 - `rmemo_ws_focus_trend_get`
+- `rmemo_ws_focus_alerts`
+- `rmemo_ws_focus_alerts_config`
+- `rmemo_ws_focus_alerts_config_set` (write tool)
+- `rmemo_ws_focus_alerts_check` (write tool; optional auto-governance)
 
 ## Integrations (MCP Config Snippets)
 
@@ -388,6 +396,8 @@ rmemo ws report-history list --format json
 rmemo ws report-history show <reportId> --format json
 rmemo ws trend --format json --limit-groups 20 --limit-reports 200
 rmemo ws trend show "keyword::auth token refresh" --format json --limit 100
+rmemo ws alerts --format json --limit-groups 20 --limit-reports 200
+rmemo ws alerts config set --alerts-enabled --alerts-min-reports 2 --alerts-max-regressed-errors 0 --alerts-max-avg-changed 8 --alerts-max-changed 20 --alerts-auto-governance
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 

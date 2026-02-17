@@ -382,6 +382,31 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <input id="wsTrendKey" type="text" placeholder="trend key (mode::query)" style="width: 380px;" />
                 <button class="btn secondary" id="showWsTrend">Show WS Trend</button>
               </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <button class="btn secondary" id="loadWsAlerts">WS Alerts</button>
+                <button class="btn secondary" id="loadWsAlertsConfig">WS Alerts Config</button>
+                <button class="btn secondary" id="runWsAlertsAuto">WS Alerts Auto-Gov</button>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsAlertsEnabled" type="checkbox" checked />
+                  <span class="hint" style="margin:0;">alerts enabled</span>
+                </label>
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsAlertsAutoGovEnabled" type="checkbox" />
+                  <span class="hint" style="margin:0;">auto governance</span>
+                </label>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <input id="wsAlertsMinReports" type="number" min="1" step="1" placeholder="min reports" style="width: 130px;" />
+                <input id="wsAlertsMaxRegressed" type="number" min="0" step="1" placeholder="max regressed" style="width: 140px;" />
+                <input id="wsAlertsMaxAvgChanged" type="number" min="0" step="0.1" placeholder="max avg changed" style="width: 160px;" />
+                <input id="wsAlertsMaxChanged" type="number" min="0" step="1" placeholder="max changed" style="width: 130px;" />
+                <button class="btn secondary" id="saveWsAlertsConfig">Save WS Alerts Config</button>
+              </div>
               <div class="hint">Use existing query + mode above; outputs aggregated JSON from <span style="font-family: var(--mono)">/ws/list</span> and <span style="font-family: var(--mono)">/ws/focus</span>.</div>
             </div>
 
@@ -727,6 +752,64 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         }
         msg("OK");
         qs("#title").textContent = "Workspace Trend";
+      }
+
+      async function loadWsAlerts() {
+        err(""); msg("Loading workspace alerts...");
+        const key = (qs("#wsTrendKey").value || "").trim();
+        let p = "/ws/focus/alerts?limitGroups=30&limitReports=200";
+        if (key) p += "&key=" + encodeURIComponent(key);
+        const j = await apiFetch(p, { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts";
+      }
+
+      async function loadWsAlertsConfig() {
+        err(""); msg("Loading workspace alerts config...");
+        const j = await apiFetch("/ws/focus/alerts/config", { accept: "application/json", json: true });
+        const c = j && j.config ? j.config : {};
+        if (c.enabled !== undefined) qs("#wsAlertsEnabled").checked = !!c.enabled;
+        if (c.autoGovernanceEnabled !== undefined) qs("#wsAlertsAutoGovEnabled").checked = !!c.autoGovernanceEnabled;
+        if (c.minReports !== undefined) qs("#wsAlertsMinReports").value = String(c.minReports);
+        if (c.maxRegressedErrors !== undefined) qs("#wsAlertsMaxRegressed").value = String(c.maxRegressedErrors);
+        if (c.maxAvgChangedCount !== undefined) qs("#wsAlertsMaxAvgChanged").value = String(c.maxAvgChangedCount);
+        if (c.maxChangedCount !== undefined) qs("#wsAlertsMaxChanged").value = String(c.maxChangedCount);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Config";
+      }
+
+      async function saveWsAlertsConfig() {
+        err(""); msg("Saving workspace alerts config...");
+        const body = {
+          enabled: !!qs("#wsAlertsEnabled").checked,
+          autoGovernanceEnabled: !!qs("#wsAlertsAutoGovEnabled").checked
+        };
+        const minReports = Number((qs("#wsAlertsMinReports").value || "").trim());
+        const maxRegressedErrors = Number((qs("#wsAlertsMaxRegressed").value || "").trim());
+        const maxAvgChangedCount = Number((qs("#wsAlertsMaxAvgChanged").value || "").trim());
+        const maxChangedCount = Number((qs("#wsAlertsMaxChanged").value || "").trim());
+        if (Number.isFinite(minReports) && minReports > 0) body.minReports = minReports;
+        if (Number.isFinite(maxRegressedErrors) && maxRegressedErrors >= 0) body.maxRegressedErrors = maxRegressedErrors;
+        if (Number.isFinite(maxAvgChangedCount) && maxAvgChangedCount >= 0) body.maxAvgChangedCount = maxAvgChangedCount;
+        if (Number.isFinite(maxChangedCount) && maxChangedCount >= 0) body.maxChangedCount = maxChangedCount;
+        const j = await apiPost("/ws/focus/alerts/config", body);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Config Saved";
+      }
+
+      async function runWsAlertsAuto() {
+        err(""); msg("Running workspace alerts auto-governance check...");
+        const j = await apiPost("/ws/focus/alerts/check?autoGovernance=1&source=ui", {});
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Auto Governance";
       }
 
       async function addTodo() {
@@ -1206,6 +1289,10 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#showWsReport").addEventListener("click", () => showWsReport().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsTrends").addEventListener("click", () => loadWsTrends().catch((e) => { err(String(e)); msg(""); }));
       qs("#showWsTrend").addEventListener("click", () => showWsTrend().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsAlerts").addEventListener("click", () => loadWsAlerts().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsAlertsConfig").addEventListener("click", () => loadWsAlertsConfig().catch((e) => { err(String(e)); msg(""); }));
+      qs("#saveWsAlertsConfig").addEventListener("click", () => saveWsAlertsConfig().catch((e) => { err(String(e)); msg(""); }));
+      qs("#runWsAlertsAuto").addEventListener("click", () => runWsAlertsAuto().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

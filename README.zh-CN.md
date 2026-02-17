@@ -235,6 +235,8 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /ws/focus/report-item?id=<reportId>&format=json|md`（读取某一条已保存的 workspace 漂移报告）
 - `GET /ws/focus/trends?limitGroups=20&limitReports=200`（按 query/mode 聚合的 workspace 趋势看板）
 - `GET /ws/focus/trend?key=<trendKey>&format=json|md&limit=100`（按 key 读取某一条趋势序列）
+- `GET /ws/focus/alerts?limitGroups=20&limitReports=200&key=<trendKey>`（基于趋势分组评估漂移告警）
+- `GET /ws/focus/alerts/config`（读取 workspace 告警策略配置）
 
 可选：开启写入操作（必须设置 token）：
 
@@ -273,6 +275,8 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 - `POST /embed/jobs/governance/benchmark`（多策略回放基准测试与排序）
 - `POST /embed/jobs/governance/benchmark/adopt`（基准回放后，按阈值自动采纳最优候选）
 - `POST /embed/jobs/governance/rollback {versionId}`（按版本回滚治理策略）
+- `POST /ws/focus/alerts/config {enabled?,minReports?,maxRegressedErrors?,maxAvgChangedCount?,maxChangedCount?,autoGovernanceEnabled?,autoGovernanceCooldownMs?}`
+- `POST /ws/focus/alerts/check?autoGovernance=1&source=ws-alert`
 
 ## MCP Server（stdio）
 
@@ -323,6 +327,10 @@ rmemo mcp --root . --allow-write
 - `rmemo_ws_focus_report_get`
 - `rmemo_ws_focus_trends`
 - `rmemo_ws_focus_trend_get`
+- `rmemo_ws_focus_alerts`
+- `rmemo_ws_focus_alerts_config`
+- `rmemo_ws_focus_alerts_config_set`（写入 tool）
+- `rmemo_ws_focus_alerts_check`（写入 tool，可选触发自动治理）
 
 ## 集成（MCP 配置片段）
 
@@ -392,6 +400,8 @@ rmemo ws report-history list --format json
 rmemo ws report-history show <reportId> --format json
 rmemo ws trend --format json --limit-groups 20 --limit-reports 200
 rmemo ws trend show "keyword::auth token refresh" --format json --limit 100
+rmemo ws alerts --format json --limit-groups 20 --limit-reports 200
+rmemo ws alerts config set --alerts-enabled --alerts-min-reports 2 --alerts-max-regressed-errors 0 --alerts-max-avg-changed 8 --alerts-max-changed 20 --alerts-auto-governance
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 

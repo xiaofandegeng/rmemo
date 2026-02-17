@@ -4,6 +4,8 @@ import { scanRepo } from "./scan.js";
 import { generateFocus } from "./focus.js";
 import { fileExists, readJson, writeJson } from "../lib/io.js";
 import {
+  wsFocusAlertsConfigPath,
+  wsFocusDir,
   wsFocusIndexPath,
   wsFocusReportPath,
   wsFocusReportsDir,
@@ -471,6 +473,33 @@ function splitTrendKey(key) {
   return { mode: s.slice(0, i), query: s.slice(i + 2) };
 }
 
+const DEFAULT_ALERTS_CONFIG = {
+  schema: 1,
+  enabled: true,
+  minReports: 2,
+  maxRegressedErrors: 0,
+  maxAvgChangedCount: 8,
+  maxChangedCount: 20,
+  autoGovernanceEnabled: false,
+  autoGovernanceCooldownMs: 3_600_000,
+  lastAutoGovernanceAt: null
+};
+
+function normalizeAlertsConfig(raw) {
+  const x = raw && typeof raw === "object" ? raw : {};
+  return {
+    schema: 1,
+    enabled: x.enabled !== undefined ? !!x.enabled : DEFAULT_ALERTS_CONFIG.enabled,
+    minReports: Math.max(1, Number(x.minReports ?? DEFAULT_ALERTS_CONFIG.minReports)),
+    maxRegressedErrors: Math.max(0, Number(x.maxRegressedErrors ?? DEFAULT_ALERTS_CONFIG.maxRegressedErrors)),
+    maxAvgChangedCount: Math.max(0, Number(x.maxAvgChangedCount ?? DEFAULT_ALERTS_CONFIG.maxAvgChangedCount)),
+    maxChangedCount: Math.max(0, Number(x.maxChangedCount ?? DEFAULT_ALERTS_CONFIG.maxChangedCount)),
+    autoGovernanceEnabled: x.autoGovernanceEnabled !== undefined ? !!x.autoGovernanceEnabled : DEFAULT_ALERTS_CONFIG.autoGovernanceEnabled,
+    autoGovernanceCooldownMs: Math.max(0, Number(x.autoGovernanceCooldownMs ?? DEFAULT_ALERTS_CONFIG.autoGovernanceCooldownMs)),
+    lastAutoGovernanceAt: x.lastAutoGovernanceAt ? String(x.lastAutoGovernanceAt) : null
+  };
+}
+
 function toTrendPoint(x) {
   return {
     id: String(x?.id || ""),
@@ -565,5 +594,81 @@ export async function getWorkspaceFocusTrend(root, { key = "", limit = 100 } = {
     mode: g.mode,
     summary: buildGroupSummary(series),
     series
+  };
+}
+
+export async function getWorkspaceFocusAlertsConfig(root) {
+  const p = wsFocusAlertsConfigPath(root);
+  if (!(await fileExists(p))) return { ...DEFAULT_ALERTS_CONFIG };
+  try {
+    const j = await readJson(p);
+    return normalizeAlertsConfig(j);
+  } catch {
+    return { ...DEFAULT_ALERTS_CONFIG };
+  }
+}
+
+export async function setWorkspaceFocusAlertsConfig(root, patch = {}) {
+  const cur = await getWorkspaceFocusAlertsConfig(root);
+  const next = normalizeAlertsConfig({ ...cur, ...(patch || {}) });
+  await fs.mkdir(wsFocusDir(root), { recursive: true });
+  await writeJson(wsFocusAlertsConfigPath(root), next);
+  return next;
+}
+
+function computeAlertLevel({ regressedErrors, avgChangedCount, maxChangedCount }, cfg) {
+  const overReg = regressedErrors > cfg.maxRegressedErrors;
+  const overMax = maxChangedCount > cfg.maxChangedCount;
+  const overAvg = avgChangedCount > cfg.maxAvgChangedCount;
+  if (overReg || overMax) return "high";
+  if (overAvg) return "medium";
+  return "none";
+}
+
+export async function evaluateWorkspaceFocusAlerts(root, { limitGroups = 20, limitReports = 200, key = "" } = {}) {
+  const cfg = await getWorkspaceFocusAlertsConfig(root);
+  const trends = await listWorkspaceFocusTrends(root, { limitGroups, limitReports });
+  const groups = Array.isArray(trends.groups) ? trends.groups : [];
+  const picked = key ? groups.filter((g) => g.key === key) : groups;
+  const alerts = [];
+  for (const g of picked) {
+    const reports = Number(g?.summary?.reports || 0);
+    if (reports < cfg.minReports) continue;
+    const avgChangedCount = Number(g?.summary?.avgChangedCount || 0);
+    const regressedErrors = Number(g?.summary?.maxRegressedErrors || 0);
+    const maxChangedCount = Number(g?.summary?.maxChangedCount || 0);
+    const level = computeAlertLevel({ regressedErrors, avgChangedCount, maxChangedCount }, cfg);
+    if (level === "none") continue;
+    const reasons = [];
+    if (regressedErrors > cfg.maxRegressedErrors) reasons.push(`maxRegressedErrors ${regressedErrors} > ${cfg.maxRegressedErrors}`);
+    if (maxChangedCount > cfg.maxChangedCount) reasons.push(`maxChangedCount ${maxChangedCount} > ${cfg.maxChangedCount}`);
+    if (avgChangedCount > cfg.maxAvgChangedCount) reasons.push(`avgChangedCount ${avgChangedCount} > ${cfg.maxAvgChangedCount}`);
+    alerts.push({
+      key: g.key,
+      query: g.query,
+      mode: g.mode,
+      level,
+      reports,
+      avgChangedCount,
+      maxChangedCount,
+      regressedErrors,
+      reasons,
+      latest: g.summary?.latest || null
+    });
+  }
+  alerts.sort((a, b) => (a.level === b.level ? b.regressedErrors - a.regressedErrors : a.level === "high" ? -1 : 1));
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    config: cfg,
+    summary: {
+      totalGroups: groups.length,
+      checkedGroups: picked.length,
+      alertCount: alerts.length,
+      high: alerts.filter((x) => x.level === "high").length,
+      medium: alerts.filter((x) => x.level === "medium").length
+    },
+    alerts
   };
 }

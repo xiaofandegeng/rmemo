@@ -18,6 +18,8 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/ws/focus/report-item"));
   assert.ok(html.includes("/ws/focus/trends"));
   assert.ok(html.includes("/ws/focus/trend"));
+  assert.ok(html.includes("/ws/focus/alerts"));
+  assert.ok(html.includes("/ws/focus/alerts/config"));
   assert.ok(html.includes("/events"));
   assert.ok(html.includes("/events/export"));
   assert.ok(html.includes("/diagnostics/export"));
@@ -72,6 +74,10 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("loadWsTrends"));
   assert.ok(html.includes("wsTrendKey"));
   assert.ok(html.includes("showWsTrend"));
+  assert.ok(html.includes("loadWsAlerts"));
+  assert.ok(html.includes("loadWsAlertsConfig"));
+  assert.ok(html.includes("runWsAlertsAuto"));
+  assert.ok(html.includes("saveWsAlertsConfig"));
   assert.ok(html.includes("govBenchmarkAutoAdoptEnabled"));
   assert.ok(html.includes("govBenchmarkMinScore"));
   assert.ok(html.includes("govBenchmarkMinGap"));

@@ -398,6 +398,23 @@ Done:
     - `rmemo_ws_focus_trend_get`
   - UI:
     - `WS Trends` + `Show WS Trend` controls
+- Workspace intelligence v9 (trend alerts + governance linkage):
+  - Alert policy for trend drift thresholds (`minReports`, regressed/errors, avg/max changed)
+  - CLI:
+    - `rmemo ws alerts`
+    - `rmemo ws alerts config show|set`
+  - HTTP:
+    - `GET /ws/focus/alerts`
+    - `GET/POST /ws/focus/alerts/config`
+    - `POST /ws/focus/alerts/check?autoGovernance=1`
+  - MCP:
+    - `rmemo_ws_focus_alerts`
+    - `rmemo_ws_focus_alerts_config`
+    - `rmemo_ws_focus_alerts_config_set` (write)
+    - `rmemo_ws_focus_alerts_check` (write; optional auto-governance)
+  - UI:
+    - `WS Alerts` panel
+    - alert policy load/save and one-click auto-governance check
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

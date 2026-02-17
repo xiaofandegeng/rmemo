@@ -141,6 +141,14 @@ Options:
   --report-tag <name>        For ws focus-history report --save-report: report tag label
   --limit-groups <n>         For ws trend: max trend groups to print (default: 20)
   --limit-reports <n>        For ws trend: max saved reports to aggregate (default: 200)
+  --key <trendKey>           For ws alerts: filter one trend key (mode::query)
+  --alerts-enabled           For ws alerts config set: enable alert evaluation
+  --alerts-min-reports <n>   For ws alerts config set: minimum report points before alerting
+  --alerts-max-regressed-errors <n>  For ws alerts config set: high alert threshold
+  --alerts-max-avg-changed <n>       For ws alerts config set: medium alert threshold
+  --alerts-max-changed <n>            For ws alerts config set: high alert threshold
+  --alerts-auto-governance   For ws alerts config set: allow alert-triggered governance apply
+  --alerts-cooldown-ms <n>   For ws alerts config set: auto-governance cooldown window
   --no-git                   Don't use git for scanning (fallback to filesystem walk)
   --provider <mock|openai>   For embed build: embeddings provider (default: mock)
   --model <id>               For embed build: embeddings model id (openai)

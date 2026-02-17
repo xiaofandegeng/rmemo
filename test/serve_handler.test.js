@@ -582,7 +582,7 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
     await fs.writeFile(path.join(abs, ".repo-memory", "todos.md"), "## Next\n- verify auth token flow\n\n## Blockers\n- (none)\n", "utf8");
   }
 
-  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: false, events: createEventsBus() });
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events: createEventsBus() });
 
   const ls = await run(handler, { method: "GET", url: "/ws/list?token=t" });
   assert.equal(ls.status, 200);
@@ -689,4 +689,30 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   const trendOneJson = JSON.parse(trendOne.body);
   assert.equal(trendOneJson.key, trendKey);
   assert.ok(Array.isArray(trendOneJson.series));
+
+  const alerts = await run(handler, { method: "GET", url: "/ws/focus/alerts?token=t&limitGroups=10&limitReports=100" });
+  assert.equal(alerts.status, 200);
+  const alertsJson = JSON.parse(alerts.body);
+  assert.equal(alertsJson.schema, 1);
+  assert.ok(alertsJson.summary);
+
+  const alertsCfg0 = await run(handler, { method: "GET", url: "/ws/focus/alerts/config?token=t" });
+  assert.equal(alertsCfg0.status, 200);
+  const alertsCfg0Json = JSON.parse(alertsCfg0.body);
+  assert.equal(alertsCfg0Json.schema, 1);
+  assert.ok(alertsCfg0Json.config);
+
+  const alertsCfgSet = await run(handler, {
+    method: "POST",
+    url: "/ws/focus/alerts/config?token=t",
+    bodyObj: { enabled: true, minReports: 1, maxRegressedErrors: 0, maxAvgChangedCount: 0, maxChangedCount: 0, autoGovernanceEnabled: false }
+  });
+  assert.equal(alertsCfgSet.status, 200);
+  assert.ok(alertsCfgSet.body.includes("\"ok\": true"));
+
+  const alertsCheck = await run(handler, { method: "POST", url: "/ws/focus/alerts/check?token=t&autoGovernance=1&source=test", bodyObj: {} });
+  assert.equal(alertsCheck.status, 200);
+  const alertsCheckJson = JSON.parse(alertsCheck.body);
+  assert.equal(alertsCheckJson.ok, true);
+  assert.ok(alertsCheckJson.autoGovernance);
 });

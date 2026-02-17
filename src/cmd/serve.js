@@ -92,6 +92,8 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /ws/focus/report-item?id=<reportId>&format=json|md\n`);
   process.stdout.write(`- GET /ws/focus/trends?limitGroups=20&limitReports=200\n`);
   process.stdout.write(`- GET /ws/focus/trend?key=<trendKey>&format=json|md&limit=100\n`);
+  process.stdout.write(`- GET /ws/focus/alerts?limitGroups=20&limitReports=200&key=<trendKey>\n`);
+  process.stdout.write(`- GET /ws/focus/alerts/config\n`);
   if (allowRefresh) process.stdout.write(`- GET /handoff?refresh=1, /pr?refresh=1\n`);
   if (allowWrite) {
     process.stdout.write(`- POST /refresh {sync?,embed?}\n`);
@@ -108,6 +110,8 @@ export async function cmdServe({ flags }) {
     process.stdout.write(`- POST /embed/jobs {provider?,model?,dim?,parallelism?,batchDelayMs?,priority?,maxRetries?,retryDelayMs?,...}\n`);
     process.stdout.write(`- POST /embed/jobs/config {maxConcurrent}\n`);
     process.stdout.write(`- POST /embed/jobs/:id/cancel\n`);
+    process.stdout.write(`- POST /ws/focus/alerts/config {enabled?,minReports?,maxRegressedErrors?,maxAvgChangedCount?,maxChangedCount?,autoGovernanceEnabled?,autoGovernanceCooldownMs?}\n`);
+    process.stdout.write(`- POST /ws/focus/alerts/check?autoGovernance=1&source=ws-alert\n`);
   }
   if (allowShutdown) process.stdout.write(`- POST /shutdown\n`);
 
