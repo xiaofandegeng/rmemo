@@ -33,9 +33,11 @@ import {
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   getWorkspaceFocusReport,
+  getWorkspaceFocusTrend,
   generateWorkspaceFocusReport,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
+  listWorkspaceFocusTrends,
   listWorkspaces,
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot
@@ -398,6 +400,25 @@ function toolsList() {
         id: { type: "string" }
       },
       required: ["id"],
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_trends", "List workspace-focus trend groups aggregated from saved drift reports.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limitGroups: { type: "number", default: 20 },
+        limitReports: { type: "number", default: 200 }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_trend_get", "Get one workspace-focus trend series by trend key.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        key: { type: "string" },
+        limit: { type: "number", default: 100 }
+      },
+      required: ["key"],
       additionalProperties: false
     }),
     tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
@@ -898,6 +919,20 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
   if (name === "rmemo_ws_focus_report_get") {
     const id = String(args?.id || "").trim();
     const r = await getWorkspaceFocusReport(root, id);
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_trends") {
+    const limitGroups = args?.limitGroups !== undefined ? Number(args.limitGroups) : 20;
+    const limitReports = args?.limitReports !== undefined ? Number(args.limitReports) : 200;
+    const r = await listWorkspaceFocusTrends(root, { limitGroups, limitReports });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_trend_get") {
+    const key = String(args?.key || "").trim();
+    const limit = args?.limit !== undefined ? Number(args.limit) : 100;
+    const r = await getWorkspaceFocusTrend(root, { key, limit });
     return JSON.stringify(r, null, 2);
   }
 

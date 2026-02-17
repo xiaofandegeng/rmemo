@@ -17,6 +17,8 @@ import {
   generateWorkspaceFocusReport,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
+  listWorkspaceFocusTrends,
+  getWorkspaceFocusTrend,
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot
 } from "../core/workspaces.js";
@@ -58,6 +60,8 @@ function wsHelp() {
     "  rmemo ws focus-history report [<fromId> <toId>] [--format md|json] [--save-report] [--report-tag <name>]",
     "  rmemo ws report-history list [--limit <n>]",
     "  rmemo ws report-history show <reportId> [--format md|json]",
+    "  rmemo ws trend [--format md|json] [--limit-groups <n>] [--limit-reports <n>]",
+    "  rmemo ws trend show <trendKey> [--format md|json] [--limit <n>]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -66,7 +70,8 @@ function wsHelp() {
     "- For batch embed: use `--check` to audit (non-zero if any workspace is out of date).",
     "- For batch focus: use `--save` to write snapshot; `--compare-latest` to compare with latest saved snapshot.",
     "- Use `ws focus-history list|compare|report` to inspect workspace focus trend.",
-    "- Use `ws report-history list|show` to inspect saved drift reports."
+    "- Use `ws report-history list|show` to inspect saved drift reports.",
+    "- Use `ws trend` to inspect long-term drift trends grouped by query/mode."
   ].join("\n");
 }
 
@@ -299,6 +304,8 @@ export async function cmdWs({ rest, flags }) {
   const snapshotTag = flags.tag ? String(flags.tag) : "";
   const saveReport = !!flags["save-report"];
   const reportTag = flags["report-tag"] ? String(flags["report-tag"]) : "";
+  const limitGroups = Number(flags["limit-groups"] || 20);
+  const limitReports = Number(flags["limit-reports"] || 200);
 
   if (!sub || sub === "help") {
     process.stdout.write(wsHelp() + "\n");
@@ -500,6 +507,66 @@ export async function cmdWs({ rest, flags }) {
       return;
     }
     process.stderr.write(`Unknown subcommand: ws report-history ${op}\n\n`);
+    process.stderr.write(wsHelp() + "\n");
+    process.exitCode = 2;
+    return;
+  }
+
+  if (sub === "trend") {
+    const op = String(rest[1] || "").trim();
+    if (!op) {
+      const out = await listWorkspaceFocusTrends(root, { limitGroups, limitReports });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        const lines = [];
+        lines.push("# Workspace Focus Trends\n");
+        lines.push(`Root: ${root}\n`);
+        lines.push(`Reports: ${out.summary?.totalReports ?? 0}, Groups: ${out.summary?.totalGroups ?? 0}\n`);
+        if (!out.groups.length) {
+          lines.push("No trend groups.\n");
+        } else {
+          for (const g of out.groups) {
+            lines.push(`- key=${g.key}`);
+            lines.push(`  query="${g.query}" mode=${g.mode} reports=${g.summary?.reports ?? 0} avgChanged=${g.summary?.avgChangedCount ?? 0} maxRegressed=${g.summary?.maxRegressedErrors ?? 0}`);
+          }
+          lines.push("");
+        }
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    if (op === "show") {
+      const key = String(rest[2] || "").trim();
+      const lim = Number(flags.limit || 100);
+      if (!key) {
+        process.stderr.write("Usage: rmemo ws trend show <trendKey>\n");
+        process.exitCode = 2;
+        return;
+      }
+      const out = await getWorkspaceFocusTrend(root, { key, limit: lim });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        const lines = [];
+        lines.push(`# Workspace Trend ${out.key}\n`);
+        lines.push(`Query: "${out.query}"`);
+        lines.push(`Mode: ${out.mode}\n`);
+        lines.push("## Summary\n");
+        lines.push(`- reports: ${out.summary?.reports ?? 0}`);
+        lines.push(`- avgChangedCount: ${out.summary?.avgChangedCount ?? 0}`);
+        lines.push(`- maxChangedCount: ${out.summary?.maxChangedCount ?? 0}`);
+        lines.push(`- maxRegressedErrors: ${out.summary?.maxRegressedErrors ?? 0}\n`);
+        lines.push("## Series\n");
+        for (const p of out.series) {
+          lines.push(`- ${p.createdAt}: changed=${p.changedCount}, regressedErrors=${p.regressedErrors}, increased=${p.increased}, decreased=${p.decreased}`);
+        }
+        lines.push("");
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    process.stderr.write(`Unknown subcommand: ws trend ${op}\n\n`);
     process.stderr.write(wsHelp() + "\n");
     process.exitCode = 2;
     return;

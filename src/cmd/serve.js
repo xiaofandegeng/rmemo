@@ -90,6 +90,8 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /ws/focus/report?from=<id>&to=<id>&format=json|md&save=1&tag=<name>\n`);
   process.stdout.write(`- GET /ws/focus/reports?limit=20\n`);
   process.stdout.write(`- GET /ws/focus/report-item?id=<reportId>&format=json|md\n`);
+  process.stdout.write(`- GET /ws/focus/trends?limitGroups=20&limitReports=200\n`);
+  process.stdout.write(`- GET /ws/focus/trend?key=<trendKey>&format=json|md&limit=100\n`);
   if (allowRefresh) process.stdout.write(`- GET /handoff?refresh=1, /pr?refresh=1\n`);
   if (allowWrite) {
     process.stdout.write(`- POST /refresh {sync?,embed?}\n`);

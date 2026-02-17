@@ -233,6 +233,8 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /ws/focus/report?from=<id>&to=<id>&format=json|md&save=1&tag=<name>`（workspace 漂移报告；不传 id 时默认对比最近两次快照）
 - `GET /ws/focus/reports?limit=20`（已保存的 workspace 漂移报告历史）
 - `GET /ws/focus/report-item?id=<reportId>&format=json|md`（读取某一条已保存的 workspace 漂移报告）
+- `GET /ws/focus/trends?limitGroups=20&limitReports=200`（按 query/mode 聚合的 workspace 趋势看板）
+- `GET /ws/focus/trend?key=<trendKey>&format=json|md&limit=100`（按 key 读取某一条趋势序列）
 
 可选：开启写入操作（必须设置 token）：
 
@@ -319,6 +321,8 @@ rmemo mcp --root . --allow-write
 - `rmemo_ws_focus_report`
 - `rmemo_ws_focus_report_history`
 - `rmemo_ws_focus_report_get`
+- `rmemo_ws_focus_trends`
+- `rmemo_ws_focus_trend_get`
 
 ## 集成（MCP 配置片段）
 
@@ -386,6 +390,8 @@ rmemo ws focus-history report --format md --save-report --report-tag daily-rpt
 rmemo ws focus-history report <fromId> <toId> --format json --max-items 20 --save-report
 rmemo ws report-history list --format json
 rmemo ws report-history show <reportId> --format json
+rmemo ws trend --format json --limit-groups 20 --limit-reports 200
+rmemo ws trend show "keyword::auth token refresh" --format json --limit 100
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 

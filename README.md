@@ -229,6 +229,8 @@ Then fetch:
 - `GET /ws/focus/report?from=<id>&to=<id>&format=json|md&save=1&tag=<name>` (workspace drift report; omit ids to use latest two snapshots)
 - `GET /ws/focus/reports?limit=20` (saved workspace drift report history)
 - `GET /ws/focus/report-item?id=<reportId>&format=json|md` (get one saved workspace drift report)
+- `GET /ws/focus/trends?limitGroups=20&limitReports=200` (workspace trend board grouped by query/mode)
+- `GET /ws/focus/trend?key=<trendKey>&format=json|md&limit=100` (get one trend series by key)
 
 Optional: enable write actions (token required):
 
@@ -315,6 +317,8 @@ Read tool:
 - `rmemo_ws_focus_report`
 - `rmemo_ws_focus_report_history`
 - `rmemo_ws_focus_report_get`
+- `rmemo_ws_focus_trends`
+- `rmemo_ws_focus_trend_get`
 
 ## Integrations (MCP Config Snippets)
 
@@ -382,6 +386,8 @@ rmemo ws focus-history report --format md --save-report --report-tag daily-rpt
 rmemo ws focus-history report <fromId> <toId> --format json --max-items 20 --save-report
 rmemo ws report-history list --format json
 rmemo ws report-history show <reportId> --format json
+rmemo ws trend --format json --limit-groups 20 --limit-reports 200
+rmemo ws trend show "keyword::auth token refresh" --format json --limit 100
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
 

@@ -1125,6 +1125,21 @@ test("rmemo ws focus snapshots can be saved, listed and compared", async () => {
   assert.equal(rptShowJson.id, reportJ.savedReport.id);
   assert.ok(rptShowJson.report && rptShowJson.report.summary);
 
+  const trend = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "trend", "--limit-groups", "10", "--limit-reports", "100"]);
+  assert.equal(trend.code, 0, trend.err || trend.out);
+  const trendJson = JSON.parse(trend.out);
+  assert.equal(trendJson.schema, 1);
+  assert.ok(Array.isArray(trendJson.groups));
+  assert.ok(trendJson.groups.length >= 1);
+  assert.ok(typeof trendJson.groups[0].key === "string");
+
+  const trendShow = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "trend", "show", trendJson.groups[0].key, "--limit", "20"]);
+  assert.equal(trendShow.code, 0, trendShow.err || trendShow.out);
+  const trendShowJson = JSON.parse(trendShow.out);
+  assert.equal(trendShowJson.schema, 1);
+  assert.equal(trendShowJson.key, trendJson.groups[0].key);
+  assert.ok(Array.isArray(trendShowJson.series));
+
   const reportMd = await runNode([rmemoBin, "--root", tmp, "ws", "focus-history", "report", j1.snapshot.id, j2.snapshot.id, "--format", "md"]);
   assert.equal(reportMd.code, 0, reportMd.err || reportMd.out);
   assert.ok(reportMd.out.includes("# Workspace Focus Drift Report"));
@@ -1481,6 +1496,8 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_report"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_report_history"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_report_get"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_trends"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_trend_get"));
 
     const wsList = lines.find((x) => x.id === 3);
     const wsListJson = JSON.parse(wsList.result.content[0].text);
@@ -1598,6 +1615,39 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     const wsRptGet = lines6.find((x) => x.id === 10);
     const wsRptGetJson = JSON.parse(wsRptGet.result.content[0].text);
     assert.equal(wsRptGetJson.id, rid);
+
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 11,
+      method: "tools/call",
+      params: { name: "rmemo_ws_focus_trends", arguments: { root: tmp, limitGroups: 10, limitReports: 100 } }
+    });
+    await waitFor(() => {
+      const lines7 = parseJsonLines(mcp.getOut());
+      return lines7.some((x) => x.id === 11);
+    });
+    const lines7 = parseJsonLines(mcp.getOut());
+    const wsTrends = lines7.find((x) => x.id === 11);
+    const wsTrendsJson = JSON.parse(wsTrends.result.content[0].text);
+    assert.ok(Array.isArray(wsTrendsJson.groups));
+    assert.ok(wsTrendsJson.groups.length >= 1);
+    const trendKey = wsTrendsJson.groups[0].key;
+
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 12,
+      method: "tools/call",
+      params: { name: "rmemo_ws_focus_trend_get", arguments: { root: tmp, key: trendKey, limit: 20 } }
+    });
+    await waitFor(() => {
+      const lines8 = parseJsonLines(mcp.getOut());
+      return lines8.some((x) => x.id === 12);
+    });
+    const lines8 = parseJsonLines(mcp.getOut());
+    const wsTrendGet = lines8.find((x) => x.id === 12);
+    const wsTrendGetJson = JSON.parse(wsTrendGet.result.content[0].text);
+    assert.equal(wsTrendGetJson.key, trendKey);
+    assert.ok(Array.isArray(wsTrendGetJson.series));
   } finally {
     mcp.closeIn();
     try {

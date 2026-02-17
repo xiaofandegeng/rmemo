@@ -459,3 +459,111 @@ export async function getWorkspaceFocusReport(root, id) {
     report
   };
 }
+
+function normalizeTrendKey(query, mode) {
+  return `${String(mode || "").trim()}::${String(query || "").trim()}`;
+}
+
+function splitTrendKey(key) {
+  const s = String(key || "");
+  const i = s.indexOf("::");
+  if (i < 0) return { mode: "", query: s };
+  return { mode: s.slice(0, i), query: s.slice(i + 2) };
+}
+
+function toTrendPoint(x) {
+  return {
+    id: String(x?.id || ""),
+    createdAt: x?.createdAt || null,
+    fromId: String(x?.fromId || ""),
+    toId: String(x?.toId || ""),
+    changedCount: Number(x?.summary?.changedCount || 0),
+    regressedErrors: Number(x?.summary?.regressedErrors || 0),
+    increased: Number(x?.summary?.increased || 0),
+    decreased: Number(x?.summary?.decreased || 0),
+    recovered: Number(x?.summary?.recovered || 0),
+    added: Number(x?.summary?.added || 0),
+    removed: Number(x?.summary?.removed || 0),
+    tag: x?.tag || null
+  };
+}
+
+function buildGroupSummary(points) {
+  const n = points.length || 1;
+  const sumChanged = points.reduce((s, p) => s + Number(p.changedCount || 0), 0);
+  return {
+    reports: points.length,
+    avgChangedCount: Number((sumChanged / n).toFixed(2)),
+    maxChangedCount: points.reduce((m, p) => Math.max(m, Number(p.changedCount || 0)), 0),
+    maxRegressedErrors: points.reduce((m, p) => Math.max(m, Number(p.regressedErrors || 0)), 0),
+    latest: points[points.length - 1] || null
+  };
+}
+
+export async function listWorkspaceFocusTrends(root, { limitReports = 200, limitGroups = 20 } = {}) {
+  const index = await readWsFocusReportsIndex(root);
+  const reports = (Array.isArray(index.reports) ? index.reports : []).slice(0, Math.min(200, Math.max(1, Number(limitReports || 200))));
+  const groups = new Map();
+  for (const r of reports) {
+    const query = String(r?.query || "");
+    const mode = String(r?.mode || "");
+    const key = normalizeTrendKey(query, mode);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+
+  const out = [];
+  for (const [key, arr] of groups.entries()) {
+    const points = arr
+      .slice()
+      .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+      .map(toTrendPoint);
+    const meta = splitTrendKey(key);
+    out.push({
+      key,
+      query: meta.query,
+      mode: meta.mode,
+      summary: buildGroupSummary(points),
+      series: points
+    });
+  }
+
+  out.sort(
+    (a, b) =>
+      Number(b.summary?.reports || 0) - Number(a.summary?.reports || 0) ||
+      Number((b.summary?.latest && b.summary.latest.createdAt) ? Date.parse(b.summary.latest.createdAt) : 0) -
+        Number((a.summary?.latest && a.summary.latest.createdAt) ? Date.parse(a.summary.latest.createdAt) : 0)
+  );
+
+  const trimmed = out.slice(0, Math.min(50, Math.max(1, Number(limitGroups || 20))));
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    summary: {
+      totalReports: reports.length,
+      totalGroups: out.length
+    },
+    groups: trimmed
+  };
+}
+
+export async function getWorkspaceFocusTrend(root, { key = "", limit = 100 } = {}) {
+  const trendKey = String(key || "").trim();
+  if (!trendKey) throw new Error("Missing trend key");
+  const all = await listWorkspaceFocusTrends(root, { limitReports: 200, limitGroups: 50 });
+  const g = (Array.isArray(all.groups) ? all.groups : []).find((x) => x.key === trendKey);
+  if (!g) throw new Error("trend_not_found");
+  const lim = Math.min(200, Math.max(1, Number(limit || 100)));
+  const series = (Array.isArray(g.series) ? g.series : []).slice(-lim);
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    key: g.key,
+    query: g.query,
+    mode: g.mode,
+    summary: buildGroupSummary(series),
+    series
+  };
+}

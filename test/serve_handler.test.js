@@ -672,4 +672,21 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   const oneReportJson = JSON.parse(oneReport.body);
   assert.equal(oneReportJson.id, reportJson.savedReport.id);
   assert.ok(oneReportJson.report);
+
+  const trends = await run(handler, { method: "GET", url: "/ws/focus/trends?token=t&limitGroups=10&limitReports=100" });
+  assert.equal(trends.status, 200);
+  const trendsJson = JSON.parse(trends.body);
+  assert.equal(trendsJson.schema, 1);
+  assert.ok(Array.isArray(trendsJson.groups));
+  assert.ok(trendsJson.groups.length >= 1);
+  const trendKey = trendsJson.groups[0].key;
+
+  const trendOne = await run(handler, {
+    method: "GET",
+    url: `/ws/focus/trend?token=t&key=${encodeURIComponent(trendKey)}&format=json&limit=20`
+  });
+  assert.equal(trendOne.status, 200);
+  const trendOneJson = JSON.parse(trendOne.body);
+  assert.equal(trendOneJson.key, trendKey);
+  assert.ok(Array.isArray(trendOneJson.series));
 });

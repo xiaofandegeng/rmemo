@@ -385,6 +385,19 @@ Done:
     - `rmemo_ws_focus_report_get`
   - UI:
     - `WS Reports` list + `Show WS Report` by report id
+- Workspace intelligence v8 (trend board):
+  - Aggregate saved drift reports by `mode::query` key for longitudinal analysis
+  - CLI:
+    - `rmemo ws trend [--limit-groups <n>] [--limit-reports <n>]`
+    - `rmemo ws trend show <trendKey> [--limit <n>]`
+  - HTTP:
+    - `GET /ws/focus/trends?limitGroups=<n>&limitReports=<n>`
+    - `GET /ws/focus/trend?key=<trendKey>&limit=<n>`
+  - MCP:
+    - `rmemo_ws_focus_trends`
+    - `rmemo_ws_focus_trend_get`
+  - UI:
+    - `WS Trends` + `Show WS Trend` controls
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

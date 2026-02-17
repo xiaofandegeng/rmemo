@@ -33,9 +33,11 @@ import {
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   getWorkspaceFocusReport,
+  getWorkspaceFocusTrend,
   generateWorkspaceFocusReport,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
+  listWorkspaceFocusTrends,
   listWorkspaces,
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot
@@ -1374,6 +1376,36 @@ export function createServeHandler(root, opts = {}) {
         lines.push(`- increased: ${report?.summary?.increased ?? 0}`);
         lines.push(`- decreased: ${report?.summary?.decreased ?? 0}`);
         lines.push(`- regressedErrors: ${report?.summary?.regressedErrors ?? 0}`);
+        lines.push("");
+        return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/trends") {
+        const limitGroups = Number(url.searchParams.get("limitGroups") || 20);
+        const limitReports = Number(url.searchParams.get("limitReports") || 200);
+        const out = await listWorkspaceFocusTrends(root, { limitGroups, limitReports });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/trend") {
+        const key = String(url.searchParams.get("key") || "").trim();
+        const limit = Number(url.searchParams.get("limit") || 100);
+        if (!key) return badRequest(res, "Missing trend key");
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const out = await getWorkspaceFocusTrend(root, { key, limit });
+        if (format === "json") return json(res, 200, out);
+        const lines = [];
+        lines.push(`# Workspace Trend ${out.key}\n`);
+        lines.push(`Query: "${out.query}"`);
+        lines.push(`Mode: ${out.mode}\n`);
+        lines.push("## Summary\n");
+        lines.push(`- reports: ${out.summary?.reports ?? 0}`);
+        lines.push(`- avgChangedCount: ${out.summary?.avgChangedCount ?? 0}`);
+        lines.push(`- maxChangedCount: ${out.summary?.maxChangedCount ?? 0}`);
+        lines.push(`- maxRegressedErrors: ${out.summary?.maxRegressedErrors ?? 0}\n`);
+        lines.push("## Series\n");
+        for (const p of out.series) lines.push(`- ${p.createdAt}: changed=${p.changedCount}, regressedErrors=${p.regressedErrors}`);
         lines.push("");
         return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
       }

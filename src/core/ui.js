@@ -376,6 +376,12 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <input id="wsReportId" type="text" placeholder="saved report id" style="width: 380px;" />
                 <button class="btn secondary" id="showWsReport">Show WS Report</button>
               </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <button class="btn secondary" id="loadWsTrends">WS Trends</button>
+                <input id="wsTrendKey" type="text" placeholder="trend key (mode::query)" style="width: 380px;" />
+                <button class="btn secondary" id="showWsTrend">Show WS Trend</button>
+              </div>
               <div class="hint">Use existing query + mode above; outputs aggregated JSON from <span style="font-family: var(--mono)">/ws/list</span> and <span style="font-family: var(--mono)">/ws/focus</span>.</div>
             </div>
 
@@ -690,6 +696,37 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         }
         msg("OK");
         qs("#title").textContent = "Workspace Saved Report";
+      }
+
+      async function loadWsTrends() {
+        err(""); msg("Loading workspace trends...");
+        const j = await apiFetch("/ws/focus/trends?limitGroups=30&limitReports=200", { accept: "application/json", json: true });
+        const first = j && Array.isArray(j.groups) && j.groups.length ? j.groups[0] : null;
+        if (first && first.key) qs("#wsTrendKey").value = first.key;
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Trends";
+      }
+
+      async function showWsTrend() {
+        err(""); msg("Loading workspace trend...");
+        const key = (qs("#wsTrendKey").value || "").trim();
+        if (!key) return msg("Missing trend key.");
+        const tab = qs("#out").dataset.tab || "json";
+        const fmt = tab === "md" ? "md" : "json";
+        const p = "/ws/focus/trend?key=" + encodeURIComponent(key) + "&format=" + encodeURIComponent(fmt) + "&limit=100";
+        if (fmt === "md") {
+          const t = await apiFetch(p, { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        } else {
+          const j = await apiFetch(p, { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        }
+        msg("OK");
+        qs("#title").textContent = "Workspace Trend";
       }
 
       async function addTodo() {
@@ -1167,6 +1204,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#doWsReport").addEventListener("click", () => doWsReport().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsReports").addEventListener("click", () => loadWsReports().catch((e) => { err(String(e)); msg(""); }));
       qs("#showWsReport").addEventListener("click", () => showWsReport().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsTrends").addEventListener("click", () => loadWsTrends().catch((e) => { err(String(e)); msg(""); }));
+      qs("#showWsTrend").addEventListener("click", () => showWsTrend().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));
