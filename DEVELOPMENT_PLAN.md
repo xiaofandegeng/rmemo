@@ -415,6 +415,23 @@ Done:
   - UI:
     - `WS Alerts` panel
     - alert policy load/save and one-click auto-governance check
+- Workspace intelligence v10 (alert timeline + RCA pack):
+  - Persist alert-check incidents under `.repo-memory/ws-focus/alerts-history.json`
+  - CLI:
+    - `rmemo ws alerts check`
+    - `rmemo ws alerts history [--limit <n>] [--key <trendKey>] [--level high|medium]`
+    - `rmemo ws alerts rca [--incident <id>] [--format md|json]`
+  - HTTP:
+    - `GET /ws/focus/alerts/history`
+    - `GET /ws/focus/alerts/rca`
+    - `POST /ws/focus/alerts/check` now records incident ids for traceability
+  - MCP:
+    - `rmemo_ws_focus_alerts_history`
+    - `rmemo_ws_focus_alerts_rca`
+    - `rmemo_ws_focus_alerts_check` now records and returns incident id
+  - UI:
+    - `WS Alerts History` and `WS Alerts RCA` actions
+    - incident id input for RCA anchor selection
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

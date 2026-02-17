@@ -20,6 +20,8 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/ws/focus/trend"));
   assert.ok(html.includes("/ws/focus/alerts"));
   assert.ok(html.includes("/ws/focus/alerts/config"));
+  assert.ok(html.includes("/ws/focus/alerts/history"));
+  assert.ok(html.includes("/ws/focus/alerts/rca"));
   assert.ok(html.includes("/events"));
   assert.ok(html.includes("/events/export"));
   assert.ok(html.includes("/diagnostics/export"));
@@ -77,6 +79,9 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("loadWsAlerts"));
   assert.ok(html.includes("loadWsAlertsConfig"));
   assert.ok(html.includes("runWsAlertsAuto"));
+  assert.ok(html.includes("loadWsAlertsHistory"));
+  assert.ok(html.includes("showWsAlertsRca"));
+  assert.ok(html.includes("wsIncidentId"));
   assert.ok(html.includes("saveWsAlertsConfig"));
   assert.ok(html.includes("govBenchmarkAutoAdoptEnabled"));
   assert.ok(html.includes("govBenchmarkMinScore"));
@@ -92,6 +97,7 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("embed:jobs:benchmark:adopt"));
   assert.ok(html.includes("embed:jobs:benchmark:skip"));
   assert.ok(html.includes("embed:jobs:config"));
+  assert.ok(html.includes("ws:alerts:incident"));
   assert.ok(html.includes("embed:build:progress"));
   assert.ok(html.includes("/refresh"));
   assert.ok(html.includes("/watch"));

@@ -93,6 +93,10 @@ export function wsFocusAlertsConfigPath(root) {
   return path.join(wsFocusDir(root), "alerts.json");
 }
 
+export function wsFocusAlertsHistoryPath(root) {
+  return path.join(wsFocusDir(root), "alerts-history.json");
+}
+
 export function sessionsDir(root) {
   return path.join(memDir(root), "sessions");
 }

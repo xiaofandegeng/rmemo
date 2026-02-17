@@ -715,4 +715,21 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   const alertsCheckJson = JSON.parse(alertsCheck.body);
   assert.equal(alertsCheckJson.ok, true);
   assert.ok(alertsCheckJson.autoGovernance);
+  assert.ok(alertsCheckJson.incident && alertsCheckJson.incident.id);
+
+  const alertsHistory = await run(handler, { method: "GET", url: "/ws/focus/alerts/history?token=t&limit=10" });
+  assert.equal(alertsHistory.status, 200);
+  const alertsHistoryJson = JSON.parse(alertsHistory.body);
+  assert.equal(alertsHistoryJson.schema, 1);
+  assert.ok(Array.isArray(alertsHistoryJson.incidents));
+  assert.ok(alertsHistoryJson.incidents.some((x) => x.id === alertsCheckJson.incident.id));
+
+  const alertsRca = await run(handler, {
+    method: "GET",
+    url: `/ws/focus/alerts/rca?token=t&format=json&incidentId=${encodeURIComponent(alertsCheckJson.incident.id)}`
+  });
+  assert.equal(alertsRca.status, 200);
+  const alertsRcaJson = JSON.parse(alertsRca.body);
+  assert.equal(alertsRcaJson.schema, 1);
+  assert.ok(alertsRcaJson.anchor && alertsRcaJson.anchor.id === alertsCheckJson.incident.id);
 });

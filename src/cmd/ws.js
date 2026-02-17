@@ -10,13 +10,16 @@ import { cmdSync } from "./sync.js";
 import { cmdEmbed } from "./embed.js";
 import { generateFocus } from "../core/focus.js";
 import {
+  appendWorkspaceFocusAlertIncident,
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusReport,
   generateWorkspaceFocusReport,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
+  listWorkspaceFocusAlertIncidents,
   listWorkspaceFocusTrends,
   getWorkspaceFocusTrend,
   evaluateWorkspaceFocusAlerts,
@@ -66,7 +69,10 @@ function wsHelp() {
     "  rmemo ws trend [--format md|json] [--limit-groups <n>] [--limit-reports <n>]",
     "  rmemo ws trend show <trendKey> [--format md|json] [--limit <n>]",
     "  rmemo ws alerts [--format md|json] [--limit-groups <n>] [--limit-reports <n>] [--key <trendKey>]",
+    "  rmemo ws alerts check [--format md|json] [--key <trendKey>]",
     "  rmemo ws alerts config [show|set]",
+    "  rmemo ws alerts history [--format md|json] [--limit <n>] [--key <trendKey>] [--level high|medium]",
+    "  rmemo ws alerts rca [--format md|json] [--incident <id>] [--key <trendKey>] [--limit <n>]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -313,6 +319,7 @@ export async function cmdWs({ rest, flags }) {
   const limitGroups = Number(flags["limit-groups"] || 20);
   const limitReports = Number(flags["limit-reports"] || 200);
   const trendKey = flags.key ? String(flags.key) : "";
+  const incidentId = flags.incident ? String(flags.incident) : "";
 
   if (!sub || sub === "help") {
     process.stdout.write(wsHelp() + "\n");
@@ -603,6 +610,25 @@ export async function cmdWs({ rest, flags }) {
       }
       return;
     }
+    if (op === "check") {
+      const source = String(flags.source || "ws-alert-cli");
+      const out = await evaluateWorkspaceFocusAlerts(root, { limitGroups, limitReports, key: trendKey });
+      const auto = { attempted: false, triggered: false, reason: "cli_auto_governance_not_enabled" };
+      const incident = await appendWorkspaceFocusAlertIncident(root, { alerts: out, autoGovernance: auto, source, key: trendKey });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify({ ok: true, alerts: out, autoGovernance: auto, incident: { id: incident.id, createdAt: incident.createdAt } }, null, 2) + "\n");
+      } else {
+        const lines = [];
+        lines.push("# Workspace Focus Alerts Check\n");
+        lines.push(`Incident: ${incident.id}`);
+        lines.push(`Created: ${incident.createdAt}`);
+        lines.push(`Alert count: ${out.summary?.alertCount ?? 0}`);
+        lines.push(`High: ${out.summary?.high ?? 0}, Medium: ${out.summary?.medium ?? 0}`);
+        lines.push("");
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
     if (op === "config") {
       const action = String(rest[2] || "show").trim();
       if (action === "show") {
@@ -625,6 +651,37 @@ export async function cmdWs({ rest, flags }) {
       }
       process.stderr.write("Usage: rmemo ws alerts config [show|set]\n");
       process.exitCode = 2;
+      return;
+    }
+    if (op === "history") {
+      const limit = Number(flags.limit || 20);
+      const level = flags.level ? String(flags.level) : "";
+      const out = await listWorkspaceFocusAlertIncidents(root, { limit, key: trendKey, level });
+      if (format === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        const lines = [];
+        lines.push("# Workspace Focus Alerts History\n");
+        lines.push(`Root: ${root}`);
+        lines.push(`Returned: ${out.summary?.returned ?? 0}`);
+        lines.push("");
+        if (!out.incidents.length) {
+          lines.push("No incidents.\n");
+        } else {
+          for (const x of out.incidents) {
+            lines.push(`- ${x.id} @ ${x.createdAt} source=${x.source} alerts=${Array.isArray(x.alerts) ? x.alerts.length : 0}`);
+          }
+          lines.push("");
+        }
+        process.stdout.write(lines.join("\n"));
+      }
+      return;
+    }
+    if (op === "rca") {
+      const limit = Number(flags.limit || 20);
+      const out = await generateWorkspaceFocusAlertsRca(root, { incidentId, key: trendKey, limit });
+      if (format === "json") process.stdout.write(JSON.stringify(out.json, null, 2) + "\n");
+      else process.stdout.write(out.markdown);
       return;
     }
     process.stderr.write(`Unknown subcommand: ws alerts ${op}\n\n`);

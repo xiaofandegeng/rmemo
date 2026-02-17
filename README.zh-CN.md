@@ -237,6 +237,8 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /ws/focus/trend?key=<trendKey>&format=json|md&limit=100`（按 key 读取某一条趋势序列）
 - `GET /ws/focus/alerts?limitGroups=20&limitReports=200&key=<trendKey>`（基于趋势分组评估漂移告警）
 - `GET /ws/focus/alerts/config`（读取 workspace 告警策略配置）
+- `GET /ws/focus/alerts/history?limit=20&key=<trendKey>&level=high|medium`（告警事件时间线）
+- `GET /ws/focus/alerts/rca?incidentId=<id>&key=<trendKey>&format=json|md&limit=20`（基于告警时间线生成 RCA）
 
 可选：开启写入操作（必须设置 token）：
 
@@ -329,6 +331,8 @@ rmemo mcp --root . --allow-write
 - `rmemo_ws_focus_trend_get`
 - `rmemo_ws_focus_alerts`
 - `rmemo_ws_focus_alerts_config`
+- `rmemo_ws_focus_alerts_history`
+- `rmemo_ws_focus_alerts_rca`
 - `rmemo_ws_focus_alerts_config_set`（写入 tool）
 - `rmemo_ws_focus_alerts_check`（写入 tool，可选触发自动治理）
 
@@ -401,6 +405,9 @@ rmemo ws report-history show <reportId> --format json
 rmemo ws trend --format json --limit-groups 20 --limit-reports 200
 rmemo ws trend show "keyword::auth token refresh" --format json --limit 100
 rmemo ws alerts --format json --limit-groups 20 --limit-reports 200
+rmemo ws alerts check --format json --key "keyword::auth token refresh"
+rmemo ws alerts history --format json --limit 20 --level high
+rmemo ws alerts rca --format md --incident <incidentId> --limit 20
 rmemo ws alerts config set --alerts-enabled --alerts-min-reports 2 --alerts-max-regressed-errors 0 --alerts-max-avg-changed 8 --alerts-max-changed 20 --alerts-auto-governance
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```

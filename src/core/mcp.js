@@ -29,16 +29,19 @@ import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
 import {
+  appendWorkspaceFocusAlertIncident,
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   evaluateWorkspaceFocusAlerts,
+  generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsConfig,
   getWorkspaceFocusReport,
   getWorkspaceFocusTrend,
   generateWorkspaceFocusReport,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
+  listWorkspaceFocusAlertIncidents,
   listWorkspaceFocusTrends,
   listWorkspaces,
   setWorkspaceFocusAlertsConfig,
@@ -438,6 +441,27 @@ function toolsList() {
       type: "object",
       properties: {
         root: rootProp
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_history", "List persisted workspace-focus alert incidents.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limit: { type: "number", default: 20 },
+        key: { type: "string" },
+        level: { type: "string", enum: ["high", "medium"] }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_rca", "Generate RCA pack from workspace-focus alert incidents.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        incidentId: { type: "string" },
+        key: { type: "string" },
+        limit: { type: "number", default: 20 },
+        format: { type: "string", enum: ["json", "md"], default: "json" }
       },
       additionalProperties: false
     }),
@@ -995,6 +1019,23 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     return JSON.stringify({ schema: 1, root, config }, null, 2);
   }
 
+  if (name === "rmemo_ws_focus_alerts_history") {
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const key = String(args?.key || "");
+    const level = String(args?.level || "");
+    const r = await listWorkspaceFocusAlertIncidents(root, { limit, key, level });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_rca") {
+    const incidentId = String(args?.incidentId || "");
+    const key = String(args?.key || "");
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const format = String(args?.format || "json").toLowerCase();
+    const r = await generateWorkspaceFocusAlertsRca(root, { incidentId, key, limit });
+    return format === "md" ? r.markdown : JSON.stringify(r.json, null, 2);
+  }
+
   if (name === "rmemo_embed_status") {
     const checkUpToDate = args?.checkUpToDate !== false;
     const r = await getEmbedStatus(root, { checkUpToDate });
@@ -1344,7 +1385,8 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
         }
       }
     }
-    return JSON.stringify({ ok: true, alerts, autoGovernance: auto }, null, 2);
+    const incident = await appendWorkspaceFocusAlertIncident(root, { alerts, autoGovernance: auto, source, key });
+    return JSON.stringify({ ok: true, alerts, autoGovernance: auto, incident: { id: incident.id, createdAt: incident.createdAt } }, null, 2);
   }
 
   logger.warn(`Unknown tool call: ${name}`);

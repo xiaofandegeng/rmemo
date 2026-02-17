@@ -1177,6 +1177,25 @@ test("rmemo ws focus snapshots can be saved, listed and compared", async () => {
   const alertsCfgShowJson = JSON.parse(alertsCfgShow.out);
   assert.equal(alertsCfgShowJson.schema, 1);
 
+  const alertsCheck = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "alerts", "check"]);
+  assert.equal(alertsCheck.code, 0, alertsCheck.err || alertsCheck.out);
+  const alertsCheckJson = JSON.parse(alertsCheck.out);
+  assert.equal(alertsCheckJson.ok, true);
+  assert.ok(alertsCheckJson.incident && alertsCheckJson.incident.id);
+
+  const alertsHistory = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "alerts", "history", "--limit", "10"]);
+  assert.equal(alertsHistory.code, 0, alertsHistory.err || alertsHistory.out);
+  const alertsHistoryJson = JSON.parse(alertsHistory.out);
+  assert.equal(alertsHistoryJson.schema, 1);
+  assert.ok(Array.isArray(alertsHistoryJson.incidents));
+  assert.ok(alertsHistoryJson.incidents.some((x) => x.id === alertsCheckJson.incident.id));
+
+  const alertsRca = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "alerts", "rca", "--incident", alertsCheckJson.incident.id]);
+  assert.equal(alertsRca.code, 0, alertsRca.err || alertsRca.out);
+  const alertsRcaJson = JSON.parse(alertsRca.out);
+  assert.equal(alertsRcaJson.schema, 1);
+  assert.ok(alertsRcaJson.anchor && alertsRcaJson.anchor.id === alertsCheckJson.incident.id);
+
   const reportMd = await runNode([rmemoBin, "--root", tmp, "ws", "focus-history", "report", j1.snapshot.id, j2.snapshot.id, "--format", "md"]);
   assert.equal(reportMd.code, 0, reportMd.err || reportMd.out);
   assert.ok(reportMd.out.includes("# Workspace Focus Drift Report"));
@@ -1537,6 +1556,8 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_trend_get"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_config"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_history"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_rca"));
 
     const wsList = lines.find((x) => x.id === 3);
     const wsListJson = JSON.parse(wsList.result.content[0].text);
@@ -1717,6 +1738,22 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     const wsAlertsCfg = lines10.find((x) => x.id === 14);
     const wsAlertsCfgJson = JSON.parse(wsAlertsCfg.result.content[0].text);
     assert.equal(wsAlertsCfgJson.schema, 1);
+
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 15,
+      method: "tools/call",
+      params: { name: "rmemo_ws_focus_alerts_history", arguments: { root: tmp, limit: 10 } }
+    });
+    await waitFor(() => {
+      const lines11 = parseJsonLines(mcp.getOut());
+      return lines11.some((x) => x.id === 15);
+    });
+    const lines11 = parseJsonLines(mcp.getOut());
+    const wsAlertsHistory = lines11.find((x) => x.id === 15);
+    const wsAlertsHistoryJson = JSON.parse(wsAlertsHistory.result.content[0].text);
+    assert.equal(wsAlertsHistoryJson.schema, 1);
+    assert.ok(Array.isArray(wsAlertsHistoryJson.incidents));
   } finally {
     mcp.closeIn();
     try {
@@ -1851,10 +1888,37 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
         arguments: { source: "test", mode: "apply_top", windowSizes: [10, 20] }
       }
     });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 17,
+      method: "tools/call",
+      params: {
+        name: "rmemo_ws_focus_alerts_check",
+        arguments: { root: tmp, limitGroups: 10, limitReports: 100, autoGovernance: false, source: "test-mcp-write" }
+      }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 18,
+      method: "tools/call",
+      params: {
+        name: "rmemo_ws_focus_alerts_history",
+        arguments: { root: tmp, limit: 10 }
+      }
+    });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 19,
+      method: "tools/call",
+      params: {
+        name: "rmemo_ws_focus_alerts_rca",
+        arguments: { root: tmp, limit: 20, format: "json" }
+      }
+    });
 
     await waitFor(() => {
       const lines = parseJsonLines(mcp.getOut());
-      return lines.some((x) => x.id === 16) ? true : false;
+      return lines.some((x) => x.id === 19) ? true : false;
     });
 
     const lines = parseJsonLines(mcp.getOut());
@@ -1876,6 +1940,8 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_governance_benchmark_adopt"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_config_set"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_check"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_history"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_rca"));
 
     const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
     assert.ok(todosMd.includes("Add MCP write tools"));
@@ -1969,6 +2035,25 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       const govBenchAdoptJson = JSON.parse(govBenchAdopt.result.content[0].text);
       assert.equal(govBenchAdoptJson.ok, true);
       assert.equal(govBenchAdoptJson.result.ok, true);
+    }
+
+    const wsAlertsCheck = lines.find((x) => x.id === 17);
+    const wsAlertsCheckJson = JSON.parse(wsAlertsCheck.result.content[0].text);
+    assert.equal(wsAlertsCheckJson.ok, true);
+    assert.ok(wsAlertsCheckJson.incident && wsAlertsCheckJson.incident.id);
+
+    const wsAlertsHistory = lines.find((x) => x.id === 18);
+    const wsAlertsHistoryJson = JSON.parse(wsAlertsHistory.result.content[0].text);
+    assert.equal(wsAlertsHistoryJson.schema, 1);
+    assert.ok(Array.isArray(wsAlertsHistoryJson.incidents));
+
+    const wsAlertsRca = lines.find((x) => x.id === 19);
+    if (wsAlertsRca.error) {
+      assert.ok(String(wsAlertsRca.error.message || "").length > 0);
+    } else {
+      const wsAlertsRcaJson = JSON.parse(wsAlertsRca.result.content[0].text);
+      assert.equal(wsAlertsRcaJson.schema, 1);
+      assert.ok(wsAlertsRcaJson.anchor && wsAlertsRcaJson.anchor.id);
     }
   } finally {
     mcp.closeIn();

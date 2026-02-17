@@ -5,6 +5,7 @@ import { generateFocus } from "./focus.js";
 import { fileExists, readJson, writeJson } from "../lib/io.js";
 import {
   wsFocusAlertsConfigPath,
+  wsFocusAlertsHistoryPath,
   wsFocusDir,
   wsFocusIndexPath,
   wsFocusReportPath,
@@ -670,5 +671,190 @@ export async function evaluateWorkspaceFocusAlerts(root, { limitGroups = 20, lim
       medium: alerts.filter((x) => x.level === "medium").length
     },
     alerts
+  };
+}
+
+async function readWorkspaceFocusAlertsHistory(root) {
+  const p = wsFocusAlertsHistoryPath(root);
+  if (!(await fileExists(p))) return { schema: 1, updatedAt: null, incidents: [] };
+  try {
+    const j = await readJson(p);
+    const incidents = Array.isArray(j?.incidents) ? j.incidents : [];
+    return { schema: 1, updatedAt: j?.updatedAt || null, incidents };
+  } catch {
+    return { schema: 1, updatedAt: null, incidents: [] };
+  }
+}
+
+function makeAlertsIncidentId() {
+  const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `alrt-${iso}-${rand}`;
+}
+
+function simplifyAlert(a) {
+  return {
+    key: String(a?.key || ""),
+    query: String(a?.query || ""),
+    mode: String(a?.mode || ""),
+    level: String(a?.level || "medium"),
+    reports: Number(a?.reports || 0),
+    avgChangedCount: Number(a?.avgChangedCount || 0),
+    maxChangedCount: Number(a?.maxChangedCount || 0),
+    regressedErrors: Number(a?.regressedErrors || 0),
+    reasons: Array.isArray(a?.reasons) ? a.reasons.map((x) => String(x)) : [],
+    latest: a?.latest || null
+  };
+}
+
+export async function appendWorkspaceFocusAlertIncident(root, { alerts, autoGovernance = null, source = "unknown", key = "" } = {}) {
+  const out = alerts || {};
+  const incident = {
+    schema: 1,
+    id: makeAlertsIncidentId(),
+    createdAt: new Date().toISOString(),
+    root,
+    source: String(source || "unknown"),
+    key: String(key || ""),
+    summary: out?.summary || null,
+    config: out?.config || null,
+    alerts: (Array.isArray(out?.alerts) ? out.alerts : []).map(simplifyAlert),
+    autoGovernance: autoGovernance || null
+  };
+  const history = await readWorkspaceFocusAlertsHistory(root);
+  history.incidents.unshift(incident);
+  history.incidents = history.incidents.slice(0, 500);
+  history.updatedAt = new Date().toISOString();
+  await fs.mkdir(wsFocusDir(root), { recursive: true });
+  await writeJson(wsFocusAlertsHistoryPath(root), history);
+  return incident;
+}
+
+function incidentMatches(incident, { key = "", level = "" } = {}) {
+  const trendKey = String(key || "").trim();
+  const lv = String(level || "").trim().toLowerCase();
+  if (trendKey) {
+    const hit = (Array.isArray(incident?.alerts) ? incident.alerts : []).some((a) => String(a?.key || "") === trendKey);
+    if (!hit) return false;
+  }
+  if (lv) {
+    const hit = (Array.isArray(incident?.alerts) ? incident.alerts : []).some((a) => String(a?.level || "").toLowerCase() === lv);
+    if (!hit) return false;
+  }
+  return true;
+}
+
+export async function listWorkspaceFocusAlertIncidents(root, { limit = 20, key = "", level = "" } = {}) {
+  const history = await readWorkspaceFocusAlertsHistory(root);
+  const lim = Math.min(500, Math.max(1, Number(limit || 20)));
+  const incidents = history.incidents.filter((x) => incidentMatches(x, { key, level })).slice(0, lim);
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    summary: {
+      total: history.incidents.length,
+      returned: incidents.length
+    },
+    incidents
+  };
+}
+
+function summarizeRcaWindow(items) {
+  const reasonCount = new Map();
+  const levelCount = { high: 0, medium: 0 };
+  const keyCount = new Map();
+  let maxRegressed = 0;
+  let maxChanged = 0;
+  for (const inc of items) {
+    for (const a of Array.isArray(inc?.alerts) ? inc.alerts : []) {
+      const lv = String(a?.level || "");
+      if (lv === "high") levelCount.high += 1;
+      else if (lv === "medium") levelCount.medium += 1;
+      maxRegressed = Math.max(maxRegressed, Number(a?.regressedErrors || 0));
+      maxChanged = Math.max(maxChanged, Number(a?.maxChangedCount || 0));
+      const key = String(a?.key || "");
+      if (key) keyCount.set(key, (keyCount.get(key) || 0) + 1);
+      for (const r of Array.isArray(a?.reasons) ? a.reasons : []) {
+        const s = String(r || "");
+        if (!s) continue;
+        reasonCount.set(s, (reasonCount.get(s) || 0) + 1);
+      }
+    }
+  }
+  const topReasons = Array.from(reasonCount.entries())
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason))
+    .slice(0, 5);
+  const hotKeys = Array.from(keyCount.entries())
+    .map(([key, count]) => ({ key, count }))
+    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key))
+    .slice(0, 5);
+  return { levelCount, topReasons, hotKeys, maxRegressed, maxChanged };
+}
+
+function buildRcaRecommendations(stats, anchor) {
+  const out = [];
+  if (stats.levelCount.high >= 2) out.push("Multiple high alerts appeared in sequence; freeze risky changes and prioritize regression tests.");
+  if (stats.maxRegressed > 0) out.push("Regressed errors were detected; add targeted regression tests and track follow-ups in rules/todos.");
+  if (stats.maxChanged > 20) out.push("Changed-count volatility is high; split large batches into smaller module-level changes and monitor trends.");
+  if (anchor?.autoGovernance?.triggered) out.push("Auto-governance was triggered; review governance policy and thresholds in the next iteration.");
+  if (!out.length) out.push("Current risk is mostly medium-level drift; keep monitoring and preserve periodic trend snapshots.");
+  return out;
+}
+
+function markdownFromRca(rca) {
+  const lines = [];
+  lines.push("# Workspace Alerts RCA");
+  lines.push("");
+  lines.push(`- generatedAt: ${rca.generatedAt}`);
+  lines.push(`- incidentId: ${rca.anchor?.id || "-"}`);
+  lines.push(`- keyFilter: ${rca.keyFilter || "(none)"}`);
+  lines.push(`- windowSize: ${rca.window?.length || 0}`);
+  lines.push("");
+  lines.push("## Window Summary");
+  lines.push(`- high: ${rca.stats?.levelCount?.high ?? 0}`);
+  lines.push(`- medium: ${rca.stats?.levelCount?.medium ?? 0}`);
+  lines.push(`- maxRegressedErrors: ${rca.stats?.maxRegressed ?? 0}`);
+  lines.push(`- maxChangedCount: ${rca.stats?.maxChanged ?? 0}`);
+  lines.push("");
+  lines.push("## Top Reasons");
+  if (!rca.stats?.topReasons?.length) lines.push("- (none)");
+  else for (const r of rca.stats.topReasons) lines.push(`- ${r.reason} (${r.count})`);
+  lines.push("");
+  lines.push("## Hot Trend Keys");
+  if (!rca.stats?.hotKeys?.length) lines.push("- (none)");
+  else for (const k of rca.stats.hotKeys) lines.push(`- ${k.key} (${k.count})`);
+  lines.push("");
+  lines.push("## Recommendations");
+  for (const x of rca.recommendations || []) lines.push(`- ${x}`);
+  lines.push("");
+  return lines.join("\n") + "\n";
+}
+
+export async function generateWorkspaceFocusAlertsRca(root, { incidentId = "", key = "", limit = 20 } = {}) {
+  const history = await readWorkspaceFocusAlertsHistory(root);
+  const filtered = history.incidents.filter((x) => incidentMatches(x, { key }));
+  if (!filtered.length) throw new Error("alerts_history_empty");
+  const byId = String(incidentId || "").trim();
+  const anchor = byId ? filtered.find((x) => x.id === byId) : filtered[0];
+  if (!anchor) throw new Error("incident_not_found");
+  const lim = Math.min(200, Math.max(1, Number(limit || 20)));
+  const anchorIdx = filtered.findIndex((x) => x.id === anchor.id);
+  const window = filtered.slice(anchorIdx, anchorIdx + lim);
+  const stats = summarizeRcaWindow(window);
+  const rca = {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    keyFilter: String(key || ""),
+    anchor,
+    window,
+    stats,
+    recommendations: buildRcaRecommendations(stats, anchor)
+  };
+  return {
+    json: rca,
+    markdown: markdownFromRca(rca)
   };
 }

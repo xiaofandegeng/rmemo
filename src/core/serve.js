@@ -29,16 +29,19 @@ import { getEmbedStatus } from "./embed_status.js";
 import { refreshRepoMemory, watchRepo } from "./watch.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
 import {
+  appendWorkspaceFocusAlertIncident,
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   evaluateWorkspaceFocusAlerts,
+  generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsConfig,
   getWorkspaceFocusReport,
   getWorkspaceFocusTrend,
   generateWorkspaceFocusReport,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
+  listWorkspaceFocusAlertIncidents,
   listWorkspaceFocusTrends,
   listWorkspaces,
   setWorkspaceFocusAlertsConfig,
@@ -1476,8 +1479,29 @@ export function createServeHandler(root, opts = {}) {
             }
           }
         }
+        const incident = await appendWorkspaceFocusAlertIncident(root, { alerts: out, autoGovernance: auto, source, key: String(url.searchParams.get("key") || "") });
+        events?.emit?.({ type: "ws:alerts:incident", incidentId: incident.id, source, summary: out.summary });
         events?.emit?.({ type: "ws:alerts:check", summary: out.summary, autoGovernance: auto });
-        return json(res, 200, { ok: true, alerts: out, autoGovernance: auto });
+        return json(res, 200, { ok: true, alerts: out, autoGovernance: auto, incident: { id: incident.id, createdAt: incident.createdAt } });
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/history") {
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const key = String(url.searchParams.get("key") || "");
+        const level = String(url.searchParams.get("level") || "");
+        const out = await listWorkspaceFocusAlertIncidents(root, { limit, key, level });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/rca") {
+        const incidentId = String(url.searchParams.get("incidentId") || "");
+        const key = String(url.searchParams.get("key") || "");
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const out = await generateWorkspaceFocusAlertsRca(root, { incidentId, key, limit });
+        if (format === "json") return json(res, 200, out.json);
+        return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {

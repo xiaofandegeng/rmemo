@@ -233,6 +233,8 @@ Then fetch:
 - `GET /ws/focus/trend?key=<trendKey>&format=json|md&limit=100` (get one trend series by key)
 - `GET /ws/focus/alerts?limitGroups=20&limitReports=200&key=<trendKey>` (evaluate drift alerts from trend groups)
 - `GET /ws/focus/alerts/config` (get workspace alert policy config)
+- `GET /ws/focus/alerts/history?limit=20&key=<trendKey>&level=high|medium` (recent alert incidents timeline)
+- `GET /ws/focus/alerts/rca?incidentId=<id>&key=<trendKey>&format=json|md&limit=20` (RCA pack from alert timeline)
 
 Optional: enable write actions (token required):
 
@@ -325,6 +327,8 @@ Read tool:
 - `rmemo_ws_focus_trend_get`
 - `rmemo_ws_focus_alerts`
 - `rmemo_ws_focus_alerts_config`
+- `rmemo_ws_focus_alerts_history`
+- `rmemo_ws_focus_alerts_rca`
 - `rmemo_ws_focus_alerts_config_set` (write tool)
 - `rmemo_ws_focus_alerts_check` (write tool; optional auto-governance)
 
@@ -397,6 +401,9 @@ rmemo ws report-history show <reportId> --format json
 rmemo ws trend --format json --limit-groups 20 --limit-reports 200
 rmemo ws trend show "keyword::auth token refresh" --format json --limit 100
 rmemo ws alerts --format json --limit-groups 20 --limit-reports 200
+rmemo ws alerts check --format json --key "keyword::auth token refresh"
+rmemo ws alerts history --format json --limit 20 --level high
+rmemo ws alerts rca --format md --incident <incidentId> --limit 20
 rmemo ws alerts config set --alerts-enabled --alerts-min-reports 2 --alerts-max-regressed-errors 0 --alerts-max-avg-changed 8 --alerts-max-changed 20 --alerts-auto-governance
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```
