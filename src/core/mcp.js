@@ -36,6 +36,7 @@ import {
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   createWorkspaceFocusAlertsBoard,
+  evaluateWorkspaceFocusAlertsBoardsPulse,
   evaluateWorkspaceFocusAlerts,
   generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsBoardReport,
@@ -46,6 +47,7 @@ import {
   getWorkspaceFocusReport,
   getWorkspaceFocusTrend,
   listWorkspaceFocusAlertsBoards,
+  listWorkspaceFocusAlertsBoardsPulseHistory,
   listWorkspaceFocusAlertsActions,
   generateWorkspaceFocusReport,
   listWorkspaceFocusReports,
@@ -532,6 +534,27 @@ function toolsList() {
         maxItems: { type: "number", default: 20 }
       },
       required: ["boardId"],
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_pulse", "Evaluate open boards for overdue items using status SLA thresholds.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limitBoards: { type: "number", default: 50 },
+        todoHours: { type: "number", default: 24 },
+        doingHours: { type: "number", default: 12 },
+        blockedHours: { type: "number", default: 6 },
+        save: { type: "boolean", default: false },
+        source: { type: "string", default: "ws-alert-board-mcp" }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_pulse_history", "List board pulse incidents history.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limit: { type: "number", default: 20 }
+      },
       additionalProperties: false
     }),
     tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
@@ -1202,6 +1225,24 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const maxItems = args?.maxItems !== undefined ? Number(args.maxItems) : 20;
     const r = await generateWorkspaceFocusAlertsBoardReport(root, { boardId, maxItems });
     return format === "md" ? r.markdown : JSON.stringify(r.json, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_pulse") {
+    const limitBoards = args?.limitBoards !== undefined ? Number(args.limitBoards) : 50;
+    const todoHours = args?.todoHours !== undefined ? Number(args.todoHours) : 24;
+    const doingHours = args?.doingHours !== undefined ? Number(args.doingHours) : 12;
+    const blockedHours = args?.blockedHours !== undefined ? Number(args.blockedHours) : 6;
+    const save = args?.save === true;
+    if (save) requireWrite();
+    const source = String(args?.source || "ws-alert-board-mcp");
+    const r = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { limitBoards, todoHours, doingHours, blockedHours, save, source });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_pulse_history") {
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const r = await listWorkspaceFocusAlertsBoardsPulseHistory(root, { limit });
+    return JSON.stringify(r, null, 2);
   }
 
   if (name === "rmemo_embed_status") {

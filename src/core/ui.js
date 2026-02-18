@@ -436,6 +436,18 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
               </div>
               <div style="height: 8px;"></div>
               <div class="row">
+                <input id="wsPulseTodoHours" type="number" min="1" step="1" placeholder="todo hours" style="width: 130px;" value="24" />
+                <input id="wsPulseDoingHours" type="number" min="1" step="1" placeholder="doing hours" style="width: 130px;" value="12" />
+                <input id="wsPulseBlockedHours" type="number" min="1" step="1" placeholder="blocked hours" style="width: 130px;" value="6" />
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsPulseSave" type="checkbox" />
+                  <span class="hint" style="margin:0;">save pulse</span>
+                </label>
+                <button class="btn secondary" id="runWsAlertsBoardPulse">WS Alerts Board Pulse</button>
+                <button class="btn secondary" id="loadWsAlertsBoardPulseHistory">WS Alerts Pulse History</button>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
                 <label style="display:flex; gap:6px; align-items:center;">
                   <input id="wsAlertsEnabled" type="checkbox" checked />
                   <span class="hint" style="margin:0;">alerts enabled</span>
@@ -1059,6 +1071,34 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Workspace Alerts Board Closed";
       }
 
+      async function runWsAlertsBoardPulse() {
+        err(""); msg("Evaluating workspace alerts board pulse...");
+        const todoHours = Number((qs("#wsPulseTodoHours").value || "").trim() || 24);
+        const doingHours = Number((qs("#wsPulseDoingHours").value || "").trim() || 12);
+        const blockedHours = Number((qs("#wsPulseBlockedHours").value || "").trim() || 6);
+        const save = !!qs("#wsPulseSave").checked;
+        let p = "/ws/focus/alerts/board-pulse?limitBoards=50";
+        if (Number.isFinite(todoHours) && todoHours > 0) p += "&todoHours=" + encodeURIComponent(String(todoHours));
+        if (Number.isFinite(doingHours) && doingHours > 0) p += "&doingHours=" + encodeURIComponent(String(doingHours));
+        if (Number.isFinite(blockedHours) && blockedHours > 0) p += "&blockedHours=" + encodeURIComponent(String(blockedHours));
+        if (save) p += "&save=1&source=ui";
+        const j = await apiFetch(p, { accept: "application/json", json: true });
+        if (j && j.incident && j.incident.id) pushLive({ type: "ws:alerts:board-pulse", incidentId: j.incident.id });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Board Pulse";
+      }
+
+      async function loadWsAlertsBoardPulseHistory() {
+        err(""); msg("Loading workspace alerts board pulse history...");
+        const j = await apiFetch("/ws/focus/alerts/board-pulse-history?limit=30", { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Board Pulse History";
+      }
+
       async function addTodo() {
         err(""); msg("Adding todo...");
         const kind = qs("#todoKind").value;
@@ -1544,6 +1584,9 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("ws:alerts:board-closed", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "ws:alerts:board-closed"); }
         });
+        evt.addEventListener("ws:alerts:board-pulse", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "ws:alerts:board-pulse"); }
+        });
       }
 
       qs("#saveToken").addEventListener("click", saveToken);
@@ -1580,6 +1623,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#updateWsAlertsBoardItem").addEventListener("click", () => updateWsAlertsBoardItem().catch((e) => { err(String(e)); msg(""); }));
       qs("#showWsAlertsBoardReport").addEventListener("click", () => showWsAlertsBoardReport().catch((e) => { err(String(e)); msg(""); }));
       qs("#closeWsAlertsBoard").addEventListener("click", () => closeWsAlertsBoard().catch((e) => { err(String(e)); msg(""); }));
+      qs("#runWsAlertsBoardPulse").addEventListener("click", () => runWsAlertsBoardPulse().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsAlertsBoardPulseHistory").addEventListener("click", () => loadWsAlertsBoardPulseHistory().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

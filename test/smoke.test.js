@@ -1348,6 +1348,53 @@ test("rmemo ws focus snapshots can be saved, listed and compared", async () => {
   assert.equal(boardCloseJson.schema, 1);
   assert.ok(boardCloseJson.closedAt);
 
+  const boardPulse = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "alerts",
+    "board",
+    "pulse",
+    "--limit-boards",
+    "20",
+    "--todo-hours",
+    "1",
+    "--doing-hours",
+    "1",
+    "--blocked-hours",
+    "1",
+    "--save",
+    "--source",
+    "smoke"
+  ]);
+  assert.equal(boardPulse.code, 0, boardPulse.err || boardPulse.out);
+  const boardPulseJson = JSON.parse(boardPulse.out);
+  assert.equal(boardPulseJson.schema, 1);
+  assert.ok(boardPulseJson.summary);
+  assert.ok(boardPulseJson.incident && boardPulseJson.incident.id);
+
+  const boardPulseHistory = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "alerts",
+    "board",
+    "pulse-history",
+    "--limit",
+    "10"
+  ]);
+  assert.equal(boardPulseHistory.code, 0, boardPulseHistory.err || boardPulseHistory.out);
+  const boardPulseHistoryJson = JSON.parse(boardPulseHistory.out);
+  assert.equal(boardPulseHistoryJson.schema, 1);
+  assert.ok(Array.isArray(boardPulseHistoryJson.incidents));
+  assert.ok(boardPulseHistoryJson.incidents.some((x) => x.id === boardPulseJson.incident.id));
+
   const reportMd = await runNode([rmemoBin, "--root", tmp, "ws", "focus-history", "report", j1.snapshot.id, j2.snapshot.id, "--format", "md"]);
   assert.equal(reportMd.code, 0, reportMd.err || reportMd.out);
   assert.ok(reportMd.out.includes("# Workspace Focus Drift Report"));
@@ -1716,6 +1763,8 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_boards"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_get"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_report"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_pulse"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_pulse_history"));
 
     const wsList = lines.find((x) => x.id === 3);
     const wsListJson = JSON.parse(wsList.result.content[0].text);
@@ -2115,6 +2164,8 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_boards"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_get"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_report"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_pulse"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_pulse_history"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_create"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_update"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_close"));
@@ -2351,6 +2402,54 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       const boardCloseJson = JSON.parse(boardClose.result.content[0].text);
       assert.equal(boardCloseJson.ok, true);
       assert.ok(boardCloseJson.result.closedAt);
+
+      mcp.writeLine({
+        jsonrpc: "2.0",
+        id: 31,
+        method: "tools/call",
+        params: {
+          name: "rmemo_ws_focus_alerts_board_pulse",
+          arguments: {
+            root: tmp,
+            limitBoards: 20,
+            todoHours: 1,
+            doingHours: 1,
+            blockedHours: 1,
+            save: true,
+            source: "test-mcp"
+          }
+        }
+      });
+      await waitFor(() => {
+        const lines7 = parseJsonLines(mcp.getOut());
+        return lines7.some((x) => x.id === 31);
+      });
+      const lines7 = parseJsonLines(mcp.getOut());
+      const pulse = lines7.find((x) => x.id === 31);
+      const pulseJson = JSON.parse(pulse.result.content[0].text);
+      assert.equal(pulseJson.schema, 1);
+      assert.ok(pulseJson.summary);
+      assert.ok(pulseJson.incident && pulseJson.incident.id);
+
+      mcp.writeLine({
+        jsonrpc: "2.0",
+        id: 32,
+        method: "tools/call",
+        params: {
+          name: "rmemo_ws_focus_alerts_board_pulse_history",
+          arguments: { root: tmp, limit: 10 }
+        }
+      });
+      await waitFor(() => {
+        const lines8 = parseJsonLines(mcp.getOut());
+        return lines8.some((x) => x.id === 32);
+      });
+      const lines8 = parseJsonLines(mcp.getOut());
+      const pulseHist = lines8.find((x) => x.id === 32);
+      const pulseHistJson = JSON.parse(pulseHist.result.content[0].text);
+      assert.equal(pulseHistJson.schema, 1);
+      assert.ok(Array.isArray(pulseHistJson.incidents));
+      assert.ok(pulseHistJson.incidents.some((x) => x.id === pulseJson.incident.id));
     }
   } finally {
     mcp.closeIn();

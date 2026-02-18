@@ -32,6 +32,8 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/ws/focus/alerts/board-update"));
   assert.ok(html.includes("/ws/focus/alerts/board-report"));
   assert.ok(html.includes("/ws/focus/alerts/board-close"));
+  assert.ok(html.includes("/ws/focus/alerts/board-pulse"));
+  assert.ok(html.includes("/ws/focus/alerts/board-pulse-history"));
   assert.ok(html.includes("/events"));
   assert.ok(html.includes("/events/export"));
   assert.ok(html.includes("/diagnostics/export"));
@@ -109,6 +111,12 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("wsBoardCloseForce"));
   assert.ok(html.includes("showWsAlertsBoardReport"));
   assert.ok(html.includes("closeWsAlertsBoard"));
+  assert.ok(html.includes("wsPulseTodoHours"));
+  assert.ok(html.includes("wsPulseDoingHours"));
+  assert.ok(html.includes("wsPulseBlockedHours"));
+  assert.ok(html.includes("wsPulseSave"));
+  assert.ok(html.includes("runWsAlertsBoardPulse"));
+  assert.ok(html.includes("loadWsAlertsBoardPulseHistory"));
   assert.ok(html.includes("saveWsAlertsConfig"));
   assert.ok(html.includes("govBenchmarkAutoAdoptEnabled"));
   assert.ok(html.includes("govBenchmarkMinScore"));
@@ -129,6 +137,7 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("ws:alerts:board-created"));
   assert.ok(html.includes("ws:alerts:board-updated"));
   assert.ok(html.includes("ws:alerts:board-closed"));
+  assert.ok(html.includes("ws:alerts:board-pulse"));
   assert.ok(html.includes("embed:build:progress"));
   assert.ok(html.includes("/refresh"));
   assert.ok(html.includes("/watch"));

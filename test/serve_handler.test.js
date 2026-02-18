@@ -825,4 +825,24 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   const boardCloseBlockedJson = JSON.parse(boardCloseBlocked.body);
   assert.equal(boardCloseBlockedJson.ok, true);
   assert.ok(boardCloseBlockedJson.result.closedAt);
+
+  const boardPulse = await run(handler, {
+    method: "GET",
+    url: "/ws/focus/alerts/board-pulse?token=t&limitBoards=20&todoHours=1&doingHours=1&blockedHours=1&save=1&source=test"
+  });
+  assert.equal(boardPulse.status, 200);
+  const boardPulseJson = JSON.parse(boardPulse.body);
+  assert.equal(boardPulseJson.schema, 1);
+  assert.ok(boardPulseJson.summary);
+  assert.ok(boardPulseJson.incident && boardPulseJson.incident.id);
+
+  const boardPulseHistory = await run(handler, {
+    method: "GET",
+    url: "/ws/focus/alerts/board-pulse-history?token=t&limit=10"
+  });
+  assert.equal(boardPulseHistory.status, 200);
+  const boardPulseHistoryJson = JSON.parse(boardPulseHistory.body);
+  assert.equal(boardPulseHistoryJson.schema, 1);
+  assert.ok(Array.isArray(boardPulseHistoryJson.incidents));
+  assert.ok(boardPulseHistoryJson.incidents.some((x) => x.id === boardPulseJson.incident.id));
 });

@@ -17,6 +17,7 @@ import {
   compareWorkspaceFocusWithLatest,
   createWorkspaceFocusAlertsBoard,
   closeWorkspaceFocusAlertsBoard,
+  evaluateWorkspaceFocusAlertsBoardsPulse,
   generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsBoardReport,
   generateWorkspaceFocusAlertsRca,
@@ -26,6 +27,7 @@ import {
   generateWorkspaceFocusReport,
   saveWorkspaceFocusAlertsActionPlan,
   listWorkspaceFocusAlertsBoards,
+  listWorkspaceFocusAlertsBoardsPulseHistory,
   listWorkspaceFocusAlertsActions,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
@@ -94,6 +96,8 @@ function wsHelp() {
     "  rmemo ws alerts board update --board <id> --item <id> --status todo|doing|done|blocked [--note <text>] [--format md|json]",
     "  rmemo ws alerts board report --board <id> [--max-items <n>] [--format md|json]",
     "  rmemo ws alerts board close --board <id> [--reason <text>] [--force] [--no-log] [--format md|json]",
+    "  rmemo ws alerts board pulse [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--save] [--source <name>] [--format md|json]",
+    "  rmemo ws alerts board pulse-history [--limit <n>] [--format md|json]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -349,6 +353,7 @@ export async function cmdWs({ rest, flags }) {
   const boardTitle = flags.title ? String(flags.title) : "";
   const closeReason = flags.reason ? String(flags.reason) : "";
   const force = !!flags.force;
+  const source = flags.source ? String(flags.source) : "ws-alert-board-cli";
   const includeBlockers = !!flags["include-blockers"];
   const noLog = !!flags["no-log"];
   const maxTasks = Number(flags["max-tasks"] || 20);
@@ -884,7 +889,53 @@ export async function cmdWs({ rest, flags }) {
         else process.stdout.write(`Closed board ${boardId} at ${out.closedAt || "-"}\n`);
         return;
       }
-      process.stderr.write("Usage: rmemo ws alerts board <create|list|show|update>\n");
+      if (boardOp === "pulse") {
+        const limitBoards = Number(flags["limit-boards"] || 50);
+        const todoHours = Number(flags["todo-hours"] || 24);
+        const doingHours = Number(flags["doing-hours"] || 12);
+        const blockedHours = Number(flags["blocked-hours"] || 6);
+        const save = !!flags.save;
+        const out = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { limitBoards, todoHours, doingHours, blockedHours, save, source });
+        if (format === "json") {
+          process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        } else {
+          const lines = [];
+          lines.push("# Workspace Alerts Board Pulse\n");
+          lines.push(`Open boards: ${out.summary?.openBoards ?? 0}`);
+          lines.push(`Boards with overdue: ${out.summary?.boardsWithOverdue ?? 0}`);
+          lines.push(`Overdue items: ${out.summary?.overdueItems ?? 0} (critical=${out.summary?.criticalItems ?? 0}, warn=${out.summary?.warnItems ?? 0})`);
+          lines.push(`Thresholds(h): todo=${out.summary?.thresholds?.todo ?? "-"} doing=${out.summary?.thresholds?.doing ?? "-"} blocked=${out.summary?.thresholds?.blocked ?? "-"}`);
+          lines.push("");
+          lines.push("## Top Overdue");
+          const top = Array.isArray(out.overdueItems) ? out.overdueItems.slice(0, 20) : [];
+          if (!top.length) lines.push("- (none)");
+          else for (const x of top) lines.push(`- [${x.level}] ${x.boardId}/${x.itemId} [${x.status}] ${x.text} age=${x.ageHours}h (th=${x.thresholdHours}h)`);
+          if (out.incident?.id) lines.push(`\nPulse incident: ${out.incident.id}`);
+          lines.push("");
+          process.stdout.write(lines.join("\n"));
+        }
+        return;
+      }
+      if (boardOp === "pulse-history") {
+        const limit = Number(flags.limit || 20);
+        const out = await listWorkspaceFocusAlertsBoardsPulseHistory(root, { limit });
+        if (format === "json") {
+          process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        } else {
+          const lines = [];
+          lines.push("# Workspace Alerts Board Pulse History\n");
+          if (!out.incidents.length) lines.push("No pulse incidents.\n");
+          else {
+            for (const x of out.incidents) {
+              lines.push(`- ${x.id} @ ${x.createdAt} source=${x.source} overdue=${x.summary?.overdueItems ?? 0} critical=${x.summary?.criticalItems ?? 0}`);
+            }
+            lines.push("");
+          }
+          process.stdout.write(lines.join("\n"));
+        }
+        return;
+      }
+      process.stderr.write("Usage: rmemo ws alerts board <create|list|show|update|report|close|pulse|pulse-history>\n");
       process.exitCode = 2;
       return;
     }

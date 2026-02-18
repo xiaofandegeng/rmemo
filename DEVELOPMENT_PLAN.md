@@ -477,6 +477,21 @@ Done:
     - `WS Alerts Board` create/list/show/update
     - `WS Alerts Board Report` and `WS Alerts Board Close`
     - SSE events: `ws:alerts:board-created|board-updated|board-closed`
+- Workspace intelligence v13 (Action board pulse + SLA overdue):
+  - Detect stalled board tasks by status-specific SLA thresholds (todo/doing/blocked)
+  - Persist pulse incidents under `.repo-memory/ws-focus/action-boards/pulse-history.json`
+  - CLI:
+    - `rmemo ws alerts board pulse [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--save]`
+    - `rmemo ws alerts board pulse-history [--limit <n>]`
+  - HTTP:
+    - `GET /ws/focus/alerts/board-pulse`
+    - `GET /ws/focus/alerts/board-pulse-history`
+  - MCP:
+    - `rmemo_ws_focus_alerts_board_pulse`
+    - `rmemo_ws_focus_alerts_board_pulse_history`
+  - UI:
+    - `WS Alerts Board Pulse` and `WS Alerts Pulse History`
+    - SSE event: `ws:alerts:board-pulse`
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

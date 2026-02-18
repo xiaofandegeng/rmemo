@@ -245,6 +245,8 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /ws/focus/alerts/boards?limit=20`（已保存执行看板）
 - `GET /ws/focus/alerts/board-item?id=<boardId>&format=json|md`（读取单条执行看板）
 - `GET /ws/focus/alerts/board-report?id=<boardId>&format=json|md&maxItems=20`（执行看板进度报告）
+- `GET /ws/focus/alerts/board-pulse?limitBoards=50&todoHours=24&doingHours=12&blockedHours=6&save=1&source=<name>`（对开放看板执行逾期节奏检查）
+- `GET /ws/focus/alerts/board-pulse-history?limit=20`（已保存的节奏检查事件）
 
 可选：开启写入操作（必须设置 token）：
 
@@ -349,6 +351,8 @@ rmemo mcp --root . --allow-write
 - `rmemo_ws_focus_alerts_boards`
 - `rmemo_ws_focus_alerts_board_get`
 - `rmemo_ws_focus_alerts_board_report`
+- `rmemo_ws_focus_alerts_board_pulse`
+- `rmemo_ws_focus_alerts_board_pulse_history`
 - `rmemo_ws_focus_alerts_config_set`（写入 tool）
 - `rmemo_ws_focus_alerts_check`（写入 tool，可选触发自动治理）
 - `rmemo_ws_focus_alerts_action_apply`（写入 tool）
@@ -438,6 +442,8 @@ rmemo ws alerts board show --format json --board <boardId>
 rmemo ws alerts board update --format json --board <boardId> --item <itemId> --status doing --note "started"
 rmemo ws alerts board report --format json --board <boardId> --max-items 20
 rmemo ws alerts board close --format json --board <boardId> --reason "done" --force
+rmemo ws alerts board pulse --format json --limit-boards 50 --todo-hours 24 --doing-hours 12 --blocked-hours 6 --save
+rmemo ws alerts board pulse-history --format json --limit 20
 rmemo ws alerts config set --alerts-enabled --alerts-min-reports 2 --alerts-max-regressed-errors 0 --alerts-max-avg-changed 8 --alerts-max-changed 20 --alerts-auto-governance
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```

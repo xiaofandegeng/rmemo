@@ -12,6 +12,7 @@ import {
   wsFocusAlertsBoardPath,
   wsFocusAlertsBoardsDir,
   wsFocusAlertsBoardsIndexPath,
+  wsFocusAlertsBoardsPulsePath,
   wsFocusAlertsConfigPath,
   wsFocusAlertsHistoryPath,
   wsFocusDir,
@@ -1321,4 +1322,155 @@ export async function closeWorkspaceFocusAlertsBoard(root, { boardId = "", reaso
     summary: board.summary,
     journalPath
   };
+}
+
+function hoursSince(ts, nowMs) {
+  const t = Date.parse(String(ts || ""));
+  if (!Number.isFinite(t) || t <= 0) return null;
+  return (nowMs - t) / 3600000;
+}
+
+function pulseLevelForItem(item, ageHours, thresholds) {
+  if (item.status === "done") return null;
+  const th = Number(thresholds?.[item.status] || 0);
+  if (th <= 0) return null;
+  if (ageHours === null || ageHours < th) return null;
+  if (ageHours >= th * 2) return "critical";
+  return "warn";
+}
+
+async function appendWorkspaceFocusAlertsBoardsPulse(root, pulse, { source = "ws-alert-board-pulse" } = {}) {
+  const p = wsFocusAlertsBoardsPulsePath(root);
+  let doc = { schema: 1, updatedAt: null, incidents: [] };
+  if (await fileExists(p)) {
+    try {
+      const j = await readJson(p);
+      doc = {
+        schema: 1,
+        updatedAt: j?.updatedAt || null,
+        incidents: Array.isArray(j?.incidents) ? j.incidents : []
+      };
+    } catch {
+      // ignore malformed history and reset
+    }
+  }
+  const now = new Date().toISOString();
+  const incident = {
+    id: `bpl-${now.replace(/[-:]/g, "").replace(/\..+$/, "Z")}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: now,
+    source: String(source || "ws-alert-board-pulse"),
+    summary: pulse.summary || null,
+    top: (pulse.overdueItems || []).slice(0, 20)
+  };
+  doc.incidents.unshift(incident);
+  doc.incidents = doc.incidents.slice(0, 500);
+  doc.updatedAt = now;
+  await writeJson(p, doc);
+  return incident;
+}
+
+export async function listWorkspaceFocusAlertsBoardsPulseHistory(root, { limit = 20 } = {}) {
+  const lim = Math.min(300, Math.max(1, Number(limit || 20)));
+  const p = wsFocusAlertsBoardsPulsePath(root);
+  if (!(await fileExists(p))) {
+    return { schema: 1, generatedAt: new Date().toISOString(), root, incidents: [] };
+  }
+  try {
+    const j = await readJson(p);
+    return {
+      schema: 1,
+      generatedAt: new Date().toISOString(),
+      root,
+      incidents: Array.isArray(j?.incidents) ? j.incidents.slice(0, lim) : []
+    };
+  } catch {
+    return { schema: 1, generatedAt: new Date().toISOString(), root, incidents: [] };
+  }
+}
+
+export async function evaluateWorkspaceFocusAlertsBoardsPulse(
+  root,
+  {
+    limitBoards = 50,
+    todoHours = 24,
+    doingHours = 12,
+    blockedHours = 6,
+    save = false,
+    source = "ws-alert-board-pulse"
+  } = {}
+) {
+  const boardsOut = await listWorkspaceFocusAlertsBoards(root, { limit: limitBoards });
+  const nowMs = Date.now();
+  const thresholds = {
+    todo: Math.max(1, Number(todoHours || 24)),
+    doing: Math.max(1, Number(doingHours || 12)),
+    blocked: Math.max(1, Number(blockedHours || 6))
+  };
+  const overdueItems = [];
+  const openBoards = [];
+
+  for (const meta of boardsOut.boards) {
+    // eslint-disable-next-line no-await-in-loop
+    const board = await getWorkspaceFocusAlertsBoard(root, meta.id);
+    if (board?.closedAt) continue;
+    const items = Array.isArray(board?.items) ? board.items : [];
+    const boardOverdue = [];
+    for (const item of items) {
+      if (item.status === "done") continue;
+      const anchor = item.updatedAt || board.updatedAt || board.createdAt;
+      const ageHoursRaw = hoursSince(anchor, nowMs);
+      const ageHours = ageHoursRaw === null ? null : Number(ageHoursRaw.toFixed(1));
+      const level = pulseLevelForItem(item, ageHoursRaw, thresholds);
+      if (!level) continue;
+      const row = {
+        boardId: board.id,
+        boardTitle: board.title || "",
+        actionId: board.actionId || "",
+        itemId: item.id,
+        status: item.status,
+        kind: item.kind,
+        text: item.text,
+        note: item.note || "",
+        ageHours,
+        thresholdHours: thresholds[item.status] || null,
+        level
+      };
+      overdueItems.push(row);
+      boardOverdue.push(row);
+    }
+    openBoards.push({
+      id: board.id,
+      title: board.title || "",
+      actionId: board.actionId || "",
+      summary: board.summary || boardSummary(items),
+      overdueCount: boardOverdue.length
+    });
+  }
+
+  overdueItems.sort((a, b) => {
+    const lv = (x) => (x.level === "critical" ? 0 : 1);
+    return lv(a) - lv(b) || Number(b.ageHours || 0) - Number(a.ageHours || 0);
+  });
+  openBoards.sort((a, b) => Number(b.overdueCount || 0) - Number(a.overdueCount || 0));
+
+  const summary = {
+    openBoards: openBoards.length,
+    boardsWithOverdue: openBoards.filter((x) => x.overdueCount > 0).length,
+    overdueItems: overdueItems.length,
+    criticalItems: overdueItems.filter((x) => x.level === "critical").length,
+    warnItems: overdueItems.filter((x) => x.level === "warn").length,
+    thresholds
+  };
+  const out = {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    summary,
+    boards: openBoards.slice(0, 100),
+    overdueItems: overdueItems.slice(0, 300)
+  };
+
+  let incident = null;
+  if (save) incident = await appendWorkspaceFocusAlertsBoardsPulse(root, out, { source });
+  return { ...out, incident };
 }

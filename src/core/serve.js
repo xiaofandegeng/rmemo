@@ -36,6 +36,7 @@ import {
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   createWorkspaceFocusAlertsBoard,
+  evaluateWorkspaceFocusAlertsBoardsPulse,
   evaluateWorkspaceFocusAlerts,
   generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsBoardReport,
@@ -47,6 +48,7 @@ import {
   getWorkspaceFocusTrend,
   generateWorkspaceFocusReport,
   listWorkspaceFocusAlertsBoards,
+  listWorkspaceFocusAlertsBoardsPulseHistory,
   listWorkspaceFocusAlertsActions,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
@@ -1663,6 +1665,32 @@ export function createServeHandler(root, opts = {}) {
         const out = await closeWorkspaceFocusAlertsBoard(root, { boardId, reason, force, noLog });
         events?.emit?.({ type: "ws:alerts:board-closed", boardId, forced: force, summary: out.summary || null });
         return json(res, 200, { ok: true, result: out });
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-pulse") {
+        const limitBoards = Number(url.searchParams.get("limitBoards") || 50);
+        const todoHours = Number(url.searchParams.get("todoHours") || 24);
+        const doingHours = Number(url.searchParams.get("doingHours") || 12);
+        const blockedHours = Number(url.searchParams.get("blockedHours") || 6);
+        const source = String(url.searchParams.get("source") || "ws-alert-board-http");
+        const save = url.searchParams.get("save") === "1";
+        if (save && !allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const out = await evaluateWorkspaceFocusAlertsBoardsPulse(root, {
+          limitBoards,
+          todoHours,
+          doingHours,
+          blockedHours,
+          save,
+          source
+        });
+        if (out.incident?.id) events?.emit?.({ type: "ws:alerts:board-pulse", incidentId: out.incident.id, summary: out.summary || null });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-pulse-history") {
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const out = await listWorkspaceFocusAlertsBoardsPulseHistory(root, { limit });
+        return json(res, 200, out);
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {
