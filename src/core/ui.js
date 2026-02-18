@@ -408,6 +408,24 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
               </div>
               <div style="height: 8px;"></div>
               <div class="row">
+                <input id="wsBoardId" type="text" placeholder="board id (for show/update)" style="width: 380px;" />
+                <input id="wsBoardItemId" type="text" placeholder="board item id (for update)" style="width: 380px;" />
+                <select id="wsBoardStatus" style="width: 130px;">
+                  <option value="todo">todo</option>
+                  <option value="doing">doing</option>
+                  <option value="done">done</option>
+                  <option value="blocked">blocked</option>
+                </select>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <button class="btn secondary" id="loadWsAlertsBoards">WS Alerts Boards</button>
+                <button class="btn secondary" id="createWsAlertsBoard">WS Alerts Board Create</button>
+                <button class="btn secondary" id="showWsAlertsBoard">WS Alerts Board</button>
+                <button class="btn secondary" id="updateWsAlertsBoardItem">WS Alerts Board Update</button>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
                 <label style="display:flex; gap:6px; align-items:center;">
                   <input id="wsAlertsEnabled" type="checkbox" checked />
                   <span class="hint" style="margin:0;">alerts enabled</span>
@@ -938,6 +956,66 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Workspace Alerts Action Apply";
       }
 
+      async function loadWsAlertsBoards() {
+        err(""); msg("Loading workspace alerts boards...");
+        const j = await apiFetch("/ws/focus/alerts/boards?limit=30", { accept: "application/json", json: true });
+        const first = j && Array.isArray(j.boards) && j.boards.length ? j.boards[0] : null;
+        if (first && first.id) qs("#wsBoardId").value = first.id;
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Boards";
+      }
+
+      async function createWsAlertsBoard() {
+        err(""); msg("Creating workspace alerts board...");
+        const actionId = (qs("#wsActionId").value || "").trim();
+        if (!actionId) return msg("Missing action id.");
+        const j = await apiPost("/ws/focus/alerts/board-create", { actionId });
+        if (j && j.result && j.result.id) qs("#wsBoardId").value = j.result.id;
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Board Created";
+      }
+
+      async function showWsAlertsBoard() {
+        err(""); msg("Loading workspace alerts board...");
+        const id = (qs("#wsBoardId").value || "").trim();
+        if (!id) return msg("Missing board id.");
+        const tab = qs("#out").dataset.tab || "json";
+        const fmt = tab === "md" ? "md" : "json";
+        const p = "/ws/focus/alerts/board-item?id=" + encodeURIComponent(id) + "&format=" + encodeURIComponent(fmt);
+        if (fmt === "md") {
+          const t = await apiFetch(p, { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        } else {
+          const j = await apiFetch(p, { accept: "application/json", json: true });
+          const first = j && Array.isArray(j.items) && j.items.length ? j.items[0] : null;
+          if (first && first.id) qs("#wsBoardItemId").value = first.id;
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        }
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Board";
+      }
+
+      async function updateWsAlertsBoardItem() {
+        err(""); msg("Updating workspace alerts board item...");
+        const boardId = (qs("#wsBoardId").value || "").trim();
+        const itemId = (qs("#wsBoardItemId").value || "").trim();
+        const status = (qs("#wsBoardStatus").value || "").trim();
+        if (!boardId) return msg("Missing board id.");
+        if (!itemId) return msg("Missing board item id.");
+        if (!status) return msg("Missing board status.");
+        const j = await apiPost("/ws/focus/alerts/board-update", { boardId, itemId, status });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Board Item Updated";
+      }
+
       async function addTodo() {
         err(""); msg("Adding todo...");
         const kind = qs("#todoKind").value;
@@ -1408,6 +1486,18 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "ws:alerts:action-applied"); }
           loadTodos().catch(() => {});
         });
+        evt.addEventListener("ws:alerts:board-created", (ev) => {
+          try {
+            const j = JSON.parse(ev.data);
+            pushLive(j);
+            if (j && j.boardId) qs("#wsBoardId").value = String(j.boardId);
+          } catch {
+            pushLive(ev.data || "ws:alerts:board-created");
+          }
+        });
+        evt.addEventListener("ws:alerts:board-updated", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "ws:alerts:board-updated"); }
+        });
       }
 
       qs("#saveToken").addEventListener("click", saveToken);
@@ -1438,6 +1528,10 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadWsAlertsActionHistory").addEventListener("click", () => loadWsAlertsActionHistory().catch((e) => { err(String(e)); msg(""); }));
       qs("#showWsAlertsAction").addEventListener("click", () => showWsAlertsAction().catch((e) => { err(String(e)); msg(""); }));
       qs("#applyWsAlertsAction").addEventListener("click", () => applyWsAlertsAction().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsAlertsBoards").addEventListener("click", () => loadWsAlertsBoards().catch((e) => { err(String(e)); msg(""); }));
+      qs("#createWsAlertsBoard").addEventListener("click", () => createWsAlertsBoard().catch((e) => { err(String(e)); msg(""); }));
+      qs("#showWsAlertsBoard").addEventListener("click", () => showWsAlertsBoard().catch((e) => { err(String(e)); msg(""); }));
+      qs("#updateWsAlertsBoardItem").addEventListener("click", () => updateWsAlertsBoardItem().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

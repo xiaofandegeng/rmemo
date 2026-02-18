@@ -15,12 +15,15 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  createWorkspaceFocusAlertsBoard,
   generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsAction,
+  getWorkspaceFocusAlertsBoard,
   getWorkspaceFocusReport,
   generateWorkspaceFocusReport,
   saveWorkspaceFocusAlertsActionPlan,
+  listWorkspaceFocusAlertsBoards,
   listWorkspaceFocusAlertsActions,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
@@ -31,7 +34,8 @@ import {
   getWorkspaceFocusAlertsConfig,
   setWorkspaceFocusAlertsConfig,
   saveWorkspaceFocusReport,
-  saveWorkspaceFocusSnapshot
+  saveWorkspaceFocusSnapshot,
+  updateWorkspaceFocusAlertsBoardItem
 } from "../core/workspaces.js";
 import { ensureRepoMemory } from "../core/memory.js";
 import { wsSummaryPath } from "../lib/paths.js";
@@ -82,6 +86,10 @@ function wsHelp() {
     "  rmemo ws alerts action-history [--format md|json] [--limit <n>]",
     "  rmemo ws alerts action-show --action <id> [--format md|json]",
     "  rmemo ws alerts action-apply --action <id> [--include-blockers] [--no-log] [--max-tasks <n>]",
+    "  rmemo ws alerts board create --action <id> [--title <name>] [--format md|json]",
+    "  rmemo ws alerts board list [--limit <n>] [--format md|json]",
+    "  rmemo ws alerts board show --board <id> [--format md|json]",
+    "  rmemo ws alerts board update --board <id> --item <id> --status todo|doing|done|blocked [--note <text>] [--format md|json]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -330,6 +338,11 @@ export async function cmdWs({ rest, flags }) {
   const trendKey = flags.key ? String(flags.key) : "";
   const incidentId = flags.incident ? String(flags.incident) : "";
   const actionId = flags.action ? String(flags.action) : "";
+  const boardId = flags.board ? String(flags.board) : "";
+  const itemId = flags.item ? String(flags.item) : "";
+  const boardStatus = flags.status ? String(flags.status) : "";
+  const boardNote = flags.note ? String(flags.note) : "";
+  const boardTitle = flags.title ? String(flags.title) : "";
   const includeBlockers = !!flags["include-blockers"];
   const noLog = !!flags["no-log"];
   const maxTasks = Number(flags["max-tasks"] || 20);
@@ -764,6 +777,86 @@ export async function cmdWs({ rest, flags }) {
       }
       const out = await applyWorkspaceFocusAlertsActionPlan(root, { id: actionId, includeBlockers, noLog, maxTasks });
       process.stdout.write(format === "json" ? JSON.stringify(out, null, 2) + "\n" : `Applied action ${out.actionId}: next=${out.applied?.next?.length || 0}, blockers=${out.applied?.blockers?.length || 0}\n`);
+      return;
+    }
+    if (op === "board") {
+      const boardOp = String(rest[2] || "").trim();
+      if (boardOp === "create") {
+        if (!actionId) {
+          process.stderr.write("Usage: rmemo ws alerts board create --action <id> [--title <name>]\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await createWorkspaceFocusAlertsBoard(root, { actionId, title: boardTitle });
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Created board ${out.id} for action ${actionId}\n`);
+        return;
+      }
+      if (boardOp === "list") {
+        const limit = Number(flags.limit || 20);
+        const out = await listWorkspaceFocusAlertsBoards(root, { limit });
+        if (format === "json") {
+          process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        } else {
+          const lines = [];
+          lines.push("# Workspace Alerts Boards\n");
+          lines.push(`Root: ${root}`);
+          lines.push("");
+          if (!out.boards.length) lines.push("No boards.\n");
+          else {
+            for (const b of out.boards) {
+              lines.push(`- ${b.id} @ ${b.updatedAt || b.createdAt} action=${b.actionId} done=${b.summary?.done ?? 0}/${b.summary?.total ?? 0}`);
+            }
+            lines.push("");
+          }
+          process.stdout.write(lines.join("\n"));
+        }
+        return;
+      }
+      if (boardOp === "show") {
+        if (!boardId) {
+          process.stderr.write("Usage: rmemo ws alerts board show --board <id>\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await getWorkspaceFocusAlertsBoard(root, boardId);
+        if (format === "json") {
+          process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        } else {
+          const lines = [];
+          lines.push(`# Workspace Alerts Board ${out.id}\n`);
+          lines.push(`Title: ${out.title || "-"}`);
+          lines.push(`Action: ${out.actionId || "-"}`);
+          lines.push(`Updated: ${out.updatedAt || "-"}`);
+          lines.push(`Summary: todo=${out.summary?.todo ?? 0} doing=${out.summary?.doing ?? 0} done=${out.summary?.done ?? 0} blocked=${out.summary?.blocked ?? 0}`);
+          lines.push("");
+          lines.push("## Items\n");
+          const items = Array.isArray(out.items) ? out.items : [];
+          if (!items.length) lines.push("- (none)");
+          else for (const it of items) lines.push(`- ${it.id} [${it.status}] [${it.kind}] ${it.text}`);
+          lines.push("");
+          process.stdout.write(lines.join("\n"));
+        }
+        return;
+      }
+      if (boardOp === "update") {
+        if (!boardId || !itemId || !boardStatus) {
+          process.stderr.write("Usage: rmemo ws alerts board update --board <id> --item <id> --status todo|doing|done|blocked [--note <text>]\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await updateWorkspaceFocusAlertsBoardItem(root, {
+          boardId,
+          itemId,
+          status: boardStatus,
+          note: boardNote
+        });
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Updated board ${boardId} item ${itemId} -> ${out.item?.status || boardStatus}\n`);
+        return;
+      }
+      process.stderr.write("Usage: rmemo ws alerts board <create|list|show|update>\n");
+      process.exitCode = 2;
       return;
     }
     process.stderr.write(`Unknown subcommand: ws alerts ${op}\n\n`);

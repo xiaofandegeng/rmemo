@@ -34,14 +34,17 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  createWorkspaceFocusAlertsBoard,
   evaluateWorkspaceFocusAlerts,
   generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsConfig,
   getWorkspaceFocusAlertsAction,
+  getWorkspaceFocusAlertsBoard,
   getWorkspaceFocusReport,
   getWorkspaceFocusTrend,
   generateWorkspaceFocusReport,
+  listWorkspaceFocusAlertsBoards,
   listWorkspaceFocusAlertsActions,
   listWorkspaceFocusReports,
   listWorkspaceFocusSnapshots,
@@ -51,7 +54,8 @@ import {
   setWorkspaceFocusAlertsConfig,
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot,
-  saveWorkspaceFocusAlertsActionPlan
+  saveWorkspaceFocusAlertsActionPlan,
+  updateWorkspaceFocusAlertsBoardItem
 } from "./workspaces.js";
 
 function json(res, code, obj) {
@@ -1574,6 +1578,63 @@ export function createServeHandler(root, opts = {}) {
           next: out.applied?.next?.length || 0,
           blockers: out.applied?.blockers?.length || 0
         });
+        return json(res, 200, { ok: true, result: out });
+      }
+
+      if (req.method === "POST" && url.pathname === "/ws/focus/alerts/board-create") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const actionId = String(body.actionId || "").trim();
+        const title = String(body.title || "");
+        if (!actionId) return badRequest(res, "Missing action id");
+        const out = await createWorkspaceFocusAlertsBoard(root, { actionId, title });
+        events?.emit?.({ type: "ws:alerts:board-created", boardId: out.id, actionId });
+        return json(res, 200, { ok: true, result: out });
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/boards") {
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const out = await listWorkspaceFocusAlertsBoards(root, { limit });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-item") {
+        const id = String(url.searchParams.get("id") || "");
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (!id) return badRequest(res, "Missing board id");
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const out = await getWorkspaceFocusAlertsBoard(root, id);
+        if (format === "json") return json(res, 200, out);
+        const lines = [];
+        lines.push(`# Workspace Alerts Board ${out.id}`);
+        lines.push("");
+        lines.push(`- title: ${out.title || "-"}`);
+        lines.push(`- actionId: ${out.actionId || "-"}`);
+        lines.push(`- updatedAt: ${out.updatedAt || "-"}`);
+        lines.push(`- summary: todo=${out.summary?.todo ?? 0} doing=${out.summary?.doing ?? 0} done=${out.summary?.done ?? 0} blocked=${out.summary?.blocked ?? 0}`);
+        lines.push("");
+        lines.push("## Items");
+        const items = Array.isArray(out.items) ? out.items : [];
+        if (!items.length) lines.push("- (none)");
+        else for (const it of items) lines.push(`- ${it.id} [${it.status}] [${it.kind}] ${it.text}`);
+        lines.push("");
+        return text(res, 200, lines.join("\n"), "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "POST" && url.pathname === "/ws/focus/alerts/board-update") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const boardId = String(body.boardId || "").trim();
+        const itemId = String(body.itemId || "").trim();
+        const status = String(body.status || "").trim();
+        const note = String(body.note || "");
+        if (!boardId) return badRequest(res, "Missing board id");
+        if (!itemId) return badRequest(res, "Missing item id");
+        if (!status) return badRequest(res, "Missing status");
+        const out = await updateWorkspaceFocusAlertsBoardItem(root, { boardId, itemId, status, note });
+        events?.emit?.({ type: "ws:alerts:board-updated", boardId, itemId, status: out.item?.status || status });
         return json(res, 200, { ok: true, result: out });
       }
 

@@ -1250,6 +1250,62 @@ test("rmemo ws focus snapshots can be saved, listed and compared", async () => {
   assert.equal(actionApplyJson.schema, 1);
   assert.equal(actionApplyJson.actionId, actionPlanJson.savedAction.id);
 
+  const boardCreate = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "alerts",
+    "board",
+    "create",
+    "--action",
+    actionPlanJson.savedAction.id,
+    "--title",
+    "daily board"
+  ]);
+  assert.equal(boardCreate.code, 0, boardCreate.err || boardCreate.out);
+  const boardCreateJson = JSON.parse(boardCreate.out);
+  assert.ok(boardCreateJson.id);
+
+  const boardList = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "alerts", "board", "list", "--limit", "10"]);
+  assert.equal(boardList.code, 0, boardList.err || boardList.out);
+  const boardListJson = JSON.parse(boardList.out);
+  assert.equal(boardListJson.schema, 1);
+  assert.ok(Array.isArray(boardListJson.boards));
+  assert.ok(boardListJson.boards.some((x) => x.id === boardCreateJson.id));
+
+  const boardShow = await runNode([rmemoBin, "--root", tmp, "--format", "json", "ws", "alerts", "board", "show", "--board", boardCreateJson.id]);
+  assert.equal(boardShow.code, 0, boardShow.err || boardShow.out);
+  const boardShowJson = JSON.parse(boardShow.out);
+  assert.equal(boardShowJson.id, boardCreateJson.id);
+  assert.ok(Array.isArray(boardShowJson.items));
+  assert.ok(boardShowJson.items.length >= 1);
+
+  const boardUpdate = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "alerts",
+    "board",
+    "update",
+    "--board",
+    boardCreateJson.id,
+    "--item",
+    boardShowJson.items[0].id,
+    "--status",
+    "doing",
+    "--note",
+    "started"
+  ]);
+  assert.equal(boardUpdate.code, 0, boardUpdate.err || boardUpdate.out);
+  const boardUpdateJson = JSON.parse(boardUpdate.out);
+  assert.equal(boardUpdateJson.item.status, "doing");
+
   const reportMd = await runNode([rmemoBin, "--root", tmp, "ws", "focus-history", "report", j1.snapshot.id, j2.snapshot.id, "--format", "md"]);
   assert.equal(reportMd.code, 0, reportMd.err || reportMd.out);
   assert.ok(reportMd.out.includes("# Workspace Focus Drift Report"));
@@ -1615,6 +1671,8 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_action_plan"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_actions"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_action_get"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_boards"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_get"));
 
     const wsList = lines.find((x) => x.id === 3);
     const wsListJson = JSON.parse(wsList.result.content[0].text);
@@ -1981,7 +2039,6 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
         arguments: { root: tmp, limit: 20, format: "json", save: true, tag: "mcp-act" }
       }
     });
-
     await waitFor(() => {
       const lines = parseJsonLines(mcp.getOut());
       return lines.some((x) => x.id === 20) ? true : false;
@@ -2012,6 +2069,10 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_actions"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_action_get"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_action_apply"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_boards"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_get"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_create"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_update"));
 
     const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
     assert.ok(todosMd.includes("Add MCP write tools"));
@@ -2127,6 +2188,7 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     }
 
     const wsAlertsActionPlan = lines.find((x) => x.id === 20);
+    let savedActionId = "";
     if (wsAlertsActionPlan.error) {
       assert.ok(String(wsAlertsActionPlan.error.message || "").length > 0);
     } else {
@@ -2134,6 +2196,78 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       assert.equal(wsAlertsActionPlanJson.schema, 1);
       assert.ok(Array.isArray(wsAlertsActionPlanJson.tasks));
       assert.ok(wsAlertsActionPlanJson.savedAction && wsAlertsActionPlanJson.savedAction.id);
+      savedActionId = wsAlertsActionPlanJson.savedAction.id;
+    }
+
+    // Re-run board create/list/get/update with concrete ids once action id is known.
+    if (savedActionId) {
+      mcp.writeLine({
+        jsonrpc: "2.0",
+        id: 25,
+        method: "tools/call",
+        params: {
+          name: "rmemo_ws_focus_alerts_board_create",
+          arguments: { root: tmp, actionId: savedActionId, title: "mcp board" }
+        }
+      });
+      await waitFor(() => {
+        const lines2 = parseJsonLines(mcp.getOut());
+        return lines2.some((x) => x.id === 25);
+      });
+      const lines2 = parseJsonLines(mcp.getOut());
+      const boardCreate = lines2.find((x) => x.id === 25);
+      const boardCreateJson = JSON.parse(boardCreate.result.content[0].text);
+      assert.equal(boardCreateJson.ok, true);
+      const boardId = boardCreateJson.result.id;
+      assert.ok(boardId);
+
+      mcp.writeLine({
+        jsonrpc: "2.0",
+        id: 26,
+        method: "tools/call",
+        params: { name: "rmemo_ws_focus_alerts_boards", arguments: { root: tmp, limit: 10 } }
+      });
+      mcp.writeLine({
+        jsonrpc: "2.0",
+        id: 27,
+        method: "tools/call",
+        params: { name: "rmemo_ws_focus_alerts_board_get", arguments: { root: tmp, id: boardId } }
+      });
+      await waitFor(() => {
+        const lines3 = parseJsonLines(mcp.getOut());
+        return lines3.some((x) => x.id === 27);
+      });
+      const lines3 = parseJsonLines(mcp.getOut());
+      const boards = lines3.find((x) => x.id === 26);
+      const boardsJson = JSON.parse(boards.result.content[0].text);
+      assert.equal(boardsJson.schema, 1);
+      assert.ok(Array.isArray(boardsJson.boards));
+      assert.ok(boardsJson.boards.some((x) => x.id === boardId));
+
+      const boardGet = lines3.find((x) => x.id === 27);
+      const boardGetJson = JSON.parse(boardGet.result.content[0].text);
+      assert.equal(boardGetJson.id, boardId);
+      assert.ok(Array.isArray(boardGetJson.items));
+      assert.ok(boardGetJson.items.length >= 1);
+
+      mcp.writeLine({
+        jsonrpc: "2.0",
+        id: 28,
+        method: "tools/call",
+        params: {
+          name: "rmemo_ws_focus_alerts_board_update",
+          arguments: { root: tmp, boardId, itemId: boardGetJson.items[0].id, status: "doing", note: "started" }
+        }
+      });
+      await waitFor(() => {
+        const lines4 = parseJsonLines(mcp.getOut());
+        return lines4.some((x) => x.id === 28);
+      });
+      const lines4 = parseJsonLines(mcp.getOut());
+      const boardUpdate = lines4.find((x) => x.id === 28);
+      const boardUpdateJson = JSON.parse(boardUpdate.result.content[0].text);
+      assert.equal(boardUpdateJson.ok, true);
+      assert.equal(boardUpdateJson.result.item.status, "doing");
     }
   } finally {
     mcp.closeIn();

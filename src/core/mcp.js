@@ -34,13 +34,16 @@ import {
   batchWorkspaceFocus,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
+  createWorkspaceFocusAlertsBoard,
   evaluateWorkspaceFocusAlerts,
   generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsConfig,
   getWorkspaceFocusAlertsAction,
+  getWorkspaceFocusAlertsBoard,
   getWorkspaceFocusReport,
   getWorkspaceFocusTrend,
+  listWorkspaceFocusAlertsBoards,
   listWorkspaceFocusAlertsActions,
   generateWorkspaceFocusReport,
   listWorkspaceFocusReports,
@@ -51,7 +54,8 @@ import {
   setWorkspaceFocusAlertsConfig,
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot,
-  saveWorkspaceFocusAlertsActionPlan
+  saveWorkspaceFocusAlertsActionPlan,
+  updateWorkspaceFocusAlertsBoardItem
 } from "./workspaces.js";
 
 const SERVER_NAME = "rmemo";
@@ -500,6 +504,23 @@ function toolsList() {
       required: ["id"],
       additionalProperties: false
     }),
+    tool("rmemo_ws_focus_alerts_boards", "List workspace alerts execution boards.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limit: { type: "number", default: 20 }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_get", "Get one workspace alerts execution board by id.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        id: { type: "string" }
+      },
+      required: ["id"],
+      additionalProperties: false
+    }),
     tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
       type: "object",
       properties: {
@@ -829,6 +850,28 @@ function toolsListWithWrite({ allowWrite } = {}) {
       },
       required: ["id"],
       additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_create", "Create execution board from one saved alerts action plan (write tool).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        actionId: { type: "string" },
+        title: { type: "string", default: "" }
+      },
+      required: ["actionId"],
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_update", "Update one board item status/note (write tool).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        boardId: { type: "string" },
+        itemId: { type: "string" },
+        status: { type: "string", enum: ["todo", "doing", "done", "blocked"] },
+        note: { type: "string", default: "" }
+      },
+      required: ["boardId", "itemId", "status"],
+      additionalProperties: false
     })
   ]);
 }
@@ -1111,6 +1154,19 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const id = String(args?.id || "").trim();
     if (!id) throw new Error("Missing action id");
     const r = await getWorkspaceFocusAlertsAction(root, id);
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_boards") {
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const r = await listWorkspaceFocusAlertsBoards(root, { limit });
+    return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_get") {
+    const id = String(args?.id || "").trim();
+    if (!id) throw new Error("Missing board id");
+    const r = await getWorkspaceFocusAlertsBoard(root, id);
     return JSON.stringify(r, null, 2);
   }
 
@@ -1477,6 +1533,28 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       noLog: args?.noLog === true,
       maxTasks: args?.maxTasks !== undefined ? Number(args.maxTasks) : 20
     });
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_create") {
+    requireWrite();
+    const actionId = String(args?.actionId || "").trim();
+    if (!actionId) throw new Error("Missing action id");
+    const title = String(args?.title || "");
+    const r = await createWorkspaceFocusAlertsBoard(root, { actionId, title });
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_update") {
+    requireWrite();
+    const boardId = String(args?.boardId || "").trim();
+    const itemId = String(args?.itemId || "").trim();
+    const status = String(args?.status || "").trim();
+    const note = String(args?.note || "");
+    if (!boardId) throw new Error("Missing board id");
+    if (!itemId) throw new Error("Missing item id");
+    if (!status) throw new Error("Missing status");
+    const r = await updateWorkspaceFocusAlertsBoardItem(root, { boardId, itemId, status, note });
     return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 

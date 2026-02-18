@@ -109,6 +109,18 @@ export function wsFocusAlertsActionPath(root, id) {
   return path.join(wsFocusAlertsActionsDir(root), `${String(id)}.json`);
 }
 
+export function wsFocusAlertsBoardsDir(root) {
+  return path.join(wsFocusDir(root), "action-boards");
+}
+
+export function wsFocusAlertsBoardsIndexPath(root) {
+  return path.join(wsFocusAlertsBoardsDir(root), "index.json");
+}
+
+export function wsFocusAlertsBoardPath(root, id) {
+  return path.join(wsFocusAlertsBoardsDir(root), `${String(id)}.json`);
+}
+
 export function sessionsDir(root) {
   return path.join(memDir(root), "sessions");
 }

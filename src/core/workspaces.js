@@ -9,6 +9,9 @@ import {
   wsFocusAlertsActionPath,
   wsFocusAlertsActionsDir,
   wsFocusAlertsActionsIndexPath,
+  wsFocusAlertsBoardPath,
+  wsFocusAlertsBoardsDir,
+  wsFocusAlertsBoardsIndexPath,
   wsFocusAlertsConfigPath,
   wsFocusAlertsHistoryPath,
   wsFocusDir,
@@ -1054,5 +1057,160 @@ export async function applyWorkspaceFocusAlertsActionPlan(root, { id = "", inclu
     noLog: !!noLog,
     applied,
     journalPath
+  };
+}
+
+const ACTION_BOARD_STATUSES = new Set(["todo", "doing", "done", "blocked"]);
+
+function makeAlertsBoardId() {
+  const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `brd-${iso}-${rand}`;
+}
+
+function normalizeBoardStatus(status) {
+  const s = String(status || "").trim().toLowerCase();
+  if (!ACTION_BOARD_STATUSES.has(s)) throw new Error("invalid_board_status");
+  return s;
+}
+
+function boardSummary(items) {
+  const out = { total: items.length, todo: 0, doing: 0, done: 0, blocked: 0 };
+  for (const i of items) {
+    const s = String(i?.status || "");
+    if (s && out[s] !== undefined) out[s] += 1;
+  }
+  return out;
+}
+
+function toBoardItem(task, idx) {
+  return {
+    id: `item-${String(task?.id || idx + 1)}`,
+    taskId: String(task?.id || ""),
+    kind: String(task?.kind || "next"),
+    text: String(task?.text || ""),
+    source: String(task?.source || "plan"),
+    status: "todo",
+    note: "",
+    updatedAt: null
+  };
+}
+
+async function readWorkspaceFocusAlertsBoardsIndex(root) {
+  const p = wsFocusAlertsBoardsIndexPath(root);
+  if (!(await fileExists(p))) return { schema: 1, updatedAt: null, boards: [] };
+  try {
+    const j = await readJson(p);
+    return {
+      schema: 1,
+      updatedAt: j?.updatedAt || null,
+      boards: Array.isArray(j?.boards) ? j.boards : []
+    };
+  } catch {
+    return { schema: 1, updatedAt: null, boards: [] };
+  }
+}
+
+export async function createWorkspaceFocusAlertsBoard(root, { actionId = "", title = "" } = {}) {
+  const aid = String(actionId || "").trim();
+  if (!aid) throw new Error("Missing action id");
+  const action = await getWorkspaceFocusAlertsAction(root, aid);
+  const tasks = Array.isArray(action?.plan?.tasks) ? action.plan.tasks : [];
+  const items = tasks.map((t, idx) => toBoardItem(t, idx));
+  const id = makeAlertsBoardId();
+  const now = new Date().toISOString();
+  const board = {
+    schema: 1,
+    id,
+    createdAt: now,
+    updatedAt: now,
+    root,
+    title: String(title || "").trim() || `Action Board ${aid}`,
+    actionId: aid,
+    rcaAnchor: action?.plan?.rcaAnchor || null,
+    summary: boardSummary(items),
+    items
+  };
+  await fs.mkdir(wsFocusAlertsBoardsDir(root), { recursive: true });
+  await writeJson(wsFocusAlertsBoardPath(root, id), board);
+  const index = await readWorkspaceFocusAlertsBoardsIndex(root);
+  index.boards.unshift({
+    id,
+    createdAt: now,
+    updatedAt: now,
+    title: board.title,
+    actionId: aid,
+    summary: board.summary
+  });
+  index.boards = index.boards.slice(0, 300);
+  index.updatedAt = now;
+  await writeJson(wsFocusAlertsBoardsIndexPath(root), index);
+  return { id, path: wsFocusAlertsBoardPath(root, id), board };
+}
+
+export async function listWorkspaceFocusAlertsBoards(root, { limit = 20 } = {}) {
+  const lim = Math.min(300, Math.max(1, Number(limit || 20)));
+  const index = await readWorkspaceFocusAlertsBoardsIndex(root);
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    boards: index.boards.slice(0, lim)
+  };
+}
+
+export async function getWorkspaceFocusAlertsBoard(root, id) {
+  const bid = String(id || "").trim();
+  if (!bid) throw new Error("Missing board id");
+  const p = wsFocusAlertsBoardPath(root, bid);
+  if (!(await fileExists(p))) throw new Error("board_not_found");
+  return readJson(p);
+}
+
+async function touchWorkspaceFocusAlertsBoardIndex(root, board) {
+  const index = await readWorkspaceFocusAlertsBoardsIndex(root);
+  const at = new Date().toISOString();
+  const meta = {
+    id: board.id,
+    createdAt: board.createdAt || at,
+    updatedAt: at,
+    title: board.title || "",
+    actionId: board.actionId || "",
+    summary: board.summary || { total: 0, todo: 0, doing: 0, done: 0, blocked: 0 }
+  };
+  const rest = index.boards.filter((x) => x.id !== board.id);
+  index.boards = [meta, ...rest].slice(0, 300);
+  index.updatedAt = at;
+  await writeJson(wsFocusAlertsBoardsIndexPath(root), index);
+}
+
+export async function updateWorkspaceFocusAlertsBoardItem(root, { boardId = "", itemId = "", status = "", note = "" } = {}) {
+  const bid = String(boardId || "").trim();
+  const iid = String(itemId || "").trim();
+  if (!bid) throw new Error("Missing board id");
+  if (!iid) throw new Error("Missing item id");
+  const nextStatus = normalizeBoardStatus(status);
+  const board = await getWorkspaceFocusAlertsBoard(root, bid);
+  const items = Array.isArray(board?.items) ? board.items : [];
+  const idx = items.findIndex((x) => x.id === iid);
+  if (idx < 0) throw new Error("board_item_not_found");
+  const now = new Date().toISOString();
+  items[idx] = {
+    ...items[idx],
+    status: nextStatus,
+    note: String(note || "").trim(),
+    updatedAt: now
+  };
+  board.items = items;
+  board.updatedAt = now;
+  board.summary = boardSummary(items);
+  await writeJson(wsFocusAlertsBoardPath(root, bid), board);
+  await touchWorkspaceFocusAlertsBoardIndex(root, board);
+  return {
+    schema: 1,
+    updatedAt: now,
+    boardId: bid,
+    item: items[idx],
+    summary: board.summary
   };
 }

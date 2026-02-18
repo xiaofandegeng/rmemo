@@ -768,4 +768,41 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   const actionApplyJson = JSON.parse(actionApply.body);
   assert.equal(actionApplyJson.ok, true);
   assert.ok(actionApplyJson.result && actionApplyJson.result.actionId === actionPlanJson.savedAction.id);
+
+  const boardCreate = await run(handler, {
+    method: "POST",
+    url: "/ws/focus/alerts/board-create?token=t",
+    bodyObj: { actionId: actionPlanJson.savedAction.id, title: "test board" }
+  });
+  assert.equal(boardCreate.status, 200);
+  const boardCreateJson = JSON.parse(boardCreate.body);
+  assert.equal(boardCreateJson.ok, true);
+  assert.ok(boardCreateJson.result && boardCreateJson.result.id);
+
+  const boards = await run(handler, { method: "GET", url: "/ws/focus/alerts/boards?token=t&limit=10" });
+  assert.equal(boards.status, 200);
+  const boardsJson = JSON.parse(boards.body);
+  assert.equal(boardsJson.schema, 1);
+  assert.ok(Array.isArray(boardsJson.boards));
+  assert.ok(boardsJson.boards.some((x) => x.id === boardCreateJson.result.id));
+
+  const boardItem = await run(handler, {
+    method: "GET",
+    url: `/ws/focus/alerts/board-item?token=t&id=${encodeURIComponent(boardCreateJson.result.id)}&format=json`
+  });
+  assert.equal(boardItem.status, 200);
+  const boardItemJson = JSON.parse(boardItem.body);
+  assert.equal(boardItemJson.id, boardCreateJson.result.id);
+  assert.ok(Array.isArray(boardItemJson.items));
+  assert.ok(boardItemJson.items.length >= 1);
+
+  const boardUpdate = await run(handler, {
+    method: "POST",
+    url: "/ws/focus/alerts/board-update?token=t",
+    bodyObj: { boardId: boardCreateJson.result.id, itemId: boardItemJson.items[0].id, status: "doing", note: "in progress" }
+  });
+  assert.equal(boardUpdate.status, 200);
+  const boardUpdateJson = JSON.parse(boardUpdate.body);
+  assert.equal(boardUpdateJson.ok, true);
+  assert.equal(boardUpdateJson.result.item.status, "doing");
 });
