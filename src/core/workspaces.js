@@ -1083,6 +1083,15 @@ function boardSummary(items) {
   return out;
 }
 
+function boardPriority(a) {
+  const s = String(a?.status || "todo");
+  if (s === "blocked") return 0;
+  if (s === "doing") return 1;
+  if (s === "todo") return 2;
+  if (s === "done") return 3;
+  return 9;
+}
+
 function toBoardItem(task, idx) {
   return {
     id: `item-${String(task?.id || idx + 1)}`,
@@ -1124,6 +1133,8 @@ export async function createWorkspaceFocusAlertsBoard(root, { actionId = "", tit
     id,
     createdAt: now,
     updatedAt: now,
+    closedAt: null,
+    closeReason: "",
     root,
     title: String(title || "").trim() || `Action Board ${aid}`,
     actionId: aid,
@@ -1191,6 +1202,7 @@ export async function updateWorkspaceFocusAlertsBoardItem(root, { boardId = "", 
   if (!iid) throw new Error("Missing item id");
   const nextStatus = normalizeBoardStatus(status);
   const board = await getWorkspaceFocusAlertsBoard(root, bid);
+  if (board?.closedAt) throw new Error("board_closed");
   const items = Array.isArray(board?.items) ? board.items : [];
   const idx = items.findIndex((x) => x.id === iid);
   if (idx < 0) throw new Error("board_item_not_found");
@@ -1212,5 +1224,101 @@ export async function updateWorkspaceFocusAlertsBoardItem(root, { boardId = "", 
     boardId: bid,
     item: items[idx],
     summary: board.summary
+  };
+}
+
+export async function generateWorkspaceFocusAlertsBoardReport(root, { boardId = "", maxItems = 20 } = {}) {
+  const bid = String(boardId || "").trim();
+  if (!bid) throw new Error("Missing board id");
+  const board = await getWorkspaceFocusAlertsBoard(root, bid);
+  const items = Array.isArray(board?.items) ? board.items : [];
+  const summary = board.summary || boardSummary(items);
+  const lim = Math.min(200, Math.max(1, Number(maxItems || 20)));
+  const pending = items
+    .filter((x) => x.status !== "done")
+    .sort((a, b) => boardPriority(a) - boardPriority(b) || String(a.id).localeCompare(String(b.id)))
+    .slice(0, lim)
+    .map((x) => ({ id: x.id, status: x.status, kind: x.kind, text: x.text, note: x.note || "" }));
+  const done = items
+    .filter((x) => x.status === "done")
+    .slice(0, lim)
+    .map((x) => ({ id: x.id, kind: x.kind, text: x.text }));
+  const percent = summary.total > 0 ? Number(((summary.done / summary.total) * 100).toFixed(1)) : 0;
+  const json = {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    board: {
+      id: board.id,
+      title: board.title || "",
+      actionId: board.actionId || "",
+      createdAt: board.createdAt || null,
+      updatedAt: board.updatedAt || null,
+      closedAt: board.closedAt || null,
+      closeReason: board.closeReason || "",
+      summary,
+      progressPercent: percent
+    },
+    pending,
+    completedPreview: done
+  };
+  const lines = [];
+  lines.push(`# Workspace Alerts Board Report ${board.id}`);
+  lines.push("");
+  lines.push(`- title: ${board.title || "-"}`);
+  lines.push(`- actionId: ${board.actionId || "-"}`);
+  lines.push(`- createdAt: ${board.createdAt || "-"}`);
+  lines.push(`- updatedAt: ${board.updatedAt || "-"}`);
+  lines.push(`- closedAt: ${board.closedAt || "-"}`);
+  lines.push(`- progress: ${summary.done}/${summary.total} (${percent}%)`);
+  lines.push(`- status: todo=${summary.todo} doing=${summary.doing} blocked=${summary.blocked} done=${summary.done}`);
+  if (board.closeReason) lines.push(`- closeReason: ${board.closeReason}`);
+  lines.push("");
+  lines.push("## Pending (priority)");
+  if (!pending.length) lines.push("- (none)");
+  else for (const p of pending) lines.push(`- ${p.id} [${p.status}] [${p.kind}] ${p.text}${p.note ? ` (note: ${p.note})` : ""}`);
+  lines.push("");
+  lines.push("## Done (preview)");
+  if (!done.length) lines.push("- (none)");
+  else for (const d of done) lines.push(`- ${d.id} [${d.kind}] ${d.text}`);
+  lines.push("");
+  return { json, markdown: lines.join("\n") };
+}
+
+export async function closeWorkspaceFocusAlertsBoard(root, { boardId = "", reason = "", force = false, noLog = false } = {}) {
+  const bid = String(boardId || "").trim();
+  if (!bid) throw new Error("Missing board id");
+  const board = await getWorkspaceFocusAlertsBoard(root, bid);
+  if (board?.closedAt) return { schema: 1, boardId: bid, alreadyClosed: true, closedAt: board.closedAt, closeReason: board.closeReason || "" };
+  const items = Array.isArray(board?.items) ? board.items : [];
+  const summary = board.summary || boardSummary(items);
+  const openCount = Number(summary.todo || 0) + Number(summary.doing || 0) + Number(summary.blocked || 0);
+  if (openCount > 0 && !force) throw new Error("board_not_ready_to_close");
+  const now = new Date().toISOString();
+  board.closedAt = now;
+  board.closeReason = String(reason || "").trim();
+  board.updatedAt = now;
+  board.summary = summary;
+  await writeJson(wsFocusAlertsBoardPath(root, bid), board);
+  await touchWorkspaceFocusAlertsBoardIndex(root, board);
+  let journalPath = null;
+  if (!noLog) {
+    const lines = [];
+    lines.push(`Closed workspace alerts board: ${bid}`);
+    lines.push(`Action: ${board.actionId || "-"}`);
+    lines.push(`Progress: done=${summary.done}/${summary.total}`);
+    lines.push(`Open at close: todo=${summary.todo} doing=${summary.doing} blocked=${summary.blocked}`);
+    if (board.closeReason) lines.push(`Reason: ${board.closeReason}`);
+    journalPath = await appendJournalEntry(root, { kind: "WS Alerts Board", text: lines.join("\n") });
+  }
+  return {
+    schema: 1,
+    boardId: bid,
+    closedAt: now,
+    closeReason: board.closeReason || "",
+    forced: !!force,
+    noLog: !!noLog,
+    summary: board.summary,
+    journalPath
   };
 }

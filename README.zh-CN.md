@@ -242,6 +242,9 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /ws/focus/alerts/action-plan?incidentId=<id>&key=<trendKey>&format=json|md&limit=20&save=1&tag=<name>`（生成可执行改进计划）
 - `GET /ws/focus/alerts/actions?limit=20`（已保存的改进计划）
 - `GET /ws/focus/alerts/action-item?id=<actionId>&format=json|md`（读取单条改进计划）
+- `GET /ws/focus/alerts/boards?limit=20`（已保存执行看板）
+- `GET /ws/focus/alerts/board-item?id=<boardId>&format=json|md`（读取单条执行看板）
+- `GET /ws/focus/alerts/board-report?id=<boardId>&format=json|md&maxItems=20`（执行看板进度报告）
 
 可选：开启写入操作（必须设置 token）：
 
@@ -283,6 +286,9 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 - `POST /ws/focus/alerts/config {enabled?,minReports?,maxRegressedErrors?,maxAvgChangedCount?,maxChangedCount?,autoGovernanceEnabled?,autoGovernanceCooldownMs?}`
 - `POST /ws/focus/alerts/check?autoGovernance=1&source=ws-alert`
 - `POST /ws/focus/alerts/action-apply {id,includeBlockers?,noLog?,maxTasks?}`
+- `POST /ws/focus/alerts/board-create {actionId,title?}`
+- `POST /ws/focus/alerts/board-update {boardId,itemId,status,note?}`
+- `POST /ws/focus/alerts/board-close {boardId,reason?,force?,noLog?}`
 
 ## MCP Server（stdio）
 
@@ -340,9 +346,15 @@ rmemo mcp --root . --allow-write
 - `rmemo_ws_focus_alerts_action_plan`
 - `rmemo_ws_focus_alerts_actions`
 - `rmemo_ws_focus_alerts_action_get`
+- `rmemo_ws_focus_alerts_boards`
+- `rmemo_ws_focus_alerts_board_get`
+- `rmemo_ws_focus_alerts_board_report`
 - `rmemo_ws_focus_alerts_config_set`（写入 tool）
 - `rmemo_ws_focus_alerts_check`（写入 tool，可选触发自动治理）
 - `rmemo_ws_focus_alerts_action_apply`（写入 tool）
+- `rmemo_ws_focus_alerts_board_create`（写入 tool）
+- `rmemo_ws_focus_alerts_board_update`（写入 tool）
+- `rmemo_ws_focus_alerts_board_close`（写入 tool）
 
 ## 集成（MCP 配置片段）
 
@@ -420,6 +432,12 @@ rmemo ws alerts action-plan --format json --incident <incidentId> --save --tag d
 rmemo ws alerts action-history --format json --limit 20
 rmemo ws alerts action-show --format json --action <actionId>
 rmemo ws alerts action-apply --format json --action <actionId> --include-blockers --max-tasks 10
+rmemo ws alerts board create --format json --action <actionId> --title "daily board"
+rmemo ws alerts board list --format json --limit 20
+rmemo ws alerts board show --format json --board <boardId>
+rmemo ws alerts board update --format json --board <boardId> --item <itemId> --status doing --note "started"
+rmemo ws alerts board report --format json --board <boardId> --max-items 20
+rmemo ws alerts board close --format json --board <boardId> --reason "done" --force
 rmemo ws alerts config set --alerts-enabled --alerts-min-reports 2 --alerts-max-regressed-errors 0 --alerts-max-avg-changed 8 --alerts-max-changed 20 --alerts-auto-governance
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```

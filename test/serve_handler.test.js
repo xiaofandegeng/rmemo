@@ -805,4 +805,24 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   const boardUpdateJson = JSON.parse(boardUpdate.body);
   assert.equal(boardUpdateJson.ok, true);
   assert.equal(boardUpdateJson.result.item.status, "doing");
+
+  const boardReport = await run(handler, {
+    method: "GET",
+    url: `/ws/focus/alerts/board-report?token=t&id=${encodeURIComponent(boardCreateJson.result.id)}&format=json&maxItems=20`
+  });
+  assert.equal(boardReport.status, 200);
+  const boardReportJson = JSON.parse(boardReport.body);
+  assert.equal(boardReportJson.schema, 1);
+  assert.equal(boardReportJson.board.id, boardCreateJson.result.id);
+  assert.ok(Array.isArray(boardReportJson.pending));
+
+  const boardCloseBlocked = await run(handler, {
+    method: "POST",
+    url: "/ws/focus/alerts/board-close?token=t",
+    bodyObj: { boardId: boardCreateJson.result.id, reason: "force close for test", force: true }
+  });
+  assert.equal(boardCloseBlocked.status, 200);
+  const boardCloseBlockedJson = JSON.parse(boardCloseBlocked.body);
+  assert.equal(boardCloseBlockedJson.ok, true);
+  assert.ok(boardCloseBlockedJson.result.closedAt);
 });

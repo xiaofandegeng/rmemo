@@ -453,6 +453,30 @@ Done:
   - UI:
     - `WS Alerts Action Plan / History / Show / Apply`
     - action id input + include-blockers toggle
+- Workspace intelligence v12 (Action board lifecycle + closure):
+  - Build action execution boards with lifecycle control (`open -> closed`) and progress reporting
+  - CLI:
+    - `rmemo ws alerts board create|list|show|update`
+    - `rmemo ws alerts board report --board <id> [--max-items <n>] [--format md|json]`
+    - `rmemo ws alerts board close --board <id> [--reason <text>] [--force] [--no-log]`
+  - HTTP:
+    - `GET /ws/focus/alerts/boards`
+    - `GET /ws/focus/alerts/board-item`
+    - `GET /ws/focus/alerts/board-report`
+    - `POST /ws/focus/alerts/board-create`
+    - `POST /ws/focus/alerts/board-update`
+    - `POST /ws/focus/alerts/board-close`
+  - MCP:
+    - `rmemo_ws_focus_alerts_boards`
+    - `rmemo_ws_focus_alerts_board_get`
+    - `rmemo_ws_focus_alerts_board_report`
+    - `rmemo_ws_focus_alerts_board_create` (write)
+    - `rmemo_ws_focus_alerts_board_update` (write)
+    - `rmemo_ws_focus_alerts_board_close` (write)
+  - UI:
+    - `WS Alerts Board` create/list/show/update
+    - `WS Alerts Board Report` and `WS Alerts Board Close`
+    - SSE events: `ws:alerts:board-created|board-updated|board-closed`
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
 - Tools:

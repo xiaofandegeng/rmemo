@@ -426,6 +426,16 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
               </div>
               <div style="height: 8px;"></div>
               <div class="row">
+                <input id="wsBoardCloseReason" type="text" placeholder="board close reason (optional)" style="width: 520px;" />
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsBoardCloseForce" type="checkbox" />
+                  <span class="hint" style="margin:0;">force close</span>
+                </label>
+                <button class="btn secondary" id="showWsAlertsBoardReport">WS Alerts Board Report</button>
+                <button class="btn secondary" id="closeWsAlertsBoard">WS Alerts Board Close</button>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
                 <label style="display:flex; gap:6px; align-items:center;">
                   <input id="wsAlertsEnabled" type="checkbox" checked />
                   <span class="hint" style="margin:0;">alerts enabled</span>
@@ -1016,6 +1026,39 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Workspace Alerts Board Item Updated";
       }
 
+      async function showWsAlertsBoardReport() {
+        err(""); msg("Generating workspace alerts board report...");
+        const id = (qs("#wsBoardId").value || "").trim();
+        if (!id) return msg("Missing board id.");
+        const tab = qs("#out").dataset.tab || "json";
+        const fmt = tab === "md" ? "md" : "json";
+        const p = "/ws/focus/alerts/board-report?id=" + encodeURIComponent(id) + "&format=" + encodeURIComponent(fmt) + "&maxItems=30";
+        if (fmt === "md") {
+          const t = await apiFetch(p, { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        } else {
+          const j = await apiFetch(p, { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        }
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Board Report";
+      }
+
+      async function closeWsAlertsBoard() {
+        err(""); msg("Closing workspace alerts board...");
+        const boardId = (qs("#wsBoardId").value || "").trim();
+        if (!boardId) return msg("Missing board id.");
+        const reason = (qs("#wsBoardCloseReason").value || "").trim();
+        const force = !!qs("#wsBoardCloseForce").checked;
+        const j = await apiPost("/ws/focus/alerts/board-close", { boardId, reason, force, noLog: false });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Board Closed";
+      }
+
       async function addTodo() {
         err(""); msg("Adding todo...");
         const kind = qs("#todoKind").value;
@@ -1498,6 +1541,9 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("ws:alerts:board-updated", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "ws:alerts:board-updated"); }
         });
+        evt.addEventListener("ws:alerts:board-closed", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "ws:alerts:board-closed"); }
+        });
       }
 
       qs("#saveToken").addEventListener("click", saveToken);
@@ -1532,6 +1578,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#createWsAlertsBoard").addEventListener("click", () => createWsAlertsBoard().catch((e) => { err(String(e)); msg(""); }));
       qs("#showWsAlertsBoard").addEventListener("click", () => showWsAlertsBoard().catch((e) => { err(String(e)); msg(""); }));
       qs("#updateWsAlertsBoardItem").addEventListener("click", () => updateWsAlertsBoardItem().catch((e) => { err(String(e)); msg(""); }));
+      qs("#showWsAlertsBoardReport").addEventListener("click", () => showWsAlertsBoardReport().catch((e) => { err(String(e)); msg(""); }));
+      qs("#closeWsAlertsBoard").addEventListener("click", () => closeWsAlertsBoard().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

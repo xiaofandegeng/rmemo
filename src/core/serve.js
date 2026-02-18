@@ -32,11 +32,13 @@ import {
   applyWorkspaceFocusAlertsActionPlan,
   appendWorkspaceFocusAlertIncident,
   batchWorkspaceFocus,
+  closeWorkspaceFocusAlertsBoard,
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   createWorkspaceFocusAlertsBoard,
   evaluateWorkspaceFocusAlerts,
   generateWorkspaceFocusAlertsActionPlan,
+  generateWorkspaceFocusAlertsBoardReport,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsConfig,
   getWorkspaceFocusAlertsAction,
@@ -1635,6 +1637,31 @@ export function createServeHandler(root, opts = {}) {
         if (!status) return badRequest(res, "Missing status");
         const out = await updateWorkspaceFocusAlertsBoardItem(root, { boardId, itemId, status, note });
         events?.emit?.({ type: "ws:alerts:board-updated", boardId, itemId, status: out.item?.status || status });
+        return json(res, 200, { ok: true, result: out });
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-report") {
+        const id = String(url.searchParams.get("id") || "");
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        const maxItems = Number(url.searchParams.get("maxItems") || 20);
+        if (!id) return badRequest(res, "Missing board id");
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const out = await generateWorkspaceFocusAlertsBoardReport(root, { boardId: id, maxItems });
+        if (format === "json") return json(res, 200, out.json);
+        return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "POST" && url.pathname === "/ws/focus/alerts/board-close") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const boardId = String(body.boardId || "").trim();
+        const reason = String(body.reason || "");
+        const force = !!body.force;
+        const noLog = !!body.noLog;
+        if (!boardId) return badRequest(res, "Missing board id");
+        const out = await closeWorkspaceFocusAlertsBoard(root, { boardId, reason, force, noLog });
+        events?.emit?.({ type: "ws:alerts:board-closed", boardId, forced: force, summary: out.summary || null });
         return json(res, 200, { ok: true, result: out });
       }
 

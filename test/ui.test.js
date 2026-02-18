@@ -30,6 +30,8 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/ws/focus/alerts/board-create"));
   assert.ok(html.includes("/ws/focus/alerts/board-item"));
   assert.ok(html.includes("/ws/focus/alerts/board-update"));
+  assert.ok(html.includes("/ws/focus/alerts/board-report"));
+  assert.ok(html.includes("/ws/focus/alerts/board-close"));
   assert.ok(html.includes("/events"));
   assert.ok(html.includes("/events/export"));
   assert.ok(html.includes("/diagnostics/export"));
@@ -103,6 +105,10 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("createWsAlertsBoard"));
   assert.ok(html.includes("showWsAlertsBoard"));
   assert.ok(html.includes("updateWsAlertsBoardItem"));
+  assert.ok(html.includes("wsBoardCloseReason"));
+  assert.ok(html.includes("wsBoardCloseForce"));
+  assert.ok(html.includes("showWsAlertsBoardReport"));
+  assert.ok(html.includes("closeWsAlertsBoard"));
   assert.ok(html.includes("saveWsAlertsConfig"));
   assert.ok(html.includes("govBenchmarkAutoAdoptEnabled"));
   assert.ok(html.includes("govBenchmarkMinScore"));
@@ -122,6 +128,7 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("ws:alerts:action-applied"));
   assert.ok(html.includes("ws:alerts:board-created"));
   assert.ok(html.includes("ws:alerts:board-updated"));
+  assert.ok(html.includes("ws:alerts:board-closed"));
   assert.ok(html.includes("embed:build:progress"));
   assert.ok(html.includes("/refresh"));
   assert.ok(html.includes("/watch"));

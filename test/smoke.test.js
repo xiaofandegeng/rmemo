@@ -1306,6 +1306,48 @@ test("rmemo ws focus snapshots can be saved, listed and compared", async () => {
   const boardUpdateJson = JSON.parse(boardUpdate.out);
   assert.equal(boardUpdateJson.item.status, "doing");
 
+  const boardReport = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "alerts",
+    "board",
+    "report",
+    "--board",
+    boardCreateJson.id,
+    "--max-items",
+    "20"
+  ]);
+  assert.equal(boardReport.code, 0, boardReport.err || boardReport.out);
+  const boardReportJson = JSON.parse(boardReport.out);
+  assert.equal(boardReportJson.schema, 1);
+  assert.equal(boardReportJson.board.id, boardCreateJson.id);
+  assert.ok(Array.isArray(boardReportJson.pending));
+
+  const boardClose = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "alerts",
+    "board",
+    "close",
+    "--board",
+    boardCreateJson.id,
+    "--reason",
+    "close from smoke",
+    "--force"
+  ]);
+  assert.equal(boardClose.code, 0, boardClose.err || boardClose.out);
+  const boardCloseJson = JSON.parse(boardClose.out);
+  assert.equal(boardCloseJson.schema, 1);
+  assert.ok(boardCloseJson.closedAt);
+
   const reportMd = await runNode([rmemoBin, "--root", tmp, "ws", "focus-history", "report", j1.snapshot.id, j2.snapshot.id, "--format", "md"]);
   assert.equal(reportMd.code, 0, reportMd.err || reportMd.out);
   assert.ok(reportMd.out.includes("# Workspace Focus Drift Report"));
@@ -1673,6 +1715,7 @@ test("rmemo mcp workspace tools list and focus across subprojects", async () => 
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_action_get"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_boards"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_get"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_report"));
 
     const wsList = lines.find((x) => x.id === 3);
     const wsListJson = JSON.parse(wsList.result.content[0].text);
@@ -2071,8 +2114,10 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_action_apply"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_boards"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_get"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_report"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_create"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_update"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_ws_focus_alerts_board_close"));
 
     const todosMd = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
     assert.ok(todosMd.includes("Add MCP write tools"));
@@ -2268,6 +2313,44 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       const boardUpdateJson = JSON.parse(boardUpdate.result.content[0].text);
       assert.equal(boardUpdateJson.ok, true);
       assert.equal(boardUpdateJson.result.item.status, "doing");
+
+      mcp.writeLine({
+        jsonrpc: "2.0",
+        id: 29,
+        method: "tools/call",
+        params: {
+          name: "rmemo_ws_focus_alerts_board_report",
+          arguments: { root: tmp, boardId, format: "json", maxItems: 20 }
+        }
+      });
+      await waitFor(() => {
+        const lines5 = parseJsonLines(mcp.getOut());
+        return lines5.some((x) => x.id === 29);
+      });
+      const lines5 = parseJsonLines(mcp.getOut());
+      const boardReport = lines5.find((x) => x.id === 29);
+      const boardReportJson = JSON.parse(boardReport.result.content[0].text);
+      assert.equal(boardReportJson.schema, 1);
+      assert.equal(boardReportJson.board.id, boardId);
+
+      mcp.writeLine({
+        jsonrpc: "2.0",
+        id: 30,
+        method: "tools/call",
+        params: {
+          name: "rmemo_ws_focus_alerts_board_close",
+          arguments: { root: tmp, boardId, reason: "close from mcp test", force: true }
+        }
+      });
+      await waitFor(() => {
+        const lines6 = parseJsonLines(mcp.getOut());
+        return lines6.some((x) => x.id === 30);
+      });
+      const lines6 = parseJsonLines(mcp.getOut());
+      const boardClose = lines6.find((x) => x.id === 30);
+      const boardCloseJson = JSON.parse(boardClose.result.content[0].text);
+      assert.equal(boardCloseJson.ok, true);
+      assert.ok(boardCloseJson.result.closedAt);
     }
   } finally {
     mcp.closeIn();

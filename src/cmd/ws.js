@@ -16,7 +16,9 @@ import {
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   createWorkspaceFocusAlertsBoard,
+  closeWorkspaceFocusAlertsBoard,
   generateWorkspaceFocusAlertsActionPlan,
+  generateWorkspaceFocusAlertsBoardReport,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsAction,
   getWorkspaceFocusAlertsBoard,
@@ -90,6 +92,8 @@ function wsHelp() {
     "  rmemo ws alerts board list [--limit <n>] [--format md|json]",
     "  rmemo ws alerts board show --board <id> [--format md|json]",
     "  rmemo ws alerts board update --board <id> --item <id> --status todo|doing|done|blocked [--note <text>] [--format md|json]",
+    "  rmemo ws alerts board report --board <id> [--max-items <n>] [--format md|json]",
+    "  rmemo ws alerts board close --board <id> [--reason <text>] [--force] [--no-log] [--format md|json]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -343,6 +347,8 @@ export async function cmdWs({ rest, flags }) {
   const boardStatus = flags.status ? String(flags.status) : "";
   const boardNote = flags.note ? String(flags.note) : "";
   const boardTitle = flags.title ? String(flags.title) : "";
+  const closeReason = flags.reason ? String(flags.reason) : "";
+  const force = !!flags.force;
   const includeBlockers = !!flags["include-blockers"];
   const noLog = !!flags["no-log"];
   const maxTasks = Number(flags["max-tasks"] || 20);
@@ -853,6 +859,29 @@ export async function cmdWs({ rest, flags }) {
         });
         if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
         else process.stdout.write(`Updated board ${boardId} item ${itemId} -> ${out.item?.status || boardStatus}\n`);
+        return;
+      }
+      if (boardOp === "report") {
+        if (!boardId) {
+          process.stderr.write("Usage: rmemo ws alerts board report --board <id> [--max-items <n>]\n");
+          process.exitCode = 2;
+          return;
+        }
+        const maxItems = Number(flags["max-items"] || 20);
+        const out = await generateWorkspaceFocusAlertsBoardReport(root, { boardId, maxItems });
+        if (format === "json") process.stdout.write(JSON.stringify(out.json, null, 2) + "\n");
+        else process.stdout.write(out.markdown);
+        return;
+      }
+      if (boardOp === "close") {
+        if (!boardId) {
+          process.stderr.write("Usage: rmemo ws alerts board close --board <id> [--reason <text>] [--force] [--no-log]\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await closeWorkspaceFocusAlertsBoard(root, { boardId, reason: closeReason, force, noLog });
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Closed board ${boardId} at ${out.closedAt || "-"}\n`);
         return;
       }
       process.stderr.write("Usage: rmemo ws alerts board <create|list|show|update>\n");
