@@ -19,6 +19,13 @@ All notable changes to this project will be documented in this file.
 - Add `rmemo serve` to expose repo memory over local HTTP (read-only by default, supports token auth).
 - Add `rmemo embed` to build a local embeddings index and support semantic search (CLI/HTTP/MCP).
 
+## [0.33.0](https://github.com/xiaofandegeng/rmemo/compare/v0.32.0...v0.33.0) (2026-02-18)
+
+
+### Features
+
+* add action board lifecycle report and close workflows ([e446e6d](https://github.com/xiaofandegeng/rmemo/commit/e446e6d3e52f609b4f76ccd4f4612bba51c223b6))
+
 ## [0.32.0](https://github.com/xiaofandegeng/rmemo/compare/v0.31.0...v0.32.0) (2026-02-18)
 
 
