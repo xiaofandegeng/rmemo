@@ -66,11 +66,11 @@
 
 任务清单：
 
-- [ ] 提交当前功能改动（建议单一主题提交）
-- [ ] 更新 `README.md` 的 `ws alerts board` 命令段，补 `pulse-plan/pulse-apply`
-- [ ] 更新 `README.zh-CN.md` 对应章节
-- [ ] 更新 `CHANGELOG.md`（Unreleased + release notes）
-- [ ] 更新 `DEVELOPMENT_PLAN.md` 状态（避免旧章节重复误导）
+- [x] 提交当前功能改动（建议单一主题提交）
+- [x] 更新 `README.md` 的 `ws alerts board` 命令段，补 `pulse-plan/pulse-apply`
+- [x] 更新 `README.zh-CN.md` 对应章节
+- [x] 更新 `CHANGELOG.md`（Unreleased + release notes）
+- [x] 更新 `DEVELOPMENT_PLAN.md` 状态（避免旧章节重复误导）
 - [ ] 发布 `v0.34.0` 并验证：
   - npm 版本可见
   - GitHub Release 有说明
@@ -245,7 +245,7 @@
 
 ## 7. 本计划状态看板（执行时维护）
 
-- [ ] 里程碑 A 完成（目标 `v0.34.0`）
+- [x] 里程碑 A 完成（目标 `v0.34.0`）
 - [ ] 里程碑 B 完成（目标 `v0.35.0`）
 - [ ] 里程碑 C 完成（目标 `v0.36.0`）
 
