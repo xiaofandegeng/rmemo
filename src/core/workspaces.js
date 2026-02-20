@@ -4,7 +4,7 @@ import { scanRepo } from "./scan.js";
 import { generateFocus } from "./focus.js";
 import { addTodoBlocker, addTodoNext } from "./todos.js";
 import { appendJournalEntry } from "./journal.js";
-import { fileExists, readJson, writeJson } from "../lib/io.js";
+import { readJson, writeJson, ensureDir, fileExists, readJsonSafe } from "../lib/io.js";
 import {
   wsFocusAlertsActionPath,
   wsFocusAlertsActionsDir,
@@ -14,6 +14,9 @@ import {
   wsFocusAlertsBoardsIndexPath,
   wsFocusAlertsBoardsPulseAppliedPath,
   wsFocusAlertsBoardsPulsePath,
+  wsFocusAlertsActionJobsDir,
+  wsFocusAlertsActionJobsIndexPath,
+  wsFocusAlertsActionJobPath,
   wsFocusAlertsConfigPath,
   wsFocusAlertsHistoryPath,
   wsFocusDir,
@@ -1722,4 +1725,224 @@ export async function applyWorkspaceFocusAlertsBoardsPulsePlan(
     dryRun: !!dryRun,
     journalPath
   };
+}
+
+// ------------------------------------------------------------------
+// v0.38.0 Action Jobs (Execution Orchestration)
+// ------------------------------------------------------------------
+
+function generateJobId() {
+  return "job_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
+}
+
+export async function enqueueWorkspaceFocusAlertsActionJob(root, { actionId, priority = "normal", batchSize = 10, retryPolicy = "standard", events } = {}) {
+  const actionsDir = wsFocusAlertsActionsDir(root);
+  const actionPath = path.join(actionsDir, `${actionId}.json`);
+  if (!(await fileExists(actionPath))) {
+    throw new Error(`Action plan not found: ${actionId}`);
+  }
+
+  const actionData = await readJson(actionPath);
+  const tasks = Array.isArray(actionData?.plan?.tasks) ? actionData.plan.tasks : [];
+
+  const job = {
+    schema: 1,
+    id: generateJobId(),
+    actionId,
+    status: "queued",
+    config: {
+      priority,
+      batchSize: Number(batchSize),
+      retryPolicy
+    },
+    state: {
+      processedCount: 0,
+      successCount: 0,
+      errorCount: 0,
+      errors: [],
+      resumeToken: 0
+    },
+    tasks, // Copy the tasks so the job is isolated from action updates
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  const jobPath = wsFocusAlertsActionJobPath(root, job.id);
+  await fs.mkdir(wsFocusAlertsActionJobsDir(root), { recursive: true });
+  await writeJson(jobPath, job);
+
+  // Update index
+  const indexPath = wsFocusAlertsActionJobsIndexPath(root);
+  let index = { schema: 1, jobs: [] };
+  if (await fileExists(indexPath)) {
+    index = await readJson(indexPath);
+    if (!Array.isArray(index.jobs)) index.jobs = [];
+  }
+  index.jobs.push({
+    id: job.id,
+    actionId: job.actionId,
+    status: job.status,
+    createdAt: job.createdAt
+  });
+  await writeJson(indexPath, index);
+
+  // Background execution
+  processWorkspaceFocusAlertsActionJob(root, job.id, { events }).catch((err) => {
+    console.error(`Action Job ${job.id} background execution failed:`, err);
+  });
+
+  return job;
+}
+
+export async function listWorkspaceFocusAlertsActionJobs(root, { limit = 20 } = {}) {
+  const indexPath = wsFocusAlertsActionJobsIndexPath(root);
+  if (!(await fileExists(indexPath))) {
+    return { schema: 1, jobs: [] };
+  }
+  const index = await readJsonSafe(indexPath);
+  let jobs = Array.isArray(index.jobs) ? index.jobs : [];
+
+  // Sort by newest first
+  jobs.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  if (limit > 0) {
+    jobs = jobs.slice(0, limit);
+  }
+
+  return { schema: 1, limit, jobs };
+}
+
+export async function getWorkspaceFocusAlertsActionJob(root, jobId) {
+  const jobPath = wsFocusAlertsActionJobPath(root, jobId);
+  if (!(await fileExists(jobPath))) {
+    throw new Error(`Action job not found: ${jobId}`);
+  }
+  return await readJsonSafe(jobPath);
+}
+
+async function updateActionJobStatus(root, jobId, newStatus) {
+  const jobPath = wsFocusAlertsActionJobPath(root, jobId);
+  if (!(await fileExists(jobPath))) {
+    throw new Error(`Action job not found: ${jobId}`);
+  }
+
+  const job = await readJsonSafe(jobPath);
+  job.status = newStatus;
+  job.updatedAt = new Date().toISOString();
+  await writeJson(jobPath, job);
+
+  // Update index
+  const indexPath = wsFocusAlertsActionJobsIndexPath(root);
+  if (await fileExists(indexPath)) {
+    const index = await readJsonSafe(indexPath);
+    const mapped = index.jobs?.find(j => j.id === jobId);
+    if (mapped) {
+      mapped.status = newStatus;
+      await writeJson(indexPath, index);
+    }
+  }
+
+  return job;
+}
+
+export async function pauseWorkspaceFocusAlertsActionJob(root, jobId, { events } = {}) {
+  const job = await updateActionJobStatus(root, jobId, "paused");
+  events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: "paused" });
+  return job;
+}
+
+export async function resumeWorkspaceFocusAlertsActionJob(root, jobId, { events } = {}) {
+  const job = await updateActionJobStatus(root, jobId, "running");
+  events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: "running" });
+
+  // Kick off background execution again
+  processWorkspaceFocusAlertsActionJob(root, job.id, { events }).catch((err) => {
+    console.error(`Action Job ${job.id} resume execution failed:`, err);
+  });
+
+  return job;
+}
+
+export async function cancelWorkspaceFocusAlertsActionJob(root, jobId, { events } = {}) {
+  const job = await updateActionJobStatus(root, jobId, "canceled");
+  events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: "canceled" });
+  return job;
+}
+
+export async function processWorkspaceFocusAlertsActionJob(root, jobId, { events } = {}) {
+  let job = await getWorkspaceFocusAlertsActionJob(root, jobId);
+  if (job.status !== "running" && job.status !== "queued") {
+    return job; // Already paused, canceled, or finished
+  }
+
+  // Mark running if queued
+  if (job.status === "queued") {
+    job = await updateActionJobStatus(root, jobId, "running");
+    events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: "running" });
+  }
+  if (!job.state.startedAt) {
+    job.state.startedAt = new Date().toISOString();
+    await writeJson(wsFocusAlertsActionJobPath(root, jobId), job);
+  }
+
+  const batchSize = job.config.batchSize || 10;
+
+  while (job.state.resumeToken < job.tasks.length) {
+    // Re-read job state to check if it was paused or canceled externally (e.g. via UI/MCP)
+    const freshJob = await getWorkspaceFocusAlertsActionJob(root, jobId);
+    if (freshJob.status !== "running") {
+      events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: freshJob.status });
+      return freshJob; // Halted externally
+    }
+    job.status = freshJob.status;
+
+    const batch = job.tasks.slice(job.state.resumeToken, job.state.resumeToken + batchSize);
+
+    // Process batch (analogous to how applyWorkspaceFocusAlertsBoardsPulsePlan does it)
+    for (const t of batch) {
+      try {
+        if (t.kind === "blocker") {
+          await addTodoBlocker(root, t.text);
+        } else {
+          await addTodoNext(root, t.text);
+        }
+        job.state.successCount++;
+      } catch (err) {
+        job.state.errorCount++;
+        job.state.errors.push({
+          taskId: t.id,
+          message: err.message,
+          time: new Date().toISOString()
+        });
+      }
+      job.state.processedCount++;
+      job.state.resumeToken++;
+    }
+
+    // Persist batch progress
+    job.updatedAt = new Date().toISOString();
+    await writeJson(wsFocusAlertsActionJobPath(root, jobId), job);
+
+    events?.emit?.({
+      type: "ws:alerts:action-job:progress",
+      jobId,
+      processedCount: job.state.processedCount,
+      total: job.tasks.length,
+      successCount: job.state.successCount,
+      errorCount: job.state.errorCount
+    });
+
+    // Optional delay between batches to reduce load can be added here if retryPolicy dictates
+  }
+
+  // Finished all tasks
+  job.status = job.state.errorCount === 0 ? "succeeded" : "failed";
+  job.state.completedAt = new Date().toISOString();
+  job.updatedAt = new Date().toISOString();
+  await writeJson(wsFocusAlertsActionJobPath(root, jobId), job);
+
+  // Update index
+  await updateActionJobStatus(root, jobId, job.status);
+  events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: job.status });
+
+  return job;
 }
