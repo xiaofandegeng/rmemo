@@ -12,5 +12,7 @@ test("doctor report includes key sections", async () => {
   assert.ok(out.includes("## Binary resolution"));
   assert.ok(out.includes("package bin/rmemo.js:"));
   assert.ok(out.includes("Antigravity MCP snippet:"));
+  assert.ok(out.includes("## Git Configuration"));
+  assert.ok(out.includes("## Authentication & Release"));
 });
 

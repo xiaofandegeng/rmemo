@@ -129,6 +129,18 @@ export function wsFocusAlertsBoardsPulseAppliedPath(root) {
   return path.join(wsFocusAlertsBoardsDir(root), "pulse-applied.json");
 }
 
+export function wsFocusAlertsActionJobsDir(root) {
+  return path.join(wsFocusDir(root), "action-jobs");
+}
+
+export function wsFocusAlertsActionJobsIndexPath(root) {
+  return path.join(wsFocusAlertsActionJobsDir(root), "index.json");
+}
+
+export function wsFocusAlertsActionJobPath(root, id) {
+  return path.join(wsFocusAlertsActionJobsDir(root), `${String(id)}.json`);
+}
+
 export function sessionsDir(root) {
   return path.join(memDir(root), "sessions");
 }

@@ -61,8 +61,17 @@ import {
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot,
   saveWorkspaceFocusAlertsActionPlan,
-  updateWorkspaceFocusAlertsBoardItem
+  updateWorkspaceFocusAlertsBoardItem,
+  getWorkspaceFocusAlertsBoardPolicy,
+  setWorkspaceFocusAlertsBoardPolicy,
+  enqueueWorkspaceFocusAlertsActionJob,
+  listWorkspaceFocusAlertsActionJobs,
+  getWorkspaceFocusAlertsActionJob,
+  pauseWorkspaceFocusAlertsActionJob,
+  resumeWorkspaceFocusAlertsActionJob,
+  cancelWorkspaceFocusAlertsActionJob
 } from "./workspaces.js";
+import { formatDiagnosticEvent, exportWorkspaceDiagnostics } from "./diagnostics.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -452,13 +461,14 @@ function toolsList() {
       },
       additionalProperties: false
     }),
-    tool("rmemo_ws_focus_alerts_config", "Get workspace-focus alert configuration.", {
-      type: "object",
-      properties: {
-        root: rootProp
-      },
-      additionalProperties: false
-    }),
+    tool("rmemo_ws_focus_alerts_config", "Get workspace-focus alert configuration.",
+      {
+        type: "object",
+        properties: {
+          root: rootProp
+        },
+        additionalProperties: false
+      }),
     tool("rmemo_ws_focus_alerts_history", "List persisted workspace-focus alert incidents.", {
       type: "object",
       properties: {
@@ -546,6 +556,7 @@ function toolsList() {
         todoHours: { type: "number", default: 24 },
         doingHours: { type: "number", default: 12 },
         blockedHours: { type: "number", default: 6 },
+        policy: { type: "string" },
         save: { type: "boolean", default: false },
         source: { type: "string", default: "ws-alert-board-mcp" }
       },
@@ -567,6 +578,7 @@ function toolsList() {
         todoHours: { type: "number", default: 24 },
         doingHours: { type: "number", default: 12 },
         blockedHours: { type: "number", default: 6 },
+        policy: { type: "string" },
         limitItems: { type: "number", default: 20 },
         includeWarn: { type: "boolean", default: false },
         format: { type: "string", enum: ["json", "md"], default: "json" }
@@ -660,6 +672,11 @@ function toolsList() {
         }
       },
       additionalProperties: false
+    }),
+    tool("rmemo_diagnostics_export", "Export comprehensive workspace configuration and health state.", {
+      type: "object",
+      properties: {},
+      additionalProperties: false
     })
   ];
 
@@ -711,6 +728,37 @@ function toolsListWithWrite({ allowWrite } = {}) {
         text: { type: "string" }
       },
       required: ["text"],
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_action_jobs", "List or show details for Action Jobs execution orchestration.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        jobId: { type: "string", description: "If provided, show details for this specific job id instead of a list." },
+        limit: { type: "number", default: 20 }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_action_job_enqueue", "Enqueue an Action Job for background execution and orchestration.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        actionId: { type: "string" },
+        priority: { type: "string", default: "normal" },
+        batchSize: { type: "number", default: 10 },
+        retryPolicy: { type: "string", default: "standard" }
+      },
+      required: ["actionId"],
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_action_job_control", "Pause, resume, or cancel an Action Job.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        jobId: { type: "string" },
+        op: { type: "string", enum: ["pause", "resume", "cancel"] }
+      },
+      required: ["jobId", "op"],
       additionalProperties: false
     }),
     tool("rmemo_sync", "Generate AI tool instruction files from .repo-memory/ (AGENTS.md, etc.).", {
@@ -945,12 +993,29 @@ function toolsListWithWrite({ allowWrite } = {}) {
         todoHours: { type: "number", default: 24 },
         doingHours: { type: "number", default: 12 },
         blockedHours: { type: "number", default: 6 },
+        policy: { type: "string" },
         limitItems: { type: "number", default: 20 },
         includeWarn: { type: "boolean", default: false },
         noLog: { type: "boolean", default: false },
         dedupe: { type: "boolean", default: true },
         dedupeWindowHours: { type: "number", default: 72 },
         dryRun: { type: "boolean", default: false }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_policy", "Get auto-governance policy templates for board alerts.", {
+      type: "object",
+      properties: {
+        root: rootProp
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_policy_set", "Set auto-governance policy templates for board alerts (write tool).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        boardPulsePolicy: { type: "string", enum: ["strict", "balanced", "relaxed", "custom"] },
+        boardPulseDedupePolicy: { type: "string", enum: ["strict", "balanced", "relaxed", "custom"] }
       },
       additionalProperties: false
     })
@@ -967,6 +1032,11 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       throw err;
     }
   };
+
+  if (name === "rmemo_diagnostics_export") {
+    const diag = await exportWorkspaceDiagnostics(root);
+    return JSON.stringify({ schema: 1, root, ...diag }, null, 2);
+  }
 
   if (name === "rmemo_status") {
     const mode = String(args?.mode || "full");
@@ -1159,6 +1229,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
 
   if (name === "rmemo_ws_focus_report_get") {
     const id = String(args?.id || "").trim();
+    if (!id) throw new Error("Missing id");
     const r = await getWorkspaceFocusReport(root, id);
     return JSON.stringify(r, null, 2);
   }
@@ -1261,15 +1332,17 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
   }
 
   if (name === "rmemo_ws_focus_alerts_board_pulse") {
-    const limitBoards = args?.limitBoards !== undefined ? Number(args.limitBoards) : 50;
-    const todoHours = args?.todoHours !== undefined ? Number(args.todoHours) : 24;
-    const doingHours = args?.doingHours !== undefined ? Number(args.doingHours) : 12;
-    const blockedHours = args?.blockedHours !== undefined ? Number(args.blockedHours) : 6;
-    const save = args?.save === true;
-    if (save) requireWrite();
-    const source = String(args?.source || "ws-alert-board-mcp");
-    const r = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { limitBoards, todoHours, doingHours, blockedHours, save, source });
-    return JSON.stringify(r, null, 2);
+    requireWrite();
+    const j = await evaluateWorkspaceFocusAlertsBoardsPulse(root, {
+      limitBoards: args?.limitBoards !== undefined ? Number(args.limitBoards) : 50,
+      todoHours: args?.todoHours !== undefined ? Number(args.todoHours) : undefined,
+      doingHours: args?.doingHours !== undefined ? Number(args.doingHours) : undefined,
+      blockedHours: args?.blockedHours !== undefined ? Number(args.blockedHours) : undefined,
+      policy: typeof args?.policy === "string" ? args.policy : undefined,
+      save: args?.save === true,
+      source: args?.source || "ws-alert-mcp"
+    });
+    return JSON.stringify(j, null, 2);
   }
 
   if (name === "rmemo_ws_focus_alerts_board_pulse_history") {
@@ -1291,10 +1364,26 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       todoHours,
       doingHours,
       blockedHours,
+      policy: typeof args?.policy === "string" ? args.policy : undefined,
       limitItems,
       includeWarn
     });
     return format === "md" ? r.markdown : JSON.stringify(r.json, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_policy") {
+    const policy = await getWorkspaceFocusAlertsBoardPolicy(root);
+    return JSON.stringify({ ok: true, policy }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_policy_set") {
+    requireWrite();
+    const patch = {
+      boardPulsePolicy: typeof args?.boardPulsePolicy === "string" ? args.boardPulsePolicy : undefined,
+      boardPulseDedupePolicy: typeof args?.boardPulseDedupePolicy === "string" ? args.boardPulseDedupePolicy : undefined
+    };
+    const policy = await setWorkspaceFocusAlertsBoardPolicy(root, patch);
+    return JSON.stringify({ ok: true, policy }, null, 2);
   }
 
   if (name === "rmemo_embed_status") {
@@ -1449,7 +1538,6 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       generatedAt: new Date().toISOString(),
       config: {},
       state: {},
-      metrics: {},
       recommendations: []
     };
     return JSON.stringify({ ok: true, report }, null, 2);
@@ -1706,6 +1794,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       todoHours: args?.todoHours !== undefined ? Number(args.todoHours) : 24,
       doingHours: args?.doingHours !== undefined ? Number(args.doingHours) : 12,
       blockedHours: args?.blockedHours !== undefined ? Number(args.blockedHours) : 6,
+      policy: typeof args?.policy === "string" ? args.policy : undefined,
       limitItems: args?.limitItems !== undefined ? Number(args.limitItems) : 20,
       includeWarn: args?.includeWarn === true,
       noLog: args?.noLog === true,
@@ -1713,6 +1802,44 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       dedupeWindowHours: args?.dedupeWindowHours !== undefined ? Number(args.dedupeWindowHours) : 72,
       dryRun: args?.dryRun === true
     });
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_action_jobs") {
+    if (args?.jobId) {
+      const r = await getWorkspaceFocusAlertsActionJob(root, args.jobId);
+      return JSON.stringify({ ok: true, result: r }, null, 2);
+    }
+    const limit = args?.limit !== undefined ? Number(args.limit) : 20;
+    const r = await listWorkspaceFocusAlertsActionJobs(root, { limit });
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_action_job_enqueue") {
+    requireWrite();
+    const actionId = String(args?.actionId || "").trim();
+    if (!actionId) throw new Error("Missing actionId");
+    const r = await enqueueWorkspaceFocusAlertsActionJob(root, {
+      actionId,
+      priority: args?.priority !== undefined ? String(args.priority) : "normal",
+      batchSize: args?.batchSize !== undefined ? Number(args.batchSize) : 10,
+      retryPolicy: args?.retryPolicy !== undefined ? String(args.retryPolicy) : "standard"
+    });
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_action_job_control") {
+    requireWrite();
+    const jobId = String(args?.jobId || "").trim();
+    const op = String(args?.op || "").trim();
+    if (!jobId) throw new Error("Missing jobId");
+
+    let r;
+    if (op === "pause") r = await pauseWorkspaceFocusAlertsActionJob(root, jobId);
+    else if (op === "resume") r = await resumeWorkspaceFocusAlertsActionJob(root, jobId);
+    else if (op === "cancel") r = await cancelWorkspaceFocusAlertsActionJob(root, jobId);
+    else throw new Error("Invalid op. Must be pause, resume, or cancel");
+
     return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 

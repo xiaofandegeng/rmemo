@@ -41,7 +41,15 @@ import {
   setWorkspaceFocusAlertsConfig,
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot,
-  updateWorkspaceFocusAlertsBoardItem
+  updateWorkspaceFocusAlertsBoardItem,
+  getWorkspaceFocusAlertsBoardPolicy,
+  setWorkspaceFocusAlertsBoardPolicy,
+  enqueueWorkspaceFocusAlertsActionJob,
+  listWorkspaceFocusAlertsActionJobs,
+  getWorkspaceFocusAlertsActionJob,
+  pauseWorkspaceFocusAlertsActionJob,
+  resumeWorkspaceFocusAlertsActionJob,
+  cancelWorkspaceFocusAlertsActionJob
 } from "../core/workspaces.js";
 import { ensureRepoMemory } from "../core/memory.js";
 import { wsSummaryPath } from "../lib/paths.js";
@@ -98,10 +106,12 @@ function wsHelp() {
     "  rmemo ws alerts board update --board <id> --item <id> --status todo|doing|done|blocked [--note <text>] [--format md|json]",
     "  rmemo ws alerts board report --board <id> [--max-items <n>] [--format md|json]",
     "  rmemo ws alerts board close --board <id> [--reason <text>] [--force] [--no-log] [--format md|json]",
-    "  rmemo ws alerts board pulse [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--save] [--source <name>] [--format md|json]",
+    "  rmemo ws alerts board policy show [--format md|json]",
+    "  rmemo ws alerts board policy set --preset strict|balanced|relaxed [--format md|json]",
+    "  rmemo ws alerts board pulse [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--policy <name>] [--save] [--source <name>] [--format md|json]",
     "  rmemo ws alerts board pulse-history [--limit <n>] [--format md|json]",
-    "  rmemo ws alerts board pulse-plan [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--limit-items <n>] [--include-warn] [--format md|json]",
-    "  rmemo ws alerts board pulse-apply [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--limit-items <n>] [--include-warn] [--no-dedupe] [--dedupe-window-hours <n>] [--dry-run] [--no-log] [--format md|json]",
+    "  rmemo ws alerts board pulse-plan [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--policy <name>] [--limit-items <n>] [--include-warn] [--format md|json]",
+    "  rmemo ws alerts board pulse-apply [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--policy <name>] [--limit-items <n>] [--include-warn] [--no-dedupe] [--dedupe-window-hours <n>] [--dry-run] [--no-log] [--format md|json]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -795,6 +805,103 @@ export async function cmdWs({ rest, flags }) {
       process.stdout.write(format === "json" ? JSON.stringify(out, null, 2) + "\n" : `Applied action ${out.actionId}: next=${out.applied?.next?.length || 0}, blockers=${out.applied?.blockers?.length || 0}\n`);
       return;
     }
+    if (op === "action-job") {
+      const jobOp = String(rest[2] || "").trim();
+      if (jobOp === "enqueue") {
+        if (!actionId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job enqueue --action <id> [--priority normal] [--batch-size 10] [--retry-policy standard]\n");
+          process.exitCode = 2;
+          return;
+        }
+        const priority = flags.priority || "normal";
+        const batchSize = Number(flags["batch-size"] || 10);
+        const retryPolicy = flags["retry-policy"] || "standard";
+
+        const out = await enqueueWorkspaceFocusAlertsActionJob(root, { actionId, priority, batchSize, retryPolicy });
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Enqueued Action Job ${out.id} for action ${out.actionId}\n`);
+        return;
+      }
+      if (jobOp === "list") {
+        const limit = Number(flags.limit || 20);
+        const out = await listWorkspaceFocusAlertsActionJobs(root, { limit });
+        if (format === "json") {
+          process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        } else {
+          const lines = ["# Workspace Alerts Action Jobs\n", `Root: ${root}\n`];
+          if (!out.jobs?.length) lines.push("No action jobs found.\n");
+          else {
+            for (const j of out.jobs) {
+              lines.push(`- ${j.id} [${j.status}] action=${j.actionId} @ ${j.createdAt}`);
+            }
+            lines.push("");
+          }
+          process.stdout.write(lines.join("\n"));
+        }
+        return;
+      }
+      if (jobOp === "show") {
+        const jobId = rest[3];
+        if (!jobId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job show <jobId>\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await getWorkspaceFocusAlertsActionJob(root, jobId);
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else {
+          const lines = [
+            `# Action Job ${out.id}`,
+            `Action: ${out.actionId}`,
+            `Status: ${out.status}`,
+            `Progress: ${out.state.processedCount} / ${out.tasks.length} (Success: ${out.state.successCount}, Err: ${out.state.errorCount})`,
+            `Created: ${out.createdAt}`,
+            `Updated: ${out.updatedAt}`
+          ];
+          process.stdout.write(lines.join("\n") + "\n");
+        }
+        return;
+      }
+      if (jobOp === "pause") {
+        const jobId = rest[3];
+        if (!jobId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job pause <jobId>\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await pauseWorkspaceFocusAlertsActionJob(root, jobId);
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Job ${out.id} paused.\n`);
+        return;
+      }
+      if (jobOp === "resume") {
+        const jobId = rest[3];
+        if (!jobId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job resume <jobId>\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await resumeWorkspaceFocusAlertsActionJob(root, jobId);
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Job ${out.id} resumed.\n`);
+        return;
+      }
+      if (jobOp === "cancel") {
+        const jobId = rest[3];
+        if (!jobId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job cancel <jobId>\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await cancelWorkspaceFocusAlertsActionJob(root, jobId);
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Job ${out.id} canceled.\n`);
+        return;
+      }
+      process.stderr.write("Usage: rmemo ws alerts action-job <enqueue|list|show|pause|resume|cancel>\n");
+      process.exitCode = 2;
+      return;
+    }
     if (op === "board") {
       const boardOp = String(rest[2] || "").trim();
       if (boardOp === "create") {
@@ -894,13 +1001,34 @@ export async function cmdWs({ rest, flags }) {
         else process.stdout.write(`Closed board ${boardId} at ${out.closedAt || "-"}\n`);
         return;
       }
+      if (boardOp === "policy") {
+        const action = rest[3];
+        if (action === "set") {
+          const preset = flags.preset;
+          if (!preset || !["strict", "balanced", "relaxed", "custom"].includes(preset)) {
+            process.stderr.write("Usage: rmemo ws alerts board policy set --preset strict|balanced|relaxed\n");
+            process.exitCode = 2;
+            return;
+          }
+          const out = await setWorkspaceFocusAlertsBoardPolicy(root, { boardPulsePolicy: preset, boardPulseDedupePolicy: preset });
+          if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+          else process.stdout.write(`Policy set to ${preset}\n`);
+          return;
+        }
+        // Defaults to show
+        const out = await getWorkspaceFocusAlertsBoardPolicy(root);
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Current Policy:\n- Pulse: ${out.boardPulsePolicy}\n- Dedupe: ${out.boardPulseDedupePolicy}\n`);
+        return;
+      }
       if (boardOp === "pulse") {
-        const limitBoards = Number(flags["limit-boards"] || 50);
-        const todoHours = Number(flags["todo-hours"] || 24);
-        const doingHours = Number(flags["doing-hours"] || 12);
-        const blockedHours = Number(flags["blocked-hours"] || 6);
+        const limitBoards = flags["limit-boards"] !== undefined ? Number(flags["limit-boards"]) : undefined;
+        const todoHours = flags["todo-hours"] !== undefined ? Number(flags["todo-hours"]) : undefined;
+        const doingHours = flags["doing-hours"] !== undefined ? Number(flags["doing-hours"]) : undefined;
+        const blockedHours = flags["blocked-hours"] !== undefined ? Number(flags["blocked-hours"]) : undefined;
+        const policy = flags.policy;
         const save = !!flags.save;
-        const out = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { limitBoards, todoHours, doingHours, blockedHours, save, source });
+        const out = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { limitBoards, todoHours, doingHours, blockedHours, policy, save, source });
         if (format === "json") {
           process.stdout.write(JSON.stringify(out, null, 2) + "\n");
         } else {
@@ -941,26 +1069,28 @@ export async function cmdWs({ rest, flags }) {
         return;
       }
       if (boardOp === "pulse-plan") {
-        const limitBoards = Number(flags["limit-boards"] || 50);
-        const todoHours = Number(flags["todo-hours"] || 24);
-        const doingHours = Number(flags["doing-hours"] || 12);
-        const blockedHours = Number(flags["blocked-hours"] || 6);
+        const limitBoards = flags["limit-boards"] !== undefined ? Number(flags["limit-boards"]) : undefined;
+        const todoHours = flags["todo-hours"] !== undefined ? Number(flags["todo-hours"]) : undefined;
+        const doingHours = flags["doing-hours"] !== undefined ? Number(flags["doing-hours"]) : undefined;
+        const blockedHours = flags["blocked-hours"] !== undefined ? Number(flags["blocked-hours"]) : undefined;
+        const policy = flags.policy;
         const limitItems = Number(flags["limit-items"] || 20);
-        const out = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, limitItems, includeWarn });
+        const out = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, policy, limitItems, includeWarn });
         if (format === "json") process.stdout.write(JSON.stringify(out.json, null, 2) + "\n");
         else process.stdout.write(out.markdown);
         return;
       }
       if (boardOp === "pulse-apply") {
-        const limitBoards = Number(flags["limit-boards"] || 50);
-        const todoHours = Number(flags["todo-hours"] || 24);
-        const doingHours = Number(flags["doing-hours"] || 12);
-        const blockedHours = Number(flags["blocked-hours"] || 6);
+        const limitBoards = flags["limit-boards"] !== undefined ? Number(flags["limit-boards"]) : undefined;
+        const todoHours = flags["todo-hours"] !== undefined ? Number(flags["todo-hours"]) : undefined;
+        const doingHours = flags["doing-hours"] !== undefined ? Number(flags["doing-hours"]) : undefined;
+        const blockedHours = flags["blocked-hours"] !== undefined ? Number(flags["blocked-hours"]) : undefined;
+        const policy = flags.policy;
         const limitItems = Number(flags["limit-items"] || 20);
         const dedupe = !flags["no-dedupe"];
-        const dedupeWindowHours = Number(flags["dedupe-window-hours"] || 72);
+        const dedupeWindowHours = flags["dedupe-window-hours"] !== undefined ? Number(flags["dedupe-window-hours"]) : undefined;
         const dryRun = !!flags["dry-run"];
-        const out = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, limitItems, includeWarn, noLog, dedupe, dedupeWindowHours, dryRun });
+        const out = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, policy, limitItems, includeWarn, noLog, dedupe, dedupeWindowHours, dryRun });
         if (format === "json") {
           process.stdout.write(JSON.stringify(out, null, 2) + "\n");
         } else {

@@ -2187,7 +2187,7 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     });
     await waitFor(() => {
       const lines = parseJsonLines(mcp.getOut());
-      return lines.some((x) => x.id === 20) ? true : false;
+      return lines.some((x) => x.id === 17) && lines.some((x) => x.id === 20);
     });
 
     const lines = parseJsonLines(mcp.getOut());
@@ -2238,8 +2238,8 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     assert.equal(jobsJson.schema, 1);
     assert.ok(
       (jobsJson.active && jobsJson.active.id) ||
-        (Array.isArray(jobsJson.queued) && jobsJson.queued.length >= 0) ||
-        (Array.isArray(jobsJson.history) && jobsJson.history.length >= 0)
+      (Array.isArray(jobsJson.queued) && jobsJson.queued.length >= 0) ||
+      (Array.isArray(jobsJson.history) && jobsJson.history.length >= 0)
     );
 
     const cfg = lines.find((x) => x.id === 6);
@@ -2274,8 +2274,8 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       const m = String(govApply.error.message || "");
       assert.ok(
         m.includes("no recommendation") ||
-          m.includes("no_recommendation") ||
-          m.includes("no_effective_action")
+        m.includes("no_recommendation") ||
+        m.includes("no_effective_action")
       );
     } else {
       const govApplyJson = JSON.parse(govApply.result.content[0].text);

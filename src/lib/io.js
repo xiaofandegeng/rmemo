@@ -36,6 +36,22 @@ export async function readJson(p) {
   return JSON.parse(s);
 }
 
+export async function readJsonSafe(p, retries = 5) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const s = await readText(p);
+      return JSON.parse(s);
+    } catch (e) {
+      if (e instanceof SyntaxError && i < retries - 1) {
+        // file might be mid-write; Wait and retry
+        await new Promise(r => setTimeout(r, 20 + Math.random() * 50));
+      } else {
+        throw e;
+      }
+    }
+  }
+}
+
 export function exitWithError(msg) {
   process.stderr.write(String(msg).trimEnd() + "\n");
   process.exitCode = 1;

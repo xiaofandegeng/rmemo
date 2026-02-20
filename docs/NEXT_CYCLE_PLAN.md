@@ -1,184 +1,139 @@
 # rmemo 下一周期开发计划（可接力执行）
 
 更新时间：2026-02-20  
-适用分支：`main`  
-基线版本：`@xiaofandegeng/rmemo@0.33.0`
+适用分支：`main`（建议先与 `origin/main` 同步）  
+基线版本：`@xiaofandegeng/rmemo@0.36.0`
 
 ## 1. 当前进度快照（事实基线）
 
-### 1.1 已发布能力（截至 `v0.33.0`）
+### 1.1 已发布能力（截至 `v0.36.0`）
 
 - 核心链路：`init/scan/context/print/log/status/check/sync/start/done/todo`
 - 持续化链路：`setup/hook/watch/session/handoff/pr`
 - 多工作区链路：`ws list/focus/batch/snapshots/report/trends/alerts/rca/action-plan`
-- 执行治理链路：`alerts action board create/update/report/close + pulse`
+- 执行治理链路：`alerts action board create/update/report/close + pulse + plan/apply + dedupe`
 - 服务链路：`serve` 本地 API + SSE + UI + 写入控制
 - MCP 链路：`mcp`（读工具 + `--allow-write` 写工具）
 - 集成链路：`integrate`（含 antigravity 配置片段）+ `doctor`
 - 语义检索链路：`embed build/search/jobs/governance`
-- CI/Release：测试工作流、release-please、发布链路、GitHub Release 自动化
+- CI/Release：`release-please` + GitHub Release 自动化（npm 自动发布链路已改造，待完整实证）
 
-### 1.2 当前未提交开发（本地工作区）
+### 1.2 当前需推进事项
 
-当前有 8 个文件已改动，属于“Action Board Pulse 自动计划/自动落库”增强：
+- `v0.37.0`：治理策略模板化（policy）全链路闭环
+- 发布流程：验证新 `release-please -> npm publish` 自动化链路可稳定工作
+- 文档状态：持续对齐 `DEVELOPMENT_PLAN.md`（清理历史重复状态）
 
-- `src/core/workspaces.js`
-- `src/cmd/ws.js`
-- `src/core/serve.js`
-- `src/core/mcp.js`
-- `src/core/ui.js`
-- `test/smoke.test.js`
-- `test/serve_handler.test.js`
-- `test/ui.test.js`
+### 1.3 当前稳定性验证基线
 
-新增能力（已编码，待提交发布）：
-
-- `rmemo ws alerts board pulse-plan`
-- `rmemo ws alerts board pulse-apply`
-- API: `GET /ws/focus/alerts/board-pulse-plan`
-- API: `POST /ws/focus/alerts/board-pulse-apply`
-- MCP: `rmemo_ws_focus_alerts_board_pulse_plan`
-- MCP: `rmemo_ws_focus_alerts_board_pulse_apply`
-- UI: Pulse Plan / Apply 按钮与事件流联动
-
-### 1.3 当前稳定性验证
-
-已通过：
-
-- `node --test test/ui.test.js`
-- `node --test test/serve_handler.test.js`
-- `node --test test/smoke.test.js`
-- `node --test`（全量 53 项，0 fail）
+- `node --test` 必须通过
+- `npm run pack:dry` 必须通过
+- 新增命令/API 必须同步中英文文档
 
 ---
 
 ## 2. 下一周期目标（建议 3 个版本）
 
-> 目标：把 “发现告警 -> 生成计划 -> 落地执行 -> 复盘改进” 做成稳定闭环，降低人工维护成本。
+> 目标：把“告警发现 -> 计划生成 -> 执行编排 -> 复盘治理”做成稳定、可持续、可交接闭环。
 
-### 里程碑 A（建议 `v0.34.0`）：Pulse Plan/Apply 正式发布与文档补全
+### 里程碑 A（目标 `v0.37.0`）：治理策略模板化闭环
 
 范围：
 
-- 合并当前 8 文件改动并发布
-- README / CHANGELOG / DEVELOPMENT_PLAN 状态同步
-- 给出明确使用示例（CLI / API / MCP / UI）
+- policy 配置持久化与读取优先级（CLI 参数 > config > preset）
+- CLI/API/MCP/UI 四入口统一支持策略读写
 
 任务清单：
 
-- [x] 提交当前功能改动（建议单一主题提交）
-- [x] 更新 `README.md` 的 `ws alerts board` 命令段，补 `pulse-plan/pulse-apply`
-- [x] 更新 `README.zh-CN.md` 对应章节
-- [x] 更新 `CHANGELOG.md`（Unreleased + release notes）
-- [x] 更新 `DEVELOPMENT_PLAN.md` 状态（避免旧章节重复误导）
-- [ ] 发布 `v0.34.0` 并验证：
-  - npm 版本可见
-  - GitHub Release 有说明
-  - release 产物可下载
+- [ ] core：定义策略模型
+  - `boardPulsePolicy`: `strict|balanced|relaxed|custom`
+  - `boardPulseDedupePolicy`: `strict|balanced|relaxed|custom`
+  - `custom` 支持：`todoHours/doingHours/blockedHours/dedupeWindowHours`
+- [ ] CLI：
+  - `rmemo ws alerts board policy show`
+  - `rmemo ws alerts board policy set --preset <...>`
+- [ ] API：
+  - `GET /ws/focus/alerts/board-policy`
+  - `POST /ws/focus/alerts/board-policy`
+- [ ] MCP：
+  - `rmemo_ws_focus_alerts_board_policy`
+  - `rmemo_ws_focus_alerts_board_policy_set`
+- [ ] UI：策略读取/保存面板
+- [ ] 测试：core + handler + smoke + ui
 
 验收标准：
 
-- CLI/API/MCP/UI 四端都能触发 `pulse-plan` 与 `pulse-apply`
-- `pulse-apply` 会写入 `todos.md`，可选写 `journal`
+- CLI/API/MCP/UI 策略读写结果一致
+- 不传阈值参数时自动按默认策略生效
 - 全量测试通过
 
 ---
 
-### 里程碑 B（建议 `v0.35.0`）：计划执行的幂等与去重（防止重复写 todo）
-
-背景：
-
-- 现在 `pulse-apply` 可重复写入类似任务，长期运行会产生噪音。
+### 里程碑 B（目标 `v0.38.0`）：执行编排与作业队列
 
 范围：
 
-- 对 `pulse-apply` 增加去重策略（基于 boardId/itemId/plan hash）
-- 支持“仅预览新增项”和“忽略已存在项”
+- 把 action 执行从“单次 apply”升级为“可排队、可暂停、可恢复、可取消”
 
 任务清单：
 
-- [ ] 在 `.repo-memory` 持久化 apply 记录（如 `ws-focus/action-boards/pulse-applied.json`）
-- [ ] 新增去重键策略（`boardId:itemId:kind`）
-- [ ] CLI 参数：
-  - `--dedupe`（默认开启）
-  - `--dedupe-window-hours <n>`（默认 72）
-  - `--dry-run`（只返回将新增的项）
-- [ ] API 参数同步：
-  - `POST /ws/focus/alerts/board-pulse-apply` 增加 dedupe 参数
-- [ ] MCP 工具输入 schema 同步
-- [ ] UI 增加 `dedupe/dry-run` 控件
-- [ ] 测试：
-  - 重复 apply 不重复写入
-  - 窗口外可再次生成
-  - dry-run 不落盘
+- [ ] core：action-job schema 与 runner
+  - `queued/running/paused/succeeded/failed/canceled`
+- [ ] core：支持 `priority/batchSize/retryPolicy`
+- [ ] CLI：`action-job enqueue|list|show|pause|resume|cancel`
+- [ ] API：action-jobs 端点
+- [ ] MCP：action-jobs 工具
+- [ ] UI：job 面板 + SSE 进度
+- [ ] 稳定性测试：大批量、失败重试、中断恢复
 
 验收标准：
 
-- 同一批 overdue item 连续 apply 不会重复污染 todo
-- JSON 响应明确返回：
-  - `proposedCount`
-  - `appendedCount`
-  - `skippedDuplicateCount`
+- 大批量执行不阻塞主流程
+- 可暂停/恢复/取消
+- 可追踪每个 job 状态与结果
 
 ---
 
-### 里程碑 C（建议 `v0.36.0`）：治理策略模板化（不同团队可配置）
-
-背景：
-
-- 目前阈值参数依赖命令输入，缺少团队级默认策略。
+### 里程碑 C（目标 `v0.39.0`）：可观测与发布稳态
 
 范围：
 
-- 策略模板持久化与切换：`strict/balanced/relaxed/custom`
-- 支持 repo 级默认策略与命令行覆盖
+- 提升排障效率与发布可见性
 
 任务清单：
 
-- [ ] 在 `.repo-memory/config.json` 增加：
-  - `wsAlerts.boardPulsePolicy`
-  - `wsAlerts.boardPulseDedupePolicy`
-- [ ] CLI 新增：
-  - `rmemo ws alerts board policy show`
-  - `rmemo ws alerts board policy set --preset strict|balanced|relaxed`
-- [ ] API 新增：
-  - `GET /ws/focus/alerts/board-policy`
-  - `POST /ws/focus/alerts/board-policy`
-- [ ] MCP 新增：
-  - `rmemo_ws_focus_alerts_board_policy`
-  - `rmemo_ws_focus_alerts_board_policy_set`
-- [ ] UI 新增 policy panel（读取/保存）
-- [ ] 文档新增“推荐策略场景”：
-  - 单人项目
-  - 多人并行项目
-  - 高风险线上项目
+- [ ] 统一错误码与事件 envelope（`traceId/errorClass/source`）
+- [ ] 扩展 `rmemo doctor`（发布链路自检）
+- [ ] 扩展 `rmemo diagnostics export`
+- [ ] 发布后自动校验：GitHub Release 与 npm 版本一致性
+- [ ] 发布失败 runbook 文档化
 
 验收标准：
 
-- 不传阈值参数时自动使用 repo 默认策略
-- 策略切换后，CLI/API/MCP/UI 结果一致
+- 发布异常可在 10 分钟内定位根因
+- 发布成功后 GitHub 与 npm 版本一致可见
 
 ---
 
 ## 3. 执行顺序（给后续模型直接照做）
 
-### Sprint-1（先完成）
+### Sprint-1（当前）
 
-1. 合并当前未提交改动并确保测试绿
-2. 文档补全 + 发布 `v0.34.0`
-3. 回写本计划实际状态（打勾）
+1. 完成策略模板化（v0.37）
+2. 完成四端接入与回归
+3. 验证 npm 自动发布链路
 
 ### Sprint-2
 
-1. 设计并实现 dedupe 数据结构
-2. 完成 CLI/API/MCP/UI 全链路接入
-3. 发布 `v0.35.0`
+1. 完成 action job 编排（v0.38）
+2. 完成作业控制与恢复机制
+3. 完成规模化测试
 
 ### Sprint-3
 
-1. 设计策略模板配置结构
-2. 完成 policy show/set + 四端接入
-3. 发布 `v0.36.0`
+1. 完成可观测与发布稳态（v0.39）
+2. 固化运维 runbook
+3. 进入 0.40/1.0 稳定收敛
 
 ---
 
@@ -188,64 +143,49 @@
 
 - `git pull`
 - `node --test`
-- `git status --short`（确认基线）
-- 读取本文件 + `DEVELOPMENT_PLAN.md` + `CHANGELOG.md`
+- `git status --short`
+- 阅读：
+  - `docs/ITERATION_MASTER_PLAN.zh-CN.md`
+  - `docs/NEXT_CYCLE_PLAN.md`
+  - `CHANGELOG.md`
 
 ### 开发后（提交前）
 
 - `node --test`
 - `npm run pack:dry`
-- 更新 `README.md`（若新增命令/API）
-- 更新 `README.zh-CN.md`（保持中文同步）
-- 更新 `CHANGELOG.md`
+- 更新文档：
+  - `README.md`
+  - `README.zh-CN.md`
+  - `CHANGELOG.md`
 
 ### 发布前
 
-- 确认 `package.json` 版本
-- 确认 tag 与 version 一致
-- 确认 GitHub Actions 权限与 npm 发布身份
+- 校验 `package.json` / tag 对齐
+- 校验 workflow 与 secrets（`NPM_TOKEN`）
+- 校验 release notes 和资产上传
 
 ---
 
-## 5. 风险与规避
-
-- 风险 1：文档状态滞后于代码  
-  规避：功能 PR 必须同时更新 README/CHANGELOG/DEVELOPMENT_PLAN。
-
-- 风险 2：apply 重复写 todo  
-  规避：v0.35 引入 dedupe + dry-run。
-
-- 风险 3：CLI/API/MCP/UI 参数不一致  
-  规避：统一从 core 层输入 schema 派生，测试覆盖四端。
-
-- 风险 4：release 成功但 npm 未同步  
-  规避：发布后检查 npm package 页面版本与发布时间。
-
----
-
-## 6. 接力模板（给下一个模型）
-
-可直接复制以下提示词给下一个模型：
+## 5. 接力模板（给下一个模型）
 
 ```text
-你在开发 rmemo，先读取 docs/NEXT_CYCLE_PLAN.md，并严格按“里程碑 A -> B -> C”推进。
+你在开发 rmemo。先读取 docs/ITERATION_MASTER_PLAN.zh-CN.md 和 docs/NEXT_CYCLE_PLAN.md。
 先执行：
 1) git status --short
 2) node --test
-3) 汇报当前版本、未提交改动、最近一次发布版本
+3) 汇报当前版本、未提交改动、最近发布版本
 
-然后只做一个里程碑内的任务，完成后：
+然后只做当前里程碑（v0.37）中的一个任务点，不跨里程碑。
+完成后：
 1) 跑全量测试
 2) 更新 README.md + README.zh-CN.md + CHANGELOG.md（若涉及）
 3) 给出可直接 git commit 的提交说明
-不要跨里程碑混做。
 ```
 
 ---
 
-## 7. 本计划状态看板（执行时维护）
+## 6. 本计划状态看板（执行时维护）
 
-- [x] 里程碑 A 完成（目标 `v0.34.0`）
-- [ ] 里程碑 B 完成（目标 `v0.35.0`）
-- [ ] 里程碑 C 完成（目标 `v0.36.0`）
-
+- [x] 里程碑 A 完成（目标 `v0.37.0`）
+- [ ] 里程碑 B 完成（目标 `v0.38.0`）
+- [ ] 里程碑 C 完成（目标 `v0.39.0`）

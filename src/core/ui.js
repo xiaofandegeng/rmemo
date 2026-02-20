@@ -435,11 +435,47 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <button class="btn secondary" id="closeWsAlertsBoard">WS Alerts Board Close</button>
               </div>
               <div style="height: 8px;"></div>
+              <div class="row" style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; border: 1px solid var(--border);">
+                <input id="wsActionJobId" type="text" placeholder="action job id" style="width: 250px;" />
+                <input id="wsActionJobLimit" type="number" min="1" step="1" placeholder="limit" style="width: 80px;" value="20" />
+                <button class="btn secondary" id="loadWsAlertsActionJobs">Action Jobs List</button>
+                <button class="btn secondary" id="showWsAlertsActionJob">Show Job</button>
+                <button class="btn secondary" id="pauseWsAlertsActionJob">Pause</button>
+                <button class="btn secondary" id="resumeWsAlertsActionJob">Resume</button>
+                <button class="btn secondary" id="cancelWsAlertsActionJob">Cancel</button>
+              </div>
+              <div style="height: 8px;"></div>
               <div class="row">
-                <input id="wsPulseTodoHours" type="number" min="1" step="1" placeholder="todo hours" style="width: 130px;" value="24" />
-                <input id="wsPulseDoingHours" type="number" min="1" step="1" placeholder="doing hours" style="width: 130px;" value="12" />
-                <input id="wsPulseBlockedHours" type="number" min="1" step="1" placeholder="blocked hours" style="width: 130px;" value="6" />
-                <input id="wsPulseLimitItems" type="number" min="1" step="1" placeholder="limit items" style="width: 130px;" value="20" />
+                <span style="font-size: 13px; margin-right: 4px;">Global Policy:</span>
+                <select id="wsPulsePolicyGlobal" style="width: 100px;">
+                  <option value="balanced">balanced</option>
+                  <option value="strict">strict</option>
+                  <option value="relaxed">relaxed</option>
+                  <option value="custom">custom</option>
+                </select>
+                <span style="font-size: 13px; margin-left: 12px; margin-right: 4px;">Dedupe:</span>
+                <select id="wsPulseDedupePolicyGlobal" style="width: 100px;">
+                  <option value="balanced">balanced</option>
+                  <option value="strict">strict</option>
+                  <option value="relaxed">relaxed</option>
+                  <option value="custom">custom</option>
+                </select>
+                <button class="btn secondary" id="loadWsAlertsBoardPolicy">Load Policy Defaults</button>
+                <button class="btn secondary" id="saveWsAlertsBoardPolicy">Save Policy Defaults</button>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
+                <input id="wsPulseTodoHours" type="number" min="1" step="1" placeholder="todo hours" style="width: 100px;" />
+                <input id="wsPulseDoingHours" type="number" min="1" step="1" placeholder="doing hours" style="width: 100px;" />
+                <input id="wsPulseBlockedHours" type="number" min="1" step="1" placeholder="blocked hours" style="width: 100px;" />
+                <select id="wsPulsePolicyOverride" style="width: 100px;">
+                  <option value="">--</option>
+                  <option value="strict">strict</option>
+                  <option value="balanced">balanced</option>
+                  <option value="relaxed">relaxed</option>
+                  <option value="custom">custom</option>
+                </select>
+                <input id="wsPulseLimitItems" type="number" min="1" step="1" placeholder="limit items" style="width: 100px;" value="20" />
                 <label style="display:flex; gap:6px; align-items:center;">
                   <input id="wsPulseSave" type="checkbox" />
                   <span class="hint" style="margin:0;">save pulse</span>
@@ -452,11 +488,14 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                   <input id="wsPulseDedupe" type="checkbox" checked />
                   <span class="hint" style="margin:0;">dedupe</span>
                 </label>
-                <input id="wsPulseDedupeWindowHours" type="number" min="1" step="1" placeholder="dedupe hours" style="width: 100px;" value="72" />
+                <input id="wsPulseDedupeWindowHours" type="number" min="1" step="1" placeholder="dedupe hours" style="width: 100px;" />
                 <label style="display:flex; gap:6px; align-items:center;">
                   <input id="wsPulseDryRun" type="checkbox" />
                   <span class="hint" style="margin:0;">dry run</span>
                 </label>
+              </div>
+              <div style="height: 8px;"></div>
+              <div class="row">
                 <button class="btn secondary" id="runWsAlertsBoardPulse">WS Alerts Board Pulse</button>
                 <button class="btn secondary" id="runWsAlertsBoardPulsePlan">WS Alerts Pulse Plan</button>
                 <button class="btn secondary" id="applyWsAlertsBoardPulsePlan">WS Alerts Pulse Apply</button>
@@ -1089,14 +1128,19 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
 
       async function runWsAlertsBoardPulse() {
         err(""); msg("Evaluating workspace alerts board pulse...");
-        const todoHours = Number((qs("#wsPulseTodoHours").value || "").trim() || 24);
-        const doingHours = Number((qs("#wsPulseDoingHours").value || "").trim() || 12);
-        const blockedHours = Number((qs("#wsPulseBlockedHours").value || "").trim() || 6);
+        const rawTodo = (qs("#wsPulseTodoHours").value || "").trim();
+        const rawDoing = (qs("#wsPulseDoingHours").value || "").trim();
+        const rawBlocked = (qs("#wsPulseBlockedHours").value || "").trim();
+        const todoHours = rawTodo ? Number(rawTodo) : undefined;
+        const doingHours = rawDoing ? Number(rawDoing) : undefined;
+        const blockedHours = rawBlocked ? Number(rawBlocked) : undefined;
+        const policyOverride = qs("#wsPulsePolicyOverride").value;
         const save = !!qs("#wsPulseSave").checked;
         let p = "/ws/focus/alerts/board-pulse?limitBoards=50";
         if (Number.isFinite(todoHours) && todoHours > 0) p += "&todoHours=" + encodeURIComponent(String(todoHours));
         if (Number.isFinite(doingHours) && doingHours > 0) p += "&doingHours=" + encodeURIComponent(String(doingHours));
         if (Number.isFinite(blockedHours) && blockedHours > 0) p += "&blockedHours=" + encodeURIComponent(String(blockedHours));
+        if (policyOverride) p += "&policy=" + encodeURIComponent(policyOverride);
         if (save) p += "&save=1&source=ui";
         const j = await apiFetch(p, { accept: "application/json", json: true });
         if (j && j.incident && j.incident.id) pushLive({ type: "ws:alerts:board-pulse", incidentId: j.incident.id });
@@ -1115,11 +1159,72 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Workspace Alerts Board Pulse History";
       }
 
+      // --- Action Jobs ---
+      async function loadWsAlertsActionJobs() {
+        err(""); msg("Loading workspace alerts action jobs...");
+        const limit = Number((qs("#wsActionJobLimit").value || "").trim() || 20);
+        const j = await apiFetch("/ws/focus/alerts/action-jobs?limit=" + encodeURIComponent(String(limit)), { accept: "application/json", json: true });
+        const first = j && Array.isArray(j.jobs) && j.jobs.length ? j.jobs[0] : null;
+        if (first && first.id) qs("#wsActionJobId").value = first.id;
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Jobs";
+      }
+
+      async function showWsAlertsActionJob() {
+        err(""); msg("Loading workspace alerts action job...");
+        const id = (qs("#wsActionJobId").value || "").trim();
+        if (!id) return msg("Missing job id.");
+        const j = await apiFetch("/ws/focus/alerts/action-jobs/" + encodeURIComponent(id), { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Job Details";
+      }
+
+      async function pauseWsAlertsActionJob() {
+        err(""); msg("Pausing workspace alerts action job...");
+        const id = (qs("#wsActionJobId").value || "").trim();
+        if (!id) return msg("Missing job id.");
+        const j = await apiPost("/ws/focus/alerts/action-jobs/" + encodeURIComponent(id) + "/pause", {});
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Job Paused";
+      }
+
+      async function resumeWsAlertsActionJob() {
+        err(""); msg("Resuming workspace alerts action job...");
+        const id = (qs("#wsActionJobId").value || "").trim();
+        if (!id) return msg("Missing job id.");
+        const j = await apiPost("/ws/focus/alerts/action-jobs/" + encodeURIComponent(id) + "/resume", {});
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Job Resumed";
+      }
+
+      async function cancelWsAlertsActionJob() {
+        err(""); msg("Canceling workspace alerts action job...");
+        const id = (qs("#wsActionJobId").value || "").trim();
+        if (!id) return msg("Missing job id.");
+        const j = await apiPost("/ws/focus/alerts/action-jobs/" + encodeURIComponent(id) + "/cancel", {});
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Job Canceled";
+      }
+
       async function runWsAlertsBoardPulsePlan() {
         err(""); msg("Generating workspace alerts board pulse plan...");
-        const todoHours = Number((qs("#wsPulseTodoHours").value || "").trim() || 24);
-        const doingHours = Number((qs("#wsPulseDoingHours").value || "").trim() || 12);
-        const blockedHours = Number((qs("#wsPulseBlockedHours").value || "").trim() || 6);
+        const rawTodo = (qs("#wsPulseTodoHours").value || "").trim();
+        const rawDoing = (qs("#wsPulseDoingHours").value || "").trim();
+        const rawBlocked = (qs("#wsPulseBlockedHours").value || "").trim();
+        const todoHours = rawTodo ? Number(rawTodo) : undefined;
+        const doingHours = rawDoing ? Number(rawDoing) : undefined;
+        const blockedHours = rawBlocked ? Number(rawBlocked) : undefined;
+        const policyOverride = qs("#wsPulsePolicyOverride").value;
         const limitItems = Number((qs("#wsPulseLimitItems").value || "").trim() || 20);
         const includeWarn = !!qs("#wsPulseIncludeWarn").checked;
         const tab = qs("#out").dataset.tab || "json";
@@ -1128,6 +1233,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         if (Number.isFinite(todoHours) && todoHours > 0) p += "&todoHours=" + encodeURIComponent(String(todoHours));
         if (Number.isFinite(doingHours) && doingHours > 0) p += "&doingHours=" + encodeURIComponent(String(doingHours));
         if (Number.isFinite(blockedHours) && blockedHours > 0) p += "&blockedHours=" + encodeURIComponent(String(blockedHours));
+        if (policyOverride) p += "&policy=" + encodeURIComponent(policyOverride);
         if (Number.isFinite(limitItems) && limitItems > 0) p += "&limitItems=" + encodeURIComponent(String(limitItems));
         if (includeWarn) p += "&includeWarn=1";
         if (fmt === "md") {
@@ -1145,19 +1251,25 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
 
       async function applyWsAlertsBoardPulsePlan() {
         err(""); msg("Applying workspace alerts board pulse plan...");
-        const todoHours = Number((qs("#wsPulseTodoHours").value || "").trim() || 24);
-        const doingHours = Number((qs("#wsPulseDoingHours").value || "").trim() || 12);
-        const blockedHours = Number((qs("#wsPulseBlockedHours").value || "").trim() || 6);
+        const rawTodo = (qs("#wsPulseTodoHours").value || "").trim();
+        const rawDoing = (qs("#wsPulseDoingHours").value || "").trim();
+        const rawBlocked = (qs("#wsPulseBlockedHours").value || "").trim();
+        const todoHours = rawTodo ? Number(rawTodo) : undefined;
+        const doingHours = rawDoing ? Number(rawDoing) : undefined;
+        const blockedHours = rawBlocked ? Number(rawBlocked) : undefined;
+        const policyOverride = qs("#wsPulsePolicyOverride").value;
         const limitItems = Number((qs("#wsPulseLimitItems").value || "").trim() || 20);
         const includeWarn = !!qs("#wsPulseIncludeWarn").checked;
         const dedupe = !!qs("#wsPulseDedupe").checked;
-        const dedupeWindowHours = Number((qs("#wsPulseDedupeWindowHours").value || "").trim() || 72);
+        const rawDedupeHours = (qs("#wsPulseDedupeWindowHours").value || "").trim();
+        const dedupeWindowHours = rawDedupeHours ? Number(rawDedupeHours) : undefined;
         const dryRun = !!qs("#wsPulseDryRun").checked;
         const j = await apiPost("/ws/focus/alerts/board-pulse-apply", {
           limitBoards: 50,
           todoHours,
           doingHours,
           blockedHours,
+          policy: policyOverride || undefined,
           limitItems,
           includeWarn,
           noLog: false,
@@ -1169,6 +1281,30 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         setTab("json");
         msg("OK");
         qs("#title").textContent = "Workspace Alerts Board Pulse Applied";
+      }
+
+      async function loadWsAlertsBoardPolicy() {
+        err(""); msg("Loading board policy defaults...");
+        const j = await apiFetch("/ws/focus/alerts/board-policy", { accept: "application/json", json: true });
+        if (j && j.policy) {
+          qs("#wsPulsePolicyGlobal").value = j.policy.boardPulsePolicy;
+          qs("#wsPulseDedupePolicyGlobal").value = j.policy.boardPulseDedupePolicy;
+        }
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Board Policy";
+      }
+
+      async function saveWsAlertsBoardPolicy() {
+        err(""); msg("Saving board policy defaults...");
+        const boardPulsePolicy = qs("#wsPulsePolicyGlobal").value;
+        const boardPulseDedupePolicy = qs("#wsPulseDedupePolicyGlobal").value;
+        const j = await apiPost("/ws/focus/alerts/board-policy", { boardPulsePolicy, boardPulseDedupePolicy });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Board Policy Saved";
       }
 
       async function addTodo() {
@@ -1703,6 +1839,13 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#runWsAlertsBoardPulsePlan").addEventListener("click", () => runWsAlertsBoardPulsePlan().catch((e) => { err(String(e)); msg(""); }));
       qs("#applyWsAlertsBoardPulsePlan").addEventListener("click", () => applyWsAlertsBoardPulsePlan().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsAlertsBoardPulseHistory").addEventListener("click", () => loadWsAlertsBoardPulseHistory().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsAlertsBoardPolicy").addEventListener("click", () => loadWsAlertsBoardPolicy().catch((e) => { err(String(e)); msg(""); }));
+      qs("#saveWsAlertsBoardPolicy").addEventListener("click", () => saveWsAlertsBoardPolicy().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsAlertsActionJobs").addEventListener("click", () => loadWsAlertsActionJobs().catch((e) => { err(String(e)); msg(""); }));
+      qs("#showWsAlertsActionJob").addEventListener("click", () => showWsAlertsActionJob().catch((e) => { err(String(e)); msg(""); }));
+      qs("#pauseWsAlertsActionJob").addEventListener("click", () => pauseWsAlertsActionJob().catch((e) => { err(String(e)); msg(""); }));
+      qs("#resumeWsAlertsActionJob").addEventListener("click", () => resumeWsAlertsActionJob().catch((e) => { err(String(e)); msg(""); }));
+      qs("#cancelWsAlertsActionJob").addEventListener("click", () => cancelWsAlertsActionJob().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

@@ -2,7 +2,7 @@
 
 更新时间：2026-02-20  
 适用仓库：`@xiaofandegeng/rmemo`  
-当前基线：`0.33.x`
+当前基线：`0.36.x`
 
 ## 1. 文档定位
 
@@ -34,10 +34,10 @@
 
 ### 2.2 当前短板（下一阶段重点）
 
-- Pulse 自动执行缺少幂等去重，可能重复写 `todos`
-- 治理阈值偏“命令行参数驱动”，缺默认策略模板
-- `DEVELOPMENT_PLAN.md` 有部分历史状态重复，容易误导后续模型
-- 发布后资产（release assets、release notes、npm 对齐）仍需更自动化和可观测
+- 治理阈值仍偏“命令行参数驱动”，策略模板化尚未完成全入口闭环
+- action 执行还缺作业化编排（暂停/恢复/取消/重试）
+- `DEVELOPMENT_PLAN.md` 仍有历史状态重复，容易误导后续模型
+- 发布链路虽然已改造，但仍需完整实证并沉淀稳定 runbook
 
 ---
 
@@ -65,40 +65,66 @@ CLI / HTTP API / MCP / UI 四个入口保持同一语义和同一参数模型。
 
 > 规则：每个版本只做一个主题，不跨主题混做。每个版本必须满足“代码 + 测试 + 文档 + 发布说明”四件套。
 
-## v0.34.0（Release 主题：Pulse Plan/Apply 正式化）
+## v0.34.0（Release 主题：Pulse 基础能力）
 
 ### 目标
 
-把当前已开发的 `pulse-plan / pulse-apply` 功能完整发布并文档化。
+发布 board pulse 的 SLA 检测与 incident history 基础能力。
 
 ### 范围
 
-- CLI: `rmemo ws alerts board pulse-plan|pulse-apply`
-- API: `/ws/focus/alerts/board-pulse-plan`、`/board-pulse-apply`
-- MCP: `rmemo_ws_focus_alerts_board_pulse_plan|apply`
-- UI: plan/apply 操作入口 + SSE 更新
+- CLI: `rmemo ws alerts board pulse|pulse-history`
+- API: `/ws/focus/alerts/board-pulse`、`/board-pulse-history`
+- MCP: `rmemo_ws_focus_alerts_board_pulse|history`
+- UI: pulse/pulse-history 操作入口 + SSE 更新
 
 ### 任务拆解
 
-1. 代码合并与回归
-2. README/README.zh-CN 补命令与接口示例
-3. CHANGELOG 补 release note
-4. DEVELOPMENT_PLAN 同步状态（修复“已做却标 in-progress”）
-5. 发布并验证 GitHub Release + npm 包版本
+1. 构建 overdue 检测与阈值策略输入
+2. 增加历史落盘与 incident id
+3. 完成 CLI/API/MCP/UI 同步接入
+4. 发布并验证 release notes
 
 ### 验收标准
 
-- 全量测试通过：`node --test`
-- 文档命令可直接执行
-- 发布后 npm 页面与 GitHub Release 均可见版本说明
+- `pulse` 与 `pulse-history` 命令/接口可用
+- 可持久化 incident 历史
+- 全量测试通过
 
 ---
 
-## v0.35.0（Release 主题：幂等去重）
+## v0.35.0（Release 主题：Pulse Plan/Apply）
 
 ### 目标
 
-解决 `pulse-apply` 重复写入任务的问题，支持安全重试。
+发布 `pulse-plan` 与 `pulse-apply` 的执行闭环能力。
+
+### 范围
+
+- plan 生成：`next/blocker` 推荐任务
+- apply 落库：写入 `todos.md` 与可选 journal
+- 四入口统一执行（CLI/API/MCP/UI）
+
+### 任务拆解
+
+1. core 层新增 plan/apply 引擎
+2. CLI 命令新增 `pulse-plan/pulse-apply`
+3. API/MCP/UI 新增对应入口
+4. 增加 handler/smoke/ui 回归覆盖
+
+### 验收标准
+
+- plan 结果可复用（json/md）
+- apply 执行可追踪（journal + summary）
+- 四入口一致可用
+
+---
+
+## v0.36.0（Release 主题：幂等去重）
+
+### 目标
+
+解决 `pulse-apply` 重复写入，支持 dedupe + window + dry-run。
 
 ### 范围
 
@@ -109,45 +135,17 @@ CLI / HTTP API / MCP / UI 四个入口保持同一语义和同一参数模型。
 
 ### 任务拆解
 
-1. core 层新增 dedupe 逻辑和数据结构
+1. core 层新增 dedupe 逻辑与数据结构
 2. CLI 参数：`--dedupe --dedupe-window-hours --dry-run`
 3. API/MCP 参数对齐
 4. UI 增加 dedupe/dry-run 控件
-5. 新增单测 + smoke 覆盖
+5. 增加单测与 smoke 覆盖
 
 ### 验收标准
 
 - 连续 apply 同一批计划不重复写入
-- 响应体包含：`proposedCount/appendedCount/skippedDuplicateCount`
+- 输出包含 `proposed/appended/skipped` 统计
 - dry-run 不落盘
-
----
-
-## v0.36.0（Release 主题：策略模板化）
-
-### 目标
-
-提供可复用的治理策略模板（strict/balanced/relaxed/custom）。
-
-### 范围
-
-- 配置落盘：`.repo-memory/config.json`
-- policy 管理：show/set
-- CLI/API/MCP/UI 全入口一致
-
-### 任务拆解
-
-1. 定义 policy schema 与默认值
-2. CLI：`policy show|set`
-3. API：`GET/POST /ws/focus/alerts/board-policy`
-4. MCP：policy 读写工具
-5. UI：policy 面板
-6. 文档补“场景推荐策略”
-
-### 验收标准
-
-- 不传阈值时自动读取默认策略
-- 策略切换后四端结果一致
 
 ---
 
@@ -359,12 +357,11 @@ CLI / HTTP API / MCP / UI 四个入口保持同一语义和同一参数模型。
 
 ## 8. 路线图状态看板（维护区）
 
-- [ ] v0.34.0 发布完成
-- [ ] v0.35.0 发布完成
-- [ ] v0.36.0 发布完成
+- [x] v0.34.0 发布完成
+- [x] v0.35.0 发布完成
+- [x] v0.36.0 发布完成
 - [ ] v0.37.0 发布完成
 - [ ] v0.38.0 发布完成
 - [ ] v0.39.0 发布完成
 - [ ] v0.40.0 发布完成
 - [ ] v1.0.0 发布完成
-

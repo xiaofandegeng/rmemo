@@ -61,7 +61,15 @@ import {
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot,
   saveWorkspaceFocusAlertsActionPlan,
-  updateWorkspaceFocusAlertsBoardItem
+  updateWorkspaceFocusAlertsBoardItem,
+  getWorkspaceFocusAlertsBoardPolicy,
+  setWorkspaceFocusAlertsBoardPolicy,
+  enqueueWorkspaceFocusAlertsActionJob,
+  listWorkspaceFocusAlertsActionJobs,
+  getWorkspaceFocusAlertsActionJob,
+  pauseWorkspaceFocusAlertsActionJob,
+  resumeWorkspaceFocusAlertsActionJob,
+  cancelWorkspaceFocusAlertsActionJob
 } from "./workspaces.js";
 
 function json(res, code, obj) {
@@ -112,6 +120,8 @@ function sseWrite(res, { event, data, id } = {}) {
   res.write(s);
 }
 
+import { formatDiagnosticEvent, exportWorkspaceDiagnostics } from "./diagnostics.js";
+
 function ssePing(res) {
   // Comment line keeps the connection alive without firing an event handler.
   res.write(`: ping ${Date.now()}\n\n`);
@@ -128,6 +138,7 @@ function eventToMdLine(e) {
 }
 
 async function buildDiagnostics(root, { events, watchState, limitEvents = 200, recentDays = 7, snipLines = 120 } = {}) {
+  const sysDiag = await exportWorkspaceDiagnostics(root);
   const status = await buildStatus(root, { format: "json", mode: "full", recentDays, snipLines });
   const hist = (events?.history?.() || []).slice(-Math.min(2000, Math.max(1, Number(limitEvents || 200))));
   const watch = {
@@ -144,7 +155,8 @@ async function buildDiagnostics(root, { events, watchState, limitEvents = 200, r
     }
   };
   return {
-    schema: 1,
+    ...sysDiag,
+    formatVersion: 2,
     generatedAt: new Date().toISOString(),
     root,
     watch,
@@ -537,6 +549,18 @@ export function createServeHandler(root, opts = {}) {
           lines.push(`- generatedAt: ${d.generatedAt}`);
           lines.push(`- root: ${d.root}`);
           lines.push(`- events: ${d.events.length}`);
+          lines.push(`- node: ${d.environment?.nodeVersion || "unknown"}`);
+          lines.push(`- platform: ${d.environment?.platform || "unknown"} ${d.environment?.arch || ""}`);
+          lines.push("");
+          lines.push("## Configs");
+          lines.push(`- rules.md exists: ${!!d.files?.rulesExists}`);
+          lines.push(`- config.json exists: ${!!d.files?.configExists}`);
+          lines.push(`- manifest.json exists: ${!!d.files?.manifestExists}`);
+          if (d.config) {
+            lines.push("```json");
+            lines.push(JSON.stringify(d.config, null, 2));
+            lines.push("```");
+          }
           lines.push("");
           lines.push("## Watch");
           lines.push(`- enabled: ${d.watch.enabled}`);
@@ -1587,6 +1611,52 @@ export function createServeHandler(root, opts = {}) {
         return json(res, 200, { ok: true, result: out });
       }
 
+      // --- Action Jobs ---
+      if (req.method === "GET" && url.pathname.startsWith("/ws/focus/alerts/action-jobs")) {
+        // GET /ws/focus/alerts/action-jobs/events 
+        // We will implement SSE in Sprint 3. For now, pass.
+
+        let match = url.pathname.match(/^\/ws\/focus\/alerts\/action-jobs\/([^/]+)$/);
+        if (match) {
+          const out = await getWorkspaceFocusAlertsActionJob(root, match[1]);
+          return json(res, 200, out);
+        }
+
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const out = await listWorkspaceFocusAlertsActionJobs(root, { limit });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "POST" && url.pathname.startsWith("/ws/focus/alerts/action-jobs")) {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+
+        if (url.pathname === "/ws/focus/alerts/action-jobs") {
+          const body = await readBodyJsonOr400(req, res);
+          if (!body) return;
+          if (!body.actionId) return badRequest(res, "Missing actionId");
+          const out = await enqueueWorkspaceFocusAlertsActionJob(root, {
+            actionId: String(body.actionId),
+            priority: body.priority,
+            batchSize: body.batchSize,
+            retryPolicy: body.retryPolicy,
+            events
+          });
+          return json(res, 200, out);
+        }
+
+        let match = url.pathname.match(/^\/ws\/focus\/alerts\/action-jobs\/([^/]+)\/(pause|resume|cancel)$/);
+        if (match) {
+          const jobId = match[1];
+          const action = match[2];
+          let out;
+          if (action === "pause") out = await pauseWorkspaceFocusAlertsActionJob(root, jobId, { events });
+          else if (action === "resume") out = await resumeWorkspaceFocusAlertsActionJob(root, jobId, { events });
+          else if (action === "cancel") out = await cancelWorkspaceFocusAlertsActionJob(root, jobId, { events });
+
+          return json(res, 200, out);
+        }
+      }
+
       if (req.method === "POST" && url.pathname === "/ws/focus/alerts/board-create") {
         if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
         const body = await readBodyJsonOr400(req, res);
@@ -1670,10 +1740,11 @@ export function createServeHandler(root, opts = {}) {
       }
 
       if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-pulse") {
-        const limitBoards = Number(url.searchParams.get("limitBoards") || 50);
-        const todoHours = Number(url.searchParams.get("todoHours") || 24);
-        const doingHours = Number(url.searchParams.get("doingHours") || 12);
-        const blockedHours = Number(url.searchParams.get("blockedHours") || 6);
+        const limitBoards = url.searchParams.has("limitBoards") ? Number(url.searchParams.get("limitBoards")) : undefined;
+        const todoHours = url.searchParams.has("todoHours") ? Number(url.searchParams.get("todoHours")) : undefined;
+        const doingHours = url.searchParams.has("doingHours") ? Number(url.searchParams.get("doingHours")) : undefined;
+        const blockedHours = url.searchParams.has("blockedHours") ? Number(url.searchParams.get("blockedHours")) : undefined;
+        const policy = url.searchParams.has("policy") ? String(url.searchParams.get("policy")) : undefined;
         const source = String(url.searchParams.get("source") || "ws-alert-board-http");
         const save = url.searchParams.get("save") === "1";
         if (save && !allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
@@ -1682,6 +1753,7 @@ export function createServeHandler(root, opts = {}) {
           todoHours,
           doingHours,
           blockedHours,
+          policy,
           save,
           source
         });
@@ -1696,15 +1768,16 @@ export function createServeHandler(root, opts = {}) {
       }
 
       if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-pulse-plan") {
-        const limitBoards = Number(url.searchParams.get("limitBoards") || 50);
-        const todoHours = Number(url.searchParams.get("todoHours") || 24);
-        const doingHours = Number(url.searchParams.get("doingHours") || 12);
-        const blockedHours = Number(url.searchParams.get("blockedHours") || 6);
+        const limitBoards = url.searchParams.has("limitBoards") ? Number(url.searchParams.get("limitBoards")) : undefined;
+        const todoHours = url.searchParams.has("todoHours") ? Number(url.searchParams.get("todoHours")) : undefined;
+        const doingHours = url.searchParams.has("doingHours") ? Number(url.searchParams.get("doingHours")) : undefined;
+        const blockedHours = url.searchParams.has("blockedHours") ? Number(url.searchParams.get("blockedHours")) : undefined;
+        const policy = url.searchParams.has("policy") ? String(url.searchParams.get("policy")) : undefined;
         const limitItems = Number(url.searchParams.get("limitItems") || 20);
         const includeWarn = url.searchParams.get("includeWarn") === "1";
         const format = String(url.searchParams.get("format") || "json").toLowerCase();
         if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
-        const out = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, limitItems, includeWarn });
+        const out = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, policy, limitItems, includeWarn });
         if (format === "json") return json(res, 200, out.json);
         return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
       }
@@ -1714,15 +1787,16 @@ export function createServeHandler(root, opts = {}) {
         const body = await readBodyJsonOr400(req, res);
         if (!body) return;
         const out = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, {
-          limitBoards: body.limitBoards !== undefined ? Number(body.limitBoards) : 50,
-          todoHours: body.todoHours !== undefined ? Number(body.todoHours) : 24,
-          doingHours: body.doingHours !== undefined ? Number(body.doingHours) : 12,
-          blockedHours: body.blockedHours !== undefined ? Number(body.blockedHours) : 6,
+          limitBoards: body.limitBoards !== undefined ? Number(body.limitBoards) : undefined,
+          todoHours: body.todoHours !== undefined ? Number(body.todoHours) : undefined,
+          doingHours: body.doingHours !== undefined ? Number(body.doingHours) : undefined,
+          blockedHours: body.blockedHours !== undefined ? Number(body.blockedHours) : undefined,
+          policy: typeof body.policy === "string" ? body.policy : undefined,
           limitItems: body.limitItems !== undefined ? Number(body.limitItems) : 20,
           includeWarn: body.includeWarn === true,
           noLog: body.noLog === true,
           dedupe: body.dedupe !== false,
-          dedupeWindowHours: body.dedupeWindowHours !== undefined ? Number(body.dedupeWindowHours) : 72,
+          dedupeWindowHours: body.dedupeWindowHours !== undefined ? Number(body.dedupeWindowHours) : undefined,
           dryRun: body.dryRun === true
         });
         events?.emit?.({
@@ -1731,6 +1805,24 @@ export function createServeHandler(root, opts = {}) {
           appended: { next: out.applied?.next?.length || 0, blocker: out.applied?.blocker?.length || 0 }
         });
         return json(res, 200, { ok: true, result: out });
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-policy") {
+        const policy = await getWorkspaceFocusAlertsBoardPolicy(root);
+        return json(res, 200, { ok: true, policy });
+      }
+
+      if (req.method === "POST" && url.pathname === "/ws/focus/alerts/board-policy") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const patch = {
+          boardPulsePolicy: typeof body.boardPulsePolicy === "string" ? body.boardPulsePolicy : undefined,
+          boardPulseDedupePolicy: typeof body.boardPulseDedupePolicy === "string" ? body.boardPulseDedupePolicy : undefined
+        };
+        const policy = await setWorkspaceFocusAlertsBoardPolicy(root, patch);
+        events?.emit?.({ type: "ws:alerts:board-policy-updated", policy });
+        return json(res, 200, { ok: true, policy });
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {
