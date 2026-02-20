@@ -125,6 +125,10 @@ export function wsFocusAlertsBoardsPulsePath(root) {
   return path.join(wsFocusAlertsBoardsDir(root), "pulse-history.json");
 }
 
+export function wsFocusAlertsBoardsPulseAppliedPath(root) {
+  return path.join(wsFocusAlertsBoardsDir(root), "pulse-applied.json");
+}
+
 export function sessionsDir(root) {
   return path.join(memDir(root), "sessions");
 }

@@ -915,9 +915,9 @@ export function createServeHandler(root, opts = {}) {
         try {
           const candidates = Array.isArray(body.candidates)
             ? body.candidates.map((x, i) => ({
-                name: String(x?.name || `candidate_${i + 1}`),
-                patch: { ...(x?.patch || {}) }
-              }))
+              name: String(x?.name || `candidate_${i + 1}`),
+              patch: { ...(x?.patch || {}) }
+            }))
             : undefined;
           const windowSizes = Array.isArray(body.windowSizes) ? body.windowSizes.map((x) => Number(x)) : undefined;
           const r = embedJobs?.benchmarkGovernance?.({
@@ -939,9 +939,9 @@ export function createServeHandler(root, opts = {}) {
         try {
           const candidates = Array.isArray(body.candidates)
             ? body.candidates.map((x, i) => ({
-                name: String(x?.name || `candidate_${i + 1}`),
-                patch: { ...(x?.patch || {}) }
-              }))
+              name: String(x?.name || `candidate_${i + 1}`),
+              patch: { ...(x?.patch || {}) }
+            }))
             : undefined;
           const windowSizes = Array.isArray(body.windowSizes) ? body.windowSizes.map((x) => Number(x)) : undefined;
           const benchmark = embedJobs?.benchmarkGovernance?.({
@@ -1720,7 +1720,10 @@ export function createServeHandler(root, opts = {}) {
           blockedHours: body.blockedHours !== undefined ? Number(body.blockedHours) : 6,
           limitItems: body.limitItems !== undefined ? Number(body.limitItems) : 20,
           includeWarn: body.includeWarn === true,
-          noLog: body.noLog === true
+          noLog: body.noLog === true,
+          dedupe: body.dedupe !== false,
+          dedupeWindowHours: body.dedupeWindowHours !== undefined ? Number(body.dedupeWindowHours) : 72,
+          dryRun: body.dryRun === true
         });
         events?.emit?.({
           type: "ws:alerts:board-pulse-applied",

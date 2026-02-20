@@ -947,7 +947,10 @@ function toolsListWithWrite({ allowWrite } = {}) {
         blockedHours: { type: "number", default: 6 },
         limitItems: { type: "number", default: 20 },
         includeWarn: { type: "boolean", default: false },
-        noLog: { type: "boolean", default: false }
+        noLog: { type: "boolean", default: false },
+        dedupe: { type: "boolean", default: true },
+        dedupeWindowHours: { type: "number", default: 72 },
+        dryRun: { type: "boolean", default: false }
       },
       additionalProperties: false
     })
@@ -1705,7 +1708,10 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       blockedHours: args?.blockedHours !== undefined ? Number(args.blockedHours) : 6,
       limitItems: args?.limitItems !== undefined ? Number(args.limitItems) : 20,
       includeWarn: args?.includeWarn === true,
-      noLog: args?.noLog === true
+      noLog: args?.noLog === true,
+      dedupe: args?.dedupe !== false,
+      dedupeWindowHours: args?.dedupeWindowHours !== undefined ? Number(args.dedupeWindowHours) : 72,
+      dryRun: args?.dryRun === true
     });
     return JSON.stringify({ ok: true, result: r }, null, 2);
   }

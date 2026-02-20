@@ -448,6 +448,15 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                   <input id="wsPulseIncludeWarn" type="checkbox" />
                   <span class="hint" style="margin:0;">include warn</span>
                 </label>
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsPulseDedupe" type="checkbox" checked />
+                  <span class="hint" style="margin:0;">dedupe</span>
+                </label>
+                <input id="wsPulseDedupeWindowHours" type="number" min="1" step="1" placeholder="dedupe hours" style="width: 100px;" value="72" />
+                <label style="display:flex; gap:6px; align-items:center;">
+                  <input id="wsPulseDryRun" type="checkbox" />
+                  <span class="hint" style="margin:0;">dry run</span>
+                </label>
                 <button class="btn secondary" id="runWsAlertsBoardPulse">WS Alerts Board Pulse</button>
                 <button class="btn secondary" id="runWsAlertsBoardPulsePlan">WS Alerts Pulse Plan</button>
                 <button class="btn secondary" id="applyWsAlertsBoardPulsePlan">WS Alerts Pulse Apply</button>
@@ -1141,6 +1150,9 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         const blockedHours = Number((qs("#wsPulseBlockedHours").value || "").trim() || 6);
         const limitItems = Number((qs("#wsPulseLimitItems").value || "").trim() || 20);
         const includeWarn = !!qs("#wsPulseIncludeWarn").checked;
+        const dedupe = !!qs("#wsPulseDedupe").checked;
+        const dedupeWindowHours = Number((qs("#wsPulseDedupeWindowHours").value || "").trim() || 72);
+        const dryRun = !!qs("#wsPulseDryRun").checked;
         const j = await apiPost("/ws/focus/alerts/board-pulse-apply", {
           limitBoards: 50,
           todoHours,
@@ -1148,7 +1160,10 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
           blockedHours,
           limitItems,
           includeWarn,
-          noLog: false
+          noLog: false,
+          dedupe,
+          dedupeWindowHours,
+          dryRun
         });
         out(JSON.stringify(j, null, 2));
         setTab("json");

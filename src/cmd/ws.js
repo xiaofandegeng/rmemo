@@ -101,7 +101,7 @@ function wsHelp() {
     "  rmemo ws alerts board pulse [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--save] [--source <name>] [--format md|json]",
     "  rmemo ws alerts board pulse-history [--limit <n>] [--format md|json]",
     "  rmemo ws alerts board pulse-plan [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--limit-items <n>] [--include-warn] [--format md|json]",
-    "  rmemo ws alerts board pulse-apply [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--limit-items <n>] [--include-warn] [--no-log] [--format md|json]",
+    "  rmemo ws alerts board pulse-apply [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--limit-items <n>] [--include-warn] [--no-dedupe] [--dedupe-window-hours <n>] [--dry-run] [--no-log] [--format md|json]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -298,13 +298,13 @@ async function runBatch({
           hits: hits.length,
           top: top
             ? {
-                file: top.file,
-                text: String(top.text || "").slice(0, 160),
-                score: top.score ?? null,
-                line: top.line ?? null,
-                startLine: top.startLine ?? null,
-                endLine: top.endLine ?? null
-              }
+              file: top.file,
+              text: String(top.text || "").slice(0, 160),
+              score: top.score ?? null,
+              line: top.line ?? null,
+              startLine: top.startLine ?? null,
+              endLine: top.endLine ?? null
+            }
             : null
         });
       } else if (cmd === "status") {
@@ -957,9 +957,16 @@ export async function cmdWs({ rest, flags }) {
         const doingHours = Number(flags["doing-hours"] || 12);
         const blockedHours = Number(flags["blocked-hours"] || 6);
         const limitItems = Number(flags["limit-items"] || 20);
-        const out = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, limitItems, includeWarn, noLog });
-        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
-        else process.stdout.write(`Applied board pulse plan: next=${out.applied?.next?.length || 0}, blocker=${out.applied?.blocker?.length || 0}\n`);
+        const dedupe = !flags["no-dedupe"];
+        const dedupeWindowHours = Number(flags["dedupe-window-hours"] || 72);
+        const dryRun = !!flags["dry-run"];
+        const out = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, limitItems, includeWarn, noLog, dedupe, dedupeWindowHours, dryRun });
+        if (format === "json") {
+          process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        } else {
+          const prefix = out.dryRun ? "[DRY RUN] Would apply" : "Applied";
+          process.stdout.write(`${prefix} board pulse plan: next=${out.taskSummary?.appendedCount || 0} (skipped ${out.taskSummary?.skippedDuplicateCount || 0})\n`);
+        }
         return;
       }
       process.stderr.write("Usage: rmemo ws alerts board <create|list|show|update|report|close|pulse|pulse-history|pulse-plan|pulse-apply>\n");

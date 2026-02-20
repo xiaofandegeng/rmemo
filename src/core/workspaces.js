@@ -12,6 +12,7 @@ import {
   wsFocusAlertsBoardPath,
   wsFocusAlertsBoardsDir,
   wsFocusAlertsBoardsIndexPath,
+  wsFocusAlertsBoardsPulseAppliedPath,
   wsFocusAlertsBoardsPulsePath,
   wsFocusAlertsConfigPath,
   wsFocusAlertsHistoryPath,
@@ -94,13 +95,13 @@ export async function batchWorkspaceFocus(
         hits: hits.length,
         top: top
           ? {
-              file: top.file,
-              score: top.score ?? null,
-              line: top.line ?? null,
-              startLine: top.startLine ?? null,
-              endLine: top.endLine ?? null,
-              text: String(top.text || "").slice(0, 200)
-            }
+            file: top.file,
+            score: top.score ?? null,
+            line: top.line ?? null,
+            startLine: top.startLine ?? null,
+            endLine: top.endLine ?? null,
+            text: String(top.text || "").slice(0, 200)
+          }
           : null
       });
     } catch (e) {
@@ -571,7 +572,7 @@ export async function listWorkspaceFocusTrends(root, { limitReports = 200, limit
     (a, b) =>
       Number(b.summary?.reports || 0) - Number(a.summary?.reports || 0) ||
       Number((b.summary?.latest && b.summary.latest.createdAt) ? Date.parse(b.summary.latest.createdAt) : 0) -
-        Number((a.summary?.latest && a.summary.latest.createdAt) ? Date.parse(a.summary.latest.createdAt) : 0)
+      Number((a.summary?.latest && a.summary.latest.createdAt) ? Date.parse(a.summary.latest.createdAt) : 0)
   );
 
   const trimmed = out.slice(0, Math.min(50, Math.max(1, Number(limitGroups || 20))));
@@ -1529,6 +1530,41 @@ export async function generateWorkspaceFocusAlertsBoardsPulsePlan(
   return { json, markdown: lines.join("\n") };
 }
 
+async function readWorkspaceFocusAlertsBoardsPulseApplied(root) {
+  const p = wsFocusAlertsBoardsPulseAppliedPath(root);
+  if (!(await fileExists(p))) return { schema: 1, updatedAt: null, appliedKeys: {} };
+  try {
+    const j = await readJson(p);
+    return {
+      schema: 1,
+      updatedAt: j?.updatedAt || null,
+      appliedKeys: j?.appliedKeys || {}
+    };
+  } catch {
+    return { schema: 1, updatedAt: null, appliedKeys: {} };
+  }
+}
+
+async function writeWorkspaceFocusAlertsBoardsPulseApplied(root, newKeys, windowHours) {
+  const doc = await readWorkspaceFocusAlertsBoardsPulseApplied(root);
+  const now = new Date().toISOString();
+  const nowMs = Date.parse(now);
+  const merged = { ...doc.appliedKeys, ...newKeys };
+
+  if (windowHours > 0) {
+    for (const [k, ts] of Object.entries(merged)) {
+      const tms = Date.parse(ts);
+      if (Number.isFinite(tms) && (nowMs - tms) / 3600000 > windowHours) {
+        delete merged[k];
+      }
+    }
+  }
+
+  doc.appliedKeys = merged;
+  doc.updatedAt = now;
+  await writeJson(wsFocusAlertsBoardsPulseAppliedPath(root), doc);
+}
+
 export async function applyWorkspaceFocusAlertsBoardsPulsePlan(
   root,
   {
@@ -1538,7 +1574,10 @@ export async function applyWorkspaceFocusAlertsBoardsPulsePlan(
     blockedHours = 6,
     limitItems = 20,
     includeWarn = false,
-    noLog = false
+    noLog = false,
+    dedupe = true,
+    dedupeWindowHours = 72,
+    dryRun = false
   } = {}
 ) {
   const plan = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, {
@@ -1550,35 +1589,74 @@ export async function applyWorkspaceFocusAlertsBoardsPulsePlan(
     includeWarn
   });
   const tasks = Array.isArray(plan?.json?.tasks) ? plan.json.tasks : [];
-  const applied = { next: [], blocker: [] };
+
+  const appliedDoc = dedupe ? await readWorkspaceFocusAlertsBoardsPulseApplied(root) : { appliedKeys: {} };
+  const appliedKeys = appliedDoc.appliedKeys || {};
+  const newKeys = {};
+  const currentMs = Date.now();
+
+  const candidates = [];
+  let skippedDuplicateCount = 0;
+
   for (const t of tasks) {
-    if (t.kind === "blocker") {
-      // eslint-disable-next-line no-await-in-loop
-      await addTodoBlocker(root, t.text);
-      applied.blocker.push(t.text);
-    } else {
-      // eslint-disable-next-line no-await-in-loop
-      await addTodoNext(root, t.text);
-      applied.next.push(t.text);
+    if (dedupe) {
+      const key = `${t.boardId}:${t.itemId}:${t.kind}`;
+      const prevTs = appliedKeys[key];
+      if (prevTs) {
+        const prevMs = Date.parse(prevTs);
+        if (Number.isFinite(prevMs) && (currentMs - prevMs) / 3600000 <= dedupeWindowHours) {
+          skippedDuplicateCount++;
+          continue;
+        }
+      }
+      newKeys[key] = new Date().toISOString();
+    }
+    candidates.push(t);
+  }
+
+  const applied = { next: [], blocker: [] };
+
+  if (!dryRun) {
+    for (const t of candidates) {
+      if (t.kind === "blocker") {
+        // eslint-disable-next-line no-await-in-loop
+        await addTodoBlocker(root, t.text);
+        applied.blocker.push(t.text);
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        await addTodoNext(root, t.text);
+        applied.next.push(t.text);
+      }
     }
   }
+
   let journalPath = null;
-  if (!noLog) {
+  if (!noLog && !dryRun) {
     const lines = [];
     lines.push("Applied workspace alerts board pulse plan");
-    lines.push(`Tasks appended: next=${applied.next.length}, blocker=${applied.blocker.length}`);
+    lines.push(`Tasks appended: next=${applied.next.length}, blocker=${applied.blocker.length} (skipped duplicate: ${skippedDuplicateCount})`);
     if (applied.next.length) lines.push(`Next: ${applied.next.join(" | ")}`);
     if (applied.blocker.length) lines.push(`Blockers: ${applied.blocker.join(" | ")}`);
     journalPath = await appendJournalEntry(root, { kind: "WS Alerts Pulse", text: lines.join("\n") });
   }
+
+  if (dedupe && Object.keys(newKeys).length > 0 && !dryRun) {
+    await writeWorkspaceFocusAlertsBoardsPulseApplied(root, newKeys, dedupeWindowHours);
+  }
+
   return {
     schema: 1,
     appliedAt: new Date().toISOString(),
     root,
-    policy: plan.json.policy,
-    taskSummary: plan.json.taskSummary,
+    policy: { ...plan.json.policy, dedupe: !!dedupe, dedupeWindowHours: Number(dedupeWindowHours), dryRun: !!dryRun },
+    taskSummary: {
+      proposedCount: tasks.length,
+      appendedCount: applied.next.length + applied.blocker.length,
+      skippedDuplicateCount
+    },
     applied,
     noLog: !!noLog,
+    dryRun: !!dryRun,
     journalPath
   };
 }
