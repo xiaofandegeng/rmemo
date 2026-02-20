@@ -1395,6 +1395,60 @@ test("rmemo ws focus snapshots can be saved, listed and compared", async () => {
   assert.ok(Array.isArray(boardPulseHistoryJson.incidents));
   assert.ok(boardPulseHistoryJson.incidents.some((x) => x.id === boardPulseJson.incident.id));
 
+  const boardPulsePlan = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "alerts",
+    "board",
+    "pulse-plan",
+    "--limit-boards",
+    "20",
+    "--todo-hours",
+    "1",
+    "--doing-hours",
+    "1",
+    "--blocked-hours",
+    "1",
+    "--limit-items",
+    "20",
+    "--include-warn"
+  ]);
+  assert.equal(boardPulsePlan.code, 0, boardPulsePlan.err || boardPulsePlan.out);
+  const boardPulsePlanJson = JSON.parse(boardPulsePlan.out);
+  assert.equal(boardPulsePlanJson.schema, 1);
+  assert.ok(Array.isArray(boardPulsePlanJson.tasks));
+
+  const boardPulseApply = await runNode([
+    rmemoBin,
+    "--root",
+    tmp,
+    "--format",
+    "json",
+    "ws",
+    "alerts",
+    "board",
+    "pulse-apply",
+    "--limit-boards",
+    "20",
+    "--todo-hours",
+    "1",
+    "--doing-hours",
+    "1",
+    "--blocked-hours",
+    "1",
+    "--limit-items",
+    "10",
+    "--include-warn"
+  ]);
+  assert.equal(boardPulseApply.code, 0, boardPulseApply.err || boardPulseApply.out);
+  const boardPulseApplyJson = JSON.parse(boardPulseApply.out);
+  assert.equal(boardPulseApplyJson.schema, 1);
+  assert.ok(boardPulseApplyJson.applied);
+
   const reportMd = await runNode([rmemoBin, "--root", tmp, "ws", "focus-history", "report", j1.snapshot.id, j2.snapshot.id, "--format", "md"]);
   assert.equal(reportMd.code, 0, reportMd.err || reportMd.out);
   assert.ok(reportMd.out.includes("# Workspace Focus Drift Report"));

@@ -845,4 +845,23 @@ test("serve handler: /ws/list and /ws/focus aggregate subprojects", async () => 
   assert.equal(boardPulseHistoryJson.schema, 1);
   assert.ok(Array.isArray(boardPulseHistoryJson.incidents));
   assert.ok(boardPulseHistoryJson.incidents.some((x) => x.id === boardPulseJson.incident.id));
+
+  const boardPulsePlan = await run(handler, {
+    method: "GET",
+    url: "/ws/focus/alerts/board-pulse-plan?token=t&format=json&limitBoards=20&todoHours=1&doingHours=1&blockedHours=1&limitItems=20&includeWarn=1"
+  });
+  assert.equal(boardPulsePlan.status, 200);
+  const boardPulsePlanJson = JSON.parse(boardPulsePlan.body);
+  assert.equal(boardPulsePlanJson.schema, 1);
+  assert.ok(Array.isArray(boardPulsePlanJson.tasks));
+
+  const boardPulseApply = await run(handler, {
+    method: "POST",
+    url: "/ws/focus/alerts/board-pulse-apply?token=t",
+    bodyObj: { limitBoards: 20, todoHours: 1, doingHours: 1, blockedHours: 1, limitItems: 10, includeWarn: true }
+  });
+  assert.equal(boardPulseApply.status, 200);
+  const boardPulseApplyJson = JSON.parse(boardPulseApply.body);
+  assert.equal(boardPulseApplyJson.ok, true);
+  assert.ok(boardPulseApplyJson.result && boardPulseApplyJson.result.applied);
 });

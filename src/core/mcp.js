@@ -31,6 +31,7 @@ import { createEmbedJobsController } from "./embed_jobs.js";
 import {
   applyWorkspaceFocusAlertsActionPlan,
   appendWorkspaceFocusAlertIncident,
+  applyWorkspaceFocusAlertsBoardsPulsePlan,
   batchWorkspaceFocus,
   closeWorkspaceFocusAlertsBoard,
   compareWorkspaceFocusSnapshots,
@@ -40,6 +41,7 @@ import {
   evaluateWorkspaceFocusAlerts,
   generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsBoardReport,
+  generateWorkspaceFocusAlertsBoardsPulsePlan,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsConfig,
   getWorkspaceFocusAlertsAction,
@@ -557,6 +559,20 @@ function toolsList() {
       },
       additionalProperties: false
     }),
+    tool("rmemo_ws_focus_alerts_board_pulse_plan", "Generate remediation plan from board pulse overdue items.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limitBoards: { type: "number", default: 50 },
+        todoHours: { type: "number", default: 24 },
+        doingHours: { type: "number", default: 12 },
+        blockedHours: { type: "number", default: 6 },
+        limitItems: { type: "number", default: 20 },
+        includeWarn: { type: "boolean", default: false },
+        format: { type: "string", enum: ["json", "md"], default: "json" }
+      },
+      additionalProperties: false
+    }),
     tool("rmemo_embed_status", "Get embeddings index status/health (config + index + up-to-date check).", {
       type: "object",
       properties: {
@@ -920,6 +936,20 @@ function toolsListWithWrite({ allowWrite } = {}) {
       },
       required: ["boardId"],
       additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_pulse_apply", "Apply board pulse remediation plan into todos/journal (write tool).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        limitBoards: { type: "number", default: 50 },
+        todoHours: { type: "number", default: 24 },
+        doingHours: { type: "number", default: 12 },
+        blockedHours: { type: "number", default: 6 },
+        limitItems: { type: "number", default: 20 },
+        includeWarn: { type: "boolean", default: false },
+        noLog: { type: "boolean", default: false }
+      },
+      additionalProperties: false
     })
   ]);
 }
@@ -1243,6 +1273,25 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const limit = args?.limit !== undefined ? Number(args.limit) : 20;
     const r = await listWorkspaceFocusAlertsBoardsPulseHistory(root, { limit });
     return JSON.stringify(r, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_pulse_plan") {
+    const limitBoards = args?.limitBoards !== undefined ? Number(args.limitBoards) : 50;
+    const todoHours = args?.todoHours !== undefined ? Number(args.todoHours) : 24;
+    const doingHours = args?.doingHours !== undefined ? Number(args.doingHours) : 12;
+    const blockedHours = args?.blockedHours !== undefined ? Number(args.blockedHours) : 6;
+    const limitItems = args?.limitItems !== undefined ? Number(args.limitItems) : 20;
+    const includeWarn = args?.includeWarn === true;
+    const format = String(args?.format || "json").toLowerCase();
+    const r = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, {
+      limitBoards,
+      todoHours,
+      doingHours,
+      blockedHours,
+      limitItems,
+      includeWarn
+    });
+    return format === "md" ? r.markdown : JSON.stringify(r.json, null, 2);
   }
 
   if (name === "rmemo_embed_status") {
@@ -1642,6 +1691,20 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       boardId,
       reason,
       force: args?.force === true,
+      noLog: args?.noLog === true
+    });
+    return JSON.stringify({ ok: true, result: r }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_pulse_apply") {
+    requireWrite();
+    const r = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, {
+      limitBoards: args?.limitBoards !== undefined ? Number(args.limitBoards) : 50,
+      todoHours: args?.todoHours !== undefined ? Number(args.todoHours) : 24,
+      doingHours: args?.doingHours !== undefined ? Number(args.doingHours) : 12,
+      blockedHours: args?.blockedHours !== undefined ? Number(args.blockedHours) : 6,
+      limitItems: args?.limitItems !== undefined ? Number(args.limitItems) : 20,
+      includeWarn: args?.includeWarn === true,
       noLog: args?.noLog === true
     });
     return JSON.stringify({ ok: true, result: r }, null, 2);

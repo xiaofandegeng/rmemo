@@ -1474,3 +1474,111 @@ export async function evaluateWorkspaceFocusAlertsBoardsPulse(
   if (save) incident = await appendWorkspaceFocusAlertsBoardsPulse(root, out, { source });
   return { ...out, incident };
 }
+
+export async function generateWorkspaceFocusAlertsBoardsPulsePlan(
+  root,
+  { limitBoards = 50, todoHours = 24, doingHours = 12, blockedHours = 6, limitItems = 20, includeWarn = false } = {}
+) {
+  const pulse = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { limitBoards, todoHours, doingHours, blockedHours, save: false });
+  const lim = Math.min(200, Math.max(1, Number(limitItems || 20)));
+  const candidates = (pulse.overdueItems || []).filter((x) => includeWarn || x.level === "critical").slice(0, lim);
+  const tasks = candidates.map((x) => {
+    const item = `${x.boardId}/${x.itemId}`;
+    const age = x.ageHours !== null && x.ageHours !== undefined ? `${x.ageHours}h` : "?";
+    if (x.status === "blocked") {
+      return {
+        kind: "blocker",
+        boardId: x.boardId,
+        itemId: x.itemId,
+        level: x.level,
+        text: `Escalate blocked task ${item}: ${x.text} (age ${age}, threshold ${x.thresholdHours}h)`
+      };
+    }
+    return {
+      kind: "next",
+      boardId: x.boardId,
+      itemId: x.itemId,
+      level: x.level,
+      text: `Drive overdue ${x.status} task ${item}: ${x.text} (age ${age}, threshold ${x.thresholdHours}h)`
+    };
+  });
+  const json = {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    policy: { limitBoards, todoHours, doingHours, blockedHours, limitItems: lim, includeWarn: !!includeWarn },
+    pulseSummary: pulse.summary || null,
+    taskSummary: {
+      total: tasks.length,
+      next: tasks.filter((t) => t.kind === "next").length,
+      blocker: tasks.filter((t) => t.kind === "blocker").length
+    },
+    tasks
+  };
+  const lines = [];
+  lines.push("# Workspace Alerts Board Pulse Plan");
+  lines.push("");
+  lines.push(`- candidates: ${json.taskSummary.total}`);
+  lines.push(`- next: ${json.taskSummary.next}, blocker: ${json.taskSummary.blocker}`);
+  lines.push(`- includeWarn: ${json.policy.includeWarn ? "yes" : "no"}`);
+  lines.push("");
+  lines.push("## Tasks");
+  if (!tasks.length) lines.push("- (none)");
+  else for (const t of tasks) lines.push(`- [${t.kind}] [${t.level}] ${t.text}`);
+  lines.push("");
+  return { json, markdown: lines.join("\n") };
+}
+
+export async function applyWorkspaceFocusAlertsBoardsPulsePlan(
+  root,
+  {
+    limitBoards = 50,
+    todoHours = 24,
+    doingHours = 12,
+    blockedHours = 6,
+    limitItems = 20,
+    includeWarn = false,
+    noLog = false
+  } = {}
+) {
+  const plan = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, {
+    limitBoards,
+    todoHours,
+    doingHours,
+    blockedHours,
+    limitItems,
+    includeWarn
+  });
+  const tasks = Array.isArray(plan?.json?.tasks) ? plan.json.tasks : [];
+  const applied = { next: [], blocker: [] };
+  for (const t of tasks) {
+    if (t.kind === "blocker") {
+      // eslint-disable-next-line no-await-in-loop
+      await addTodoBlocker(root, t.text);
+      applied.blocker.push(t.text);
+    } else {
+      // eslint-disable-next-line no-await-in-loop
+      await addTodoNext(root, t.text);
+      applied.next.push(t.text);
+    }
+  }
+  let journalPath = null;
+  if (!noLog) {
+    const lines = [];
+    lines.push("Applied workspace alerts board pulse plan");
+    lines.push(`Tasks appended: next=${applied.next.length}, blocker=${applied.blocker.length}`);
+    if (applied.next.length) lines.push(`Next: ${applied.next.join(" | ")}`);
+    if (applied.blocker.length) lines.push(`Blockers: ${applied.blocker.join(" | ")}`);
+    journalPath = await appendJournalEntry(root, { kind: "WS Alerts Pulse", text: lines.join("\n") });
+  }
+  return {
+    schema: 1,
+    appliedAt: new Date().toISOString(),
+    root,
+    policy: plan.json.policy,
+    taskSummary: plan.json.taskSummary,
+    applied,
+    noLog: !!noLog,
+    journalPath
+  };
+}

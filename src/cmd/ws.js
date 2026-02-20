@@ -16,10 +16,12 @@ import {
   compareWorkspaceFocusSnapshots,
   compareWorkspaceFocusWithLatest,
   createWorkspaceFocusAlertsBoard,
+  applyWorkspaceFocusAlertsBoardsPulsePlan,
   closeWorkspaceFocusAlertsBoard,
   evaluateWorkspaceFocusAlertsBoardsPulse,
   generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsBoardReport,
+  generateWorkspaceFocusAlertsBoardsPulsePlan,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsAction,
   getWorkspaceFocusAlertsBoard,
@@ -98,6 +100,8 @@ function wsHelp() {
     "  rmemo ws alerts board close --board <id> [--reason <text>] [--force] [--no-log] [--format md|json]",
     "  rmemo ws alerts board pulse [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--save] [--source <name>] [--format md|json]",
     "  rmemo ws alerts board pulse-history [--limit <n>] [--format md|json]",
+    "  rmemo ws alerts board pulse-plan [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--limit-items <n>] [--include-warn] [--format md|json]",
+    "  rmemo ws alerts board pulse-apply [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--limit-items <n>] [--include-warn] [--no-log] [--format md|json]",
     "",
     "Notes:",
     "- Workspaces are detected from repo scan (manifest.subprojects).",
@@ -354,6 +358,7 @@ export async function cmdWs({ rest, flags }) {
   const closeReason = flags.reason ? String(flags.reason) : "";
   const force = !!flags.force;
   const source = flags.source ? String(flags.source) : "ws-alert-board-cli";
+  const includeWarn = !!flags["include-warn"];
   const includeBlockers = !!flags["include-blockers"];
   const noLog = !!flags["no-log"];
   const maxTasks = Number(flags["max-tasks"] || 20);
@@ -935,7 +940,29 @@ export async function cmdWs({ rest, flags }) {
         }
         return;
       }
-      process.stderr.write("Usage: rmemo ws alerts board <create|list|show|update|report|close|pulse|pulse-history>\n");
+      if (boardOp === "pulse-plan") {
+        const limitBoards = Number(flags["limit-boards"] || 50);
+        const todoHours = Number(flags["todo-hours"] || 24);
+        const doingHours = Number(flags["doing-hours"] || 12);
+        const blockedHours = Number(flags["blocked-hours"] || 6);
+        const limitItems = Number(flags["limit-items"] || 20);
+        const out = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, limitItems, includeWarn });
+        if (format === "json") process.stdout.write(JSON.stringify(out.json, null, 2) + "\n");
+        else process.stdout.write(out.markdown);
+        return;
+      }
+      if (boardOp === "pulse-apply") {
+        const limitBoards = Number(flags["limit-boards"] || 50);
+        const todoHours = Number(flags["todo-hours"] || 24);
+        const doingHours = Number(flags["doing-hours"] || 12);
+        const blockedHours = Number(flags["blocked-hours"] || 6);
+        const limitItems = Number(flags["limit-items"] || 20);
+        const out = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, limitItems, includeWarn, noLog });
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Applied board pulse plan: next=${out.applied?.next?.length || 0}, blocker=${out.applied?.blocker?.length || 0}\n`);
+        return;
+      }
+      process.stderr.write("Usage: rmemo ws alerts board <create|list|show|update|report|close|pulse|pulse-history|pulse-plan|pulse-apply>\n");
       process.exitCode = 2;
       return;
     }

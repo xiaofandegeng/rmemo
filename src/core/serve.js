@@ -31,6 +31,7 @@ import { createEmbedJobsController } from "./embed_jobs.js";
 import {
   applyWorkspaceFocusAlertsActionPlan,
   appendWorkspaceFocusAlertIncident,
+  applyWorkspaceFocusAlertsBoardsPulsePlan,
   batchWorkspaceFocus,
   closeWorkspaceFocusAlertsBoard,
   compareWorkspaceFocusSnapshots,
@@ -40,6 +41,7 @@ import {
   evaluateWorkspaceFocusAlerts,
   generateWorkspaceFocusAlertsActionPlan,
   generateWorkspaceFocusAlertsBoardReport,
+  generateWorkspaceFocusAlertsBoardsPulsePlan,
   generateWorkspaceFocusAlertsRca,
   getWorkspaceFocusAlertsConfig,
   getWorkspaceFocusAlertsAction,
@@ -1691,6 +1693,41 @@ export function createServeHandler(root, opts = {}) {
         const limit = Number(url.searchParams.get("limit") || 20);
         const out = await listWorkspaceFocusAlertsBoardsPulseHistory(root, { limit });
         return json(res, 200, out);
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-pulse-plan") {
+        const limitBoards = Number(url.searchParams.get("limitBoards") || 50);
+        const todoHours = Number(url.searchParams.get("todoHours") || 24);
+        const doingHours = Number(url.searchParams.get("doingHours") || 12);
+        const blockedHours = Number(url.searchParams.get("blockedHours") || 6);
+        const limitItems = Number(url.searchParams.get("limitItems") || 20);
+        const includeWarn = url.searchParams.get("includeWarn") === "1";
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
+        const out = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, limitItems, includeWarn });
+        if (format === "json") return json(res, 200, out.json);
+        return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "POST" && url.pathname === "/ws/focus/alerts/board-pulse-apply") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const out = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, {
+          limitBoards: body.limitBoards !== undefined ? Number(body.limitBoards) : 50,
+          todoHours: body.todoHours !== undefined ? Number(body.todoHours) : 24,
+          doingHours: body.doingHours !== undefined ? Number(body.doingHours) : 12,
+          blockedHours: body.blockedHours !== undefined ? Number(body.blockedHours) : 6,
+          limitItems: body.limitItems !== undefined ? Number(body.limitItems) : 20,
+          includeWarn: body.includeWarn === true,
+          noLog: body.noLog === true
+        });
+        events?.emit?.({
+          type: "ws:alerts:board-pulse-applied",
+          summary: out.taskSummary || null,
+          appended: { next: out.applied?.next?.length || 0, blocker: out.applied?.blocker?.length || 0 }
+        });
+        return json(res, 200, { ok: true, result: out });
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {
