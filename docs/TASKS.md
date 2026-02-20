@@ -4,16 +4,17 @@
 
 - `docs/NEXT_CYCLE_PLAN.md`（唯一执行计划 / 接力开发基线）
 - `docs/LONG_TERM_ROADMAP.zh-CN.md`（长期版本路线图 / 多模型接力协议）
+- `docs/ITERATION_MASTER_PLAN.zh-CN.md`（0.37->1.0 主执行计划与版本拆解）
 
 ## Snapshot (2026-02-20)
 
 - Package: `@xiaofandegeng/rmemo`
-- Current version: `0.33.0`
-- Next release target: `0.34.0`
+- Current version: `0.36.0`
+- Next release target: `0.37.0`
 - Current focus:
-  - Workspace alerts board pulse automation (`pulse-plan` / `pulse-apply`)
-  - 执行链路幂等去重
-  - 策略模板化（团队默认策略）
+  - 策略模板化（policy show/set + 配置持久化）
+  - action 作业编排（队列化执行）
+  - 发布链路稳定性与可观测
 
 ## Execution Rule
 

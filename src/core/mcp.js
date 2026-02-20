@@ -61,7 +61,9 @@ import {
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot,
   saveWorkspaceFocusAlertsActionPlan,
-  updateWorkspaceFocusAlertsBoardItem
+  updateWorkspaceFocusAlertsBoardItem,
+  getWorkspaceFocusAlertsBoardPolicy,
+  setWorkspaceFocusAlertsBoardPolicy
 } from "./workspaces.js";
 
 const SERVER_NAME = "rmemo";
@@ -452,13 +454,14 @@ function toolsList() {
       },
       additionalProperties: false
     }),
-    tool("rmemo_ws_focus_alerts_config", "Get workspace-focus alert configuration.", {
-      type: "object",
-      properties: {
-        root: rootProp
-      },
-      additionalProperties: false
-    }),
+    tool("rmemo_ws_focus_alerts_config", "Get workspace-focus alert configuration.",
+      {
+        type: "object",
+        properties: {
+          root: rootProp
+        },
+        additionalProperties: false
+      }),
     tool("rmemo_ws_focus_alerts_history", "List persisted workspace-focus alert incidents.", {
       type: "object",
       properties: {
@@ -546,6 +549,7 @@ function toolsList() {
         todoHours: { type: "number", default: 24 },
         doingHours: { type: "number", default: 12 },
         blockedHours: { type: "number", default: 6 },
+        policy: { type: "string" },
         save: { type: "boolean", default: false },
         source: { type: "string", default: "ws-alert-board-mcp" }
       },
@@ -567,6 +571,7 @@ function toolsList() {
         todoHours: { type: "number", default: 24 },
         doingHours: { type: "number", default: 12 },
         blockedHours: { type: "number", default: 6 },
+        policy: { type: "string" },
         limitItems: { type: "number", default: 20 },
         includeWarn: { type: "boolean", default: false },
         format: { type: "string", enum: ["json", "md"], default: "json" }
@@ -945,12 +950,29 @@ function toolsListWithWrite({ allowWrite } = {}) {
         todoHours: { type: "number", default: 24 },
         doingHours: { type: "number", default: 12 },
         blockedHours: { type: "number", default: 6 },
+        policy: { type: "string" },
         limitItems: { type: "number", default: 20 },
         includeWarn: { type: "boolean", default: false },
         noLog: { type: "boolean", default: false },
         dedupe: { type: "boolean", default: true },
         dedupeWindowHours: { type: "number", default: 72 },
         dryRun: { type: "boolean", default: false }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_policy", "Get auto-governance policy templates for board alerts.", {
+      type: "object",
+      properties: {
+        root: rootProp
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_ws_focus_alerts_board_policy_set", "Set auto-governance policy templates for board alerts (write tool).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        boardPulsePolicy: { type: "string", enum: ["strict", "balanced", "relaxed", "custom"] },
+        boardPulseDedupePolicy: { type: "string", enum: ["strict", "balanced", "relaxed", "custom"] }
       },
       additionalProperties: false
     })
@@ -1159,6 +1181,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
 
   if (name === "rmemo_ws_focus_report_get") {
     const id = String(args?.id || "").trim();
+    if (!id) throw new Error("Missing id");
     const r = await getWorkspaceFocusReport(root, id);
     return JSON.stringify(r, null, 2);
   }
@@ -1261,15 +1284,17 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
   }
 
   if (name === "rmemo_ws_focus_alerts_board_pulse") {
-    const limitBoards = args?.limitBoards !== undefined ? Number(args.limitBoards) : 50;
-    const todoHours = args?.todoHours !== undefined ? Number(args.todoHours) : 24;
-    const doingHours = args?.doingHours !== undefined ? Number(args.doingHours) : 12;
-    const blockedHours = args?.blockedHours !== undefined ? Number(args.blockedHours) : 6;
-    const save = args?.save === true;
-    if (save) requireWrite();
-    const source = String(args?.source || "ws-alert-board-mcp");
-    const r = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { limitBoards, todoHours, doingHours, blockedHours, save, source });
-    return JSON.stringify(r, null, 2);
+    requireWrite();
+    const j = await evaluateWorkspaceFocusAlertsBoardsPulse(root, {
+      limitBoards: args?.limitBoards !== undefined ? Number(args.limitBoards) : 50,
+      todoHours: args?.todoHours !== undefined ? Number(args.todoHours) : undefined,
+      doingHours: args?.doingHours !== undefined ? Number(args.doingHours) : undefined,
+      blockedHours: args?.blockedHours !== undefined ? Number(args.blockedHours) : undefined,
+      policy: typeof args?.policy === "string" ? args.policy : undefined,
+      save: args?.save === true,
+      source: args?.source || "ws-alert-mcp"
+    });
+    return JSON.stringify(j, null, 2);
   }
 
   if (name === "rmemo_ws_focus_alerts_board_pulse_history") {
@@ -1291,10 +1316,26 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       todoHours,
       doingHours,
       blockedHours,
+      policy: typeof args?.policy === "string" ? args.policy : undefined,
       limitItems,
       includeWarn
     });
     return format === "md" ? r.markdown : JSON.stringify(r.json, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_policy") {
+    const policy = await getWorkspaceFocusAlertsBoardPolicy(root);
+    return JSON.stringify({ ok: true, policy }, null, 2);
+  }
+
+  if (name === "rmemo_ws_focus_alerts_board_policy_set") {
+    requireWrite();
+    const patch = {
+      boardPulsePolicy: typeof args?.boardPulsePolicy === "string" ? args.boardPulsePolicy : undefined,
+      boardPulseDedupePolicy: typeof args?.boardPulseDedupePolicy === "string" ? args.boardPulseDedupePolicy : undefined
+    };
+    const policy = await setWorkspaceFocusAlertsBoardPolicy(root, patch);
+    return JSON.stringify({ ok: true, policy }, null, 2);
   }
 
   if (name === "rmemo_embed_status") {
@@ -1449,7 +1490,6 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       generatedAt: new Date().toISOString(),
       config: {},
       state: {},
-      metrics: {},
       recommendations: []
     };
     return JSON.stringify({ ok: true, report }, null, 2);
@@ -1706,6 +1746,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       todoHours: args?.todoHours !== undefined ? Number(args.todoHours) : 24,
       doingHours: args?.doingHours !== undefined ? Number(args.doingHours) : 12,
       blockedHours: args?.blockedHours !== undefined ? Number(args.blockedHours) : 6,
+      policy: typeof args?.policy === "string" ? args.policy : undefined,
       limitItems: args?.limitItems !== undefined ? Number(args.limitItems) : 20,
       includeWarn: args?.includeWarn === true,
       noLog: args?.noLog === true,

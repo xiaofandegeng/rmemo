@@ -7,7 +7,9 @@ import os from "node:os";
 import {
     applyWorkspaceFocusAlertsBoardsPulsePlan,
     evaluateWorkspaceFocusAlertsBoardsPulse,
-    createWorkspaceFocusAlertsBoard
+    createWorkspaceFocusAlertsBoard,
+    getWorkspaceFocusAlertsBoardPolicy,
+    setWorkspaceFocusAlertsBoardPolicy
 } from "../src/core/workspaces.js";
 import { fileExists, writeJson, readJson } from "../src/lib/io.js";
 import { ensureRepoMemory } from "../src/core/memory.js";
@@ -115,6 +117,58 @@ describe("Pulse Deduplication", () => {
 
         } finally {
             await fs.rm(root, { recursive: true, force: true });
+        }
+    });
+});
+
+describe("Policy Templates", () => {
+    it("should return balanced defaults when no config exists", async () => {
+        const root = await makeTempRepo("rmemo-test-policy-");
+        try {
+            const policy = await getWorkspaceFocusAlertsBoardPolicy(root);
+            assert.strictEqual(policy.boardPulsePolicy, "balanced");
+            assert.strictEqual(policy.boardPulseDedupePolicy, "balanced");
+        } finally {
+            await fs.rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it("should correctly override default hours when policy='strict' is used", async () => {
+        const root = await makeTempRepo("rmemo-test-policy-2-");
+        try {
+            const boardId = "test-board-strict";
+            const boardsDir = path.join(root, ".repo-memory", "ws-focus", "action-boards");
+            await fs.mkdir(boardsDir, { recursive: true });
+
+            // Generate a task 13 hours old (todo).
+            // Under "balanced", todo=24 so this is NOT an item.
+            // Under "strict", todo=12 so this IS an item.
+            const thirteenHoursAgo = new Date(Date.now() - 13 * 3600 * 1000).toISOString();
+
+            const board = {
+                schema: 1, id: boardId, createdAt: thirteenHoursAgo, updatedAt: thirteenHoursAgo, title: "Test Board", actionId: "mock",
+                items: [
+                    { id: "item1", kind: "next", status: "todo", text: "Task Overdue in Strict", createdAt: thirteenHoursAgo, updatedAt: thirteenHoursAgo }
+                ]
+            };
+            await writeJson(path.join(boardsDir, `${boardId}.json`), board);
+            await writeJson(path.join(boardsDir, "index.json"), { schema: 1, boards: [board] });
+
+            // Test 1: balanced default => zero overdue items
+            const pulseBalanced = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { save: false });
+            assert.strictEqual(pulseBalanced.overdueItems.length, 0, "No items overdue under balanced policy (24h)");
+
+            // Test 2: strict policy => one overdue item (12h)
+            const pulseStrict = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { policy: "strict", save: false });
+            assert.strictEqual(pulseStrict.overdueItems.length, 1, "Item overdue under strict policy (12h)");
+            assert.strictEqual(pulseStrict.overdueItems[0].itemId, "item1");
+
+            // Test 3: configure strict globally => one overdue item
+            await setWorkspaceFocusAlertsBoardPolicy(root, { boardPulsePolicy: "strict" });
+            const pulseGlobalStrict = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { save: false });
+            assert.strictEqual(pulseGlobalStrict.overdueItems.length, 1, "Item overdue under saved global strict policy");
+        } finally {
+            try { await fs.rm(root, { recursive: true, force: true }); } catch (e) { }
         }
     });
 });

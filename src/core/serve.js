@@ -61,7 +61,9 @@ import {
   saveWorkspaceFocusReport,
   saveWorkspaceFocusSnapshot,
   saveWorkspaceFocusAlertsActionPlan,
-  updateWorkspaceFocusAlertsBoardItem
+  updateWorkspaceFocusAlertsBoardItem,
+  getWorkspaceFocusAlertsBoardPolicy,
+  setWorkspaceFocusAlertsBoardPolicy
 } from "./workspaces.js";
 
 function json(res, code, obj) {
@@ -1670,10 +1672,11 @@ export function createServeHandler(root, opts = {}) {
       }
 
       if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-pulse") {
-        const limitBoards = Number(url.searchParams.get("limitBoards") || 50);
-        const todoHours = Number(url.searchParams.get("todoHours") || 24);
-        const doingHours = Number(url.searchParams.get("doingHours") || 12);
-        const blockedHours = Number(url.searchParams.get("blockedHours") || 6);
+        const limitBoards = url.searchParams.has("limitBoards") ? Number(url.searchParams.get("limitBoards")) : undefined;
+        const todoHours = url.searchParams.has("todoHours") ? Number(url.searchParams.get("todoHours")) : undefined;
+        const doingHours = url.searchParams.has("doingHours") ? Number(url.searchParams.get("doingHours")) : undefined;
+        const blockedHours = url.searchParams.has("blockedHours") ? Number(url.searchParams.get("blockedHours")) : undefined;
+        const policy = url.searchParams.has("policy") ? String(url.searchParams.get("policy")) : undefined;
         const source = String(url.searchParams.get("source") || "ws-alert-board-http");
         const save = url.searchParams.get("save") === "1";
         if (save && !allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
@@ -1682,6 +1685,7 @@ export function createServeHandler(root, opts = {}) {
           todoHours,
           doingHours,
           blockedHours,
+          policy,
           save,
           source
         });
@@ -1696,15 +1700,16 @@ export function createServeHandler(root, opts = {}) {
       }
 
       if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-pulse-plan") {
-        const limitBoards = Number(url.searchParams.get("limitBoards") || 50);
-        const todoHours = Number(url.searchParams.get("todoHours") || 24);
-        const doingHours = Number(url.searchParams.get("doingHours") || 12);
-        const blockedHours = Number(url.searchParams.get("blockedHours") || 6);
+        const limitBoards = url.searchParams.has("limitBoards") ? Number(url.searchParams.get("limitBoards")) : undefined;
+        const todoHours = url.searchParams.has("todoHours") ? Number(url.searchParams.get("todoHours")) : undefined;
+        const doingHours = url.searchParams.has("doingHours") ? Number(url.searchParams.get("doingHours")) : undefined;
+        const blockedHours = url.searchParams.has("blockedHours") ? Number(url.searchParams.get("blockedHours")) : undefined;
+        const policy = url.searchParams.has("policy") ? String(url.searchParams.get("policy")) : undefined;
         const limitItems = Number(url.searchParams.get("limitItems") || 20);
         const includeWarn = url.searchParams.get("includeWarn") === "1";
         const format = String(url.searchParams.get("format") || "json").toLowerCase();
         if (format !== "json" && format !== "md") return badRequest(res, "format must be json|md");
-        const out = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, limitItems, includeWarn });
+        const out = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, policy, limitItems, includeWarn });
         if (format === "json") return json(res, 200, out.json);
         return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
       }
@@ -1714,15 +1719,16 @@ export function createServeHandler(root, opts = {}) {
         const body = await readBodyJsonOr400(req, res);
         if (!body) return;
         const out = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, {
-          limitBoards: body.limitBoards !== undefined ? Number(body.limitBoards) : 50,
-          todoHours: body.todoHours !== undefined ? Number(body.todoHours) : 24,
-          doingHours: body.doingHours !== undefined ? Number(body.doingHours) : 12,
-          blockedHours: body.blockedHours !== undefined ? Number(body.blockedHours) : 6,
+          limitBoards: body.limitBoards !== undefined ? Number(body.limitBoards) : undefined,
+          todoHours: body.todoHours !== undefined ? Number(body.todoHours) : undefined,
+          doingHours: body.doingHours !== undefined ? Number(body.doingHours) : undefined,
+          blockedHours: body.blockedHours !== undefined ? Number(body.blockedHours) : undefined,
+          policy: typeof body.policy === "string" ? body.policy : undefined,
           limitItems: body.limitItems !== undefined ? Number(body.limitItems) : 20,
           includeWarn: body.includeWarn === true,
           noLog: body.noLog === true,
           dedupe: body.dedupe !== false,
-          dedupeWindowHours: body.dedupeWindowHours !== undefined ? Number(body.dedupeWindowHours) : 72,
+          dedupeWindowHours: body.dedupeWindowHours !== undefined ? Number(body.dedupeWindowHours) : undefined,
           dryRun: body.dryRun === true
         });
         events?.emit?.({
@@ -1731,6 +1737,24 @@ export function createServeHandler(root, opts = {}) {
           appended: { next: out.applied?.next?.length || 0, blocker: out.applied?.blocker?.length || 0 }
         });
         return json(res, 200, { ok: true, result: out });
+      }
+
+      if (req.method === "GET" && url.pathname === "/ws/focus/alerts/board-policy") {
+        const policy = await getWorkspaceFocusAlertsBoardPolicy(root);
+        return json(res, 200, { ok: true, policy });
+      }
+
+      if (req.method === "POST" && url.pathname === "/ws/focus/alerts/board-policy") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const patch = {
+          boardPulsePolicy: typeof body.boardPulsePolicy === "string" ? body.boardPulsePolicy : undefined,
+          boardPulseDedupePolicy: typeof body.boardPulseDedupePolicy === "string" ? body.boardPulseDedupePolicy : undefined
+        };
+        const policy = await setWorkspaceFocusAlertsBoardPolicy(root, patch);
+        events?.emit?.({ type: "ws:alerts:board-policy-updated", policy });
+        return json(res, 200, { ok: true, policy });
       }
 
       if (req.method === "POST" && url.pathname === "/shutdown") {

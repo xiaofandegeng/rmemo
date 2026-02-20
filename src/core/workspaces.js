@@ -22,7 +22,8 @@ import {
   wsFocusReportsDir,
   wsFocusReportsIndexPath,
   wsFocusSnapshotPath,
-  wsFocusSnapshotsDir
+  wsFocusSnapshotsDir,
+  configPath
 } from "../lib/paths.js";
 
 function splitList(raw) {
@@ -1389,23 +1390,75 @@ export async function listWorkspaceFocusAlertsBoardsPulseHistory(root, { limit =
   }
 }
 
+export const WS_ALERTS_BOARD_PULSE_POLICIES = {
+  strict: { todoHours: 12, doingHours: 6, blockedHours: 2, dedupeWindowHours: 24 },
+  balanced: { todoHours: 24, doingHours: 12, blockedHours: 6, dedupeWindowHours: 72 },
+  relaxed: { todoHours: 72, doingHours: 48, blockedHours: 24, dedupeWindowHours: 168 }
+};
+
+export async function getWorkspaceFocusAlertsBoardPolicy(root) {
+  let doc = { wsAlerts: {} };
+  const p = configPath(root);
+  if (await fileExists(p)) {
+    try {
+      doc = await readJson(p);
+      doc.wsAlerts = doc.wsAlerts || {};
+    } catch {
+      // Ignore
+    }
+  }
+  return {
+    boardPulsePolicy: doc.wsAlerts.boardPulsePolicy || "balanced",
+    boardPulseDedupePolicy: doc.wsAlerts.boardPulseDedupePolicy || "balanced"
+  };
+}
+
+export async function setWorkspaceFocusAlertsBoardPolicy(root, patch) {
+  let doc = { wsAlerts: {} };
+  const p = configPath(root);
+  if (await fileExists(p)) {
+    try {
+      doc = await readJson(p);
+      doc.wsAlerts = doc.wsAlerts || {};
+    } catch {
+      // Ignore
+    }
+  }
+  if (patch.boardPulsePolicy) doc.wsAlerts.boardPulsePolicy = patch.boardPulsePolicy;
+  if (patch.boardPulseDedupePolicy) doc.wsAlerts.boardPulseDedupePolicy = patch.boardPulseDedupePolicy;
+  await writeJson(p, doc);
+  return {
+    boardPulsePolicy: doc.wsAlerts.boardPulsePolicy,
+    boardPulseDedupePolicy: doc.wsAlerts.boardPulseDedupePolicy
+  };
+}
+
 export async function evaluateWorkspaceFocusAlertsBoardsPulse(
   root,
   {
     limitBoards = 50,
-    todoHours = 24,
-    doingHours = 12,
-    blockedHours = 6,
+    todoHours,
+    doingHours,
+    blockedHours,
+    policy,
     save = false,
     source = "ws-alert-board-pulse"
   } = {}
 ) {
   const boardsOut = await listWorkspaceFocusAlertsBoards(root, { limit: limitBoards });
   const nowMs = Date.now();
+
+  let resolvedPolicyName = policy;
+  if (!resolvedPolicyName || !WS_ALERTS_BOARD_PULSE_POLICIES[resolvedPolicyName]) {
+    const pConfig = await getWorkspaceFocusAlertsBoardPolicy(root);
+    resolvedPolicyName = pConfig.boardPulsePolicy;
+  }
+  const tpl = WS_ALERTS_BOARD_PULSE_POLICIES[resolvedPolicyName] || WS_ALERTS_BOARD_PULSE_POLICIES.balanced;
+
   const thresholds = {
-    todo: Math.max(1, Number(todoHours || 24)),
-    doing: Math.max(1, Number(doingHours || 12)),
-    blocked: Math.max(1, Number(blockedHours || 6))
+    todo: Math.max(1, Number(todoHours ?? tpl.todoHours)),
+    doing: Math.max(1, Number(doingHours ?? tpl.doingHours)),
+    blocked: Math.max(1, Number(blockedHours ?? tpl.blockedHours))
   };
   const overdueItems = [];
   const openBoards = [];
@@ -1478,9 +1531,9 @@ export async function evaluateWorkspaceFocusAlertsBoardsPulse(
 
 export async function generateWorkspaceFocusAlertsBoardsPulsePlan(
   root,
-  { limitBoards = 50, todoHours = 24, doingHours = 12, blockedHours = 6, limitItems = 20, includeWarn = false } = {}
+  { limitBoards = 50, todoHours, doingHours, blockedHours, policy, limitItems = 20, includeWarn = false } = {}
 ) {
-  const pulse = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { limitBoards, todoHours, doingHours, blockedHours, save: false });
+  const pulse = await evaluateWorkspaceFocusAlertsBoardsPulse(root, { limitBoards, todoHours, doingHours, blockedHours, policy, save: false });
   const lim = Math.min(200, Math.max(1, Number(limitItems || 20)));
   const candidates = (pulse.overdueItems || []).filter((x) => includeWarn || x.level === "critical").slice(0, lim);
   const tasks = candidates.map((x) => {
@@ -1507,7 +1560,7 @@ export async function generateWorkspaceFocusAlertsBoardsPulsePlan(
     schema: 1,
     generatedAt: new Date().toISOString(),
     root,
-    policy: { limitBoards, todoHours, doingHours, blockedHours, limitItems: lim, includeWarn: !!includeWarn },
+    policy: { limitBoards, todoHours: pulse.summary.thresholds.todo, doingHours: pulse.summary.thresholds.doing, blockedHours: pulse.summary.thresholds.blocked, policy, limitItems: lim, includeWarn: !!includeWarn },
     pulseSummary: pulse.summary || null,
     taskSummary: {
       total: tasks.length,
@@ -1569,22 +1622,32 @@ export async function applyWorkspaceFocusAlertsBoardsPulsePlan(
   root,
   {
     limitBoards = 50,
-    todoHours = 24,
-    doingHours = 12,
-    blockedHours = 6,
+    todoHours,
+    doingHours,
+    blockedHours,
+    policy,
     limitItems = 20,
     includeWarn = false,
     noLog = false,
     dedupe = true,
-    dedupeWindowHours = 72,
+    dedupeWindowHours,
     dryRun = false
   } = {}
 ) {
+  let resolvedDedupePolicyName = policy;
+  if (!resolvedDedupePolicyName || !WS_ALERTS_BOARD_PULSE_POLICIES[resolvedDedupePolicyName]) {
+    const pConfig = await getWorkspaceFocusAlertsBoardPolicy(root);
+    resolvedDedupePolicyName = pConfig.boardPulseDedupePolicy;
+  }
+  const tpl = WS_ALERTS_BOARD_PULSE_POLICIES[resolvedDedupePolicyName] || WS_ALERTS_BOARD_PULSE_POLICIES.balanced;
+  const resolvedDedupeWindowHours = Math.max(1, Number(dedupeWindowHours ?? tpl.dedupeWindowHours));
+
   const plan = await generateWorkspaceFocusAlertsBoardsPulsePlan(root, {
     limitBoards,
     todoHours,
     doingHours,
     blockedHours,
+    policy,
     limitItems,
     includeWarn
   });
@@ -1604,7 +1667,7 @@ export async function applyWorkspaceFocusAlertsBoardsPulsePlan(
       const prevTs = appliedKeys[key];
       if (prevTs) {
         const prevMs = Date.parse(prevTs);
-        if (Number.isFinite(prevMs) && (currentMs - prevMs) / 3600000 <= dedupeWindowHours) {
+        if (Number.isFinite(prevMs) && (currentMs - prevMs) / 3600000 <= resolvedDedupeWindowHours) {
           skippedDuplicateCount++;
           continue;
         }
@@ -1641,14 +1704,14 @@ export async function applyWorkspaceFocusAlertsBoardsPulsePlan(
   }
 
   if (dedupe && Object.keys(newKeys).length > 0 && !dryRun) {
-    await writeWorkspaceFocusAlertsBoardsPulseApplied(root, newKeys, dedupeWindowHours);
+    await writeWorkspaceFocusAlertsBoardsPulseApplied(root, newKeys, resolvedDedupeWindowHours);
   }
 
   return {
     schema: 1,
     appliedAt: new Date().toISOString(),
     root,
-    policy: { ...plan.json.policy, dedupe: !!dedupe, dedupeWindowHours: Number(dedupeWindowHours), dryRun: !!dryRun },
+    policy: { ...plan.json.policy, dedupe: !!dedupe, dedupeWindowHours: resolvedDedupeWindowHours, dryRun: !!dryRun },
     taskSummary: {
       proposedCount: tasks.length,
       appendedCount: applied.next.length + applied.blocker.length,
