@@ -26,6 +26,15 @@ All notable changes to this project will be documented in this file.
 - Expose Action Job control tools over MCP (`rmemo_ws_focus_action_jobs`, `rmemo_ws_focus_action_job_enqueue`, `rmemo_ws_focus_action_job_control`).
 - Add Action Jobs dashboard and controls to the web UI.
 
+## [0.37.0](https://github.com/xiaofandegeng/rmemo/compare/v0.36.0...v0.37.0) (2026-02-20)
+
+
+### Features
+
+* add diagnostics export with cli/http/mcp integration ([52fb3fe](https://github.com/xiaofandegeng/rmemo/commit/52fb3fe4de8644ed19fa147f6533a93061eeb12f))
+* implement governance policy templating (v0.37.0) ([d65eb7b](https://github.com/xiaofandegeng/rmemo/commit/d65eb7b9f6c3517490016c476f9dfd3b2f7bf292))
+* **ws:** implement persistent action job queue and execution manager ([a401496](https://github.com/xiaofandegeng/rmemo/commit/a401496056ac02c0beddfd6e0a69f6d9feab6d7d))
+
 ## [0.36.0](https://github.com/xiaofandegeng/rmemo/compare/v0.35.0...v0.36.0) (2026-02-20)
 
 
