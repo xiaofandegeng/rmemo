@@ -16,9 +16,54 @@ jobs:
     concurrency:
       group: release-please
       cancel-in-progress: true
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - id: release
+        uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  publish-from-release-please:
+    needs: release-please
+    if: needs.release-please.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Resolve version + dist-tag
+        id: vars
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          DIST_TAG="latest"
+          if echo "$VERSION" | grep -q '-'; then
+            DIST_TAG="next"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$DIST_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Run tests
+        run: node --test
+
+      - name: Publish to npm (skip if already published)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm_config_cache: .npm-cache
+        run: |
+          PKG="$(node -p "require('./package.json').name")"
+          V="${{ steps.vars.outputs.version }}"
+          if npm view "$PKG@$V" version >/dev/null 2>&1; then
+            echo "Already published: $PKG@$V (skipping)"
+            exit 0
+          fi
+          npm whoami
+          npm publish --tag "${{ steps.vars.outputs.dist_tag }}"

@@ -54,7 +54,8 @@ How it works:
 1. You push normal commits to `main`
 2. GitHub Actions creates/updates a "release PR" automatically
 3. Merge the release PR, then it will create the tag + GitHub Release
-4. The `Publish (tag)` workflow publishes to npm and uploads assets
+4. The same `Release Please` workflow then auto-publishes the new version to npm
+   - if that exact version already exists on npm, it skips safely
 
 Note:
 - Release Please works best with Conventional Commits (e.g. `feat: ...`, `fix: ...`).
@@ -62,6 +63,7 @@ Note:
   - Settings -> Actions -> General -> Workflow permissions:
     - Read and write permissions
     - Allow GitHub Actions to create and approve pull requests
+- `NPM_TOKEN` secret is still required for npm publishing.
 
 ## GitHub Releases (Automation)
 
