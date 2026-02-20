@@ -20,6 +20,13 @@ All notable changes to this project will be documented in this file.
 - Add `rmemo ws alerts board pulse-plan` and `rmemo ws alerts board pulse-apply` workflows.
 - Add `rmemo embed` to build a local embeddings index and support semantic search (CLI/HTTP/MCP).
 
+## [0.36.0](https://github.com/xiaofandegeng/rmemo/compare/v0.35.0...v0.36.0) (2026-02-20)
+
+
+### Features
+
+* idempotent pulse application and dedupe windowing ([49184f6](https://github.com/xiaofandegeng/rmemo/commit/49184f6dafb31913039b77dad1a35d8c1b8c2beb))
+
 ## [0.35.0](https://github.com/xiaofandegeng/rmemo/compare/v0.34.0...v0.35.0) (2026-02-20)
 
 
