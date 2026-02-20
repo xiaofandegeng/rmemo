@@ -71,6 +71,7 @@ import {
   resumeWorkspaceFocusAlertsActionJob,
   cancelWorkspaceFocusAlertsActionJob
 } from "./workspaces.js";
+import { formatDiagnosticEvent, exportWorkspaceDiagnostics } from "./diagnostics.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -671,6 +672,11 @@ function toolsList() {
         }
       },
       additionalProperties: false
+    }),
+    tool("rmemo_diagnostics_export", "Export comprehensive workspace configuration and health state.", {
+      type: "object",
+      properties: {},
+      additionalProperties: false
     })
   ];
 
@@ -1026,6 +1032,11 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       throw err;
     }
   };
+
+  if (name === "rmemo_diagnostics_export") {
+    const diag = await exportWorkspaceDiagnostics(root);
+    return JSON.stringify({ schema: 1, root, ...diag }, null, 2);
+  }
 
   if (name === "rmemo_status") {
     const mode = String(args?.mode || "full");

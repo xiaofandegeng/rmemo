@@ -32,7 +32,15 @@ export async function buildDoctorReport({ root } = {}) {
 
   const whichRmemo = safeExec("bash", ["-lc", "command -v rmemo || true"]);
   const rmemoHelp = safeExec("bash", ["-lc", "rmemo help 2>/dev/null | head -n 5 || true"]);
+
+  const gitUser = safeExec("bash", ["-lc", "git config --get user.name || true"]);
+  const gitEmail = safeExec("bash", ["-lc", "git config --get user.email || true"]);
+
   const npmRegistry = safeExec("bash", ["-lc", "npm config get registry 2>/dev/null || true"]);
+  const npmWhoami = safeExec("bash", ["-lc", "npm whoami 2>/dev/null || true"]);
+
+  const hasGhToken = !!process.env.GH_TOKEN;
+  const hasGithubToken = !!process.env.GITHUB_TOKEN;
 
   let cfg = null;
   try {
@@ -56,8 +64,15 @@ export async function buildDoctorReport({ root } = {}) {
   lines.push(`- which rmemo: ${whichRmemo || "(not found)"}`);
   if (rmemoHelp) lines.push(`- rmemo help (first lines): ${rmemoHelp.replace(/\n/g, " | ")}`);
   lines.push("");
-  lines.push("## npm");
-  lines.push(`- registry: ${npmRegistry || "(unknown)"}`);
+  lines.push("## Git Configuration");
+  lines.push(`- user.name: ${gitUser || "(not set)"}`);
+  lines.push(`- user.email: ${gitEmail || "(not set)"}`);
+  lines.push("");
+  lines.push("## Authentication & Release");
+  lines.push(`- npm registry: ${npmRegistry || "(unknown)"}`);
+  lines.push(`- npm whoami: ${npmWhoami || "(unauthenticated)"}`);
+  lines.push(`- GH_TOKEN: ${hasGhToken ? "present" : "missing"}`);
+  lines.push(`- GITHUB_TOKEN: ${hasGithubToken ? "present" : "missing"}`);
   lines.push("");
   lines.push("## repo config");
   if (cfg) lines.push(`- .repo-memory/config.json: ${cfg.parseError ? "parse error" : "present"}`);

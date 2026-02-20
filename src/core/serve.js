@@ -120,6 +120,8 @@ function sseWrite(res, { event, data, id } = {}) {
   res.write(s);
 }
 
+import { formatDiagnosticEvent, exportWorkspaceDiagnostics } from "./diagnostics.js";
+
 function ssePing(res) {
   // Comment line keeps the connection alive without firing an event handler.
   res.write(`: ping ${Date.now()}\n\n`);
@@ -136,6 +138,7 @@ function eventToMdLine(e) {
 }
 
 async function buildDiagnostics(root, { events, watchState, limitEvents = 200, recentDays = 7, snipLines = 120 } = {}) {
+  const sysDiag = await exportWorkspaceDiagnostics(root);
   const status = await buildStatus(root, { format: "json", mode: "full", recentDays, snipLines });
   const hist = (events?.history?.() || []).slice(-Math.min(2000, Math.max(1, Number(limitEvents || 200))));
   const watch = {
@@ -152,7 +155,8 @@ async function buildDiagnostics(root, { events, watchState, limitEvents = 200, r
     }
   };
   return {
-    schema: 1,
+    ...sysDiag,
+    formatVersion: 2,
     generatedAt: new Date().toISOString(),
     root,
     watch,
@@ -545,6 +549,18 @@ export function createServeHandler(root, opts = {}) {
           lines.push(`- generatedAt: ${d.generatedAt}`);
           lines.push(`- root: ${d.root}`);
           lines.push(`- events: ${d.events.length}`);
+          lines.push(`- node: ${d.environment?.nodeVersion || "unknown"}`);
+          lines.push(`- platform: ${d.environment?.platform || "unknown"} ${d.environment?.arch || ""}`);
+          lines.push("");
+          lines.push("## Configs");
+          lines.push(`- rules.md exists: ${!!d.files?.rulesExists}`);
+          lines.push(`- config.json exists: ${!!d.files?.configExists}`);
+          lines.push(`- manifest.json exists: ${!!d.files?.manifestExists}`);
+          if (d.config) {
+            lines.push("```json");
+            lines.push(JSON.stringify(d.config, null, 2));
+            lines.push("```");
+          }
           lines.push("");
           lines.push("## Watch");
           lines.push(`- enabled: ${d.watch.enabled}`);
