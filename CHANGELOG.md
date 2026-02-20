@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Add `rmemo profile check/upgrade` for profile drift reporting and safe re-apply with backups.
 - Add `rmemo session` (start/note/end) to store sequential handoff snapshots in `.repo-memory/sessions/`.
 - Add `rmemo serve` to expose repo memory over local HTTP (read-only by default, supports token auth).
+- Add `rmemo ws alerts board pulse-plan` and `rmemo ws alerts board pulse-apply` workflows.
 - Add `rmemo embed` to build a local embeddings index and support semantic search (CLI/HTTP/MCP).
 
 ## [0.35.0](https://github.com/xiaofandegeng/rmemo/compare/v0.34.0...v0.35.0) (2026-02-20)

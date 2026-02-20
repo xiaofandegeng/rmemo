@@ -3,6 +3,7 @@
 当前主任务看板已经迁移到：
 
 - `docs/NEXT_CYCLE_PLAN.md`（唯一执行计划 / 接力开发基线）
+- `docs/LONG_TERM_ROADMAP.zh-CN.md`（长期版本路线图 / 多模型接力协议）
 
 ## Snapshot (2026-02-20)
 

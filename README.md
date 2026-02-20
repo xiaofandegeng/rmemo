@@ -8,6 +8,7 @@ Docs:
 - [Usage (AI Workflow)](./docs/USAGE.md)
 - [Releasing](./RELEASING.md)
 - [PR Automation](./docs/PR_AUTOMATION.md)
+- [Long-term Roadmap (ZH)](./docs/LONG_TERM_ROADMAP.zh-CN.md)
 
 ## Why
 
@@ -440,6 +441,8 @@ rmemo ws alerts board report --format json --board <boardId> --max-items 20
 rmemo ws alerts board close --format json --board <boardId> --reason "done" --force
 rmemo ws alerts board pulse --format json --limit-boards 50 --todo-hours 24 --doing-hours 12 --blocked-hours 6 --save
 rmemo ws alerts board pulse-history --format json --limit 20
+rmemo ws alerts board pulse-plan --format json --todo-hours 24 --doing-hours 12 --blocked-hours 6
+rmemo ws alerts board pulse-apply --format json --todo-hours 24 --doing-hours 12 --blocked-hours 6 --limit-items 10
 rmemo ws alerts config set --alerts-enabled --alerts-min-reports 2 --alerts-max-regressed-errors 0 --alerts-max-avg-changed 8 --alerts-max-changed 20 --alerts-auto-governance
 rmemo ws batch handoff --only apps/admin-web,apps/miniapp
 ```

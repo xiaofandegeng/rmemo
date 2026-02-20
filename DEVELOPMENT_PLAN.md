@@ -85,7 +85,7 @@ Remaining ideas:
 - `rmemo scan --format md` optionally include a short "subprojects summary" table
 - `rmemo check` output: optional `--max-violations <n>` and show stable ordering
 
-## v0.7 (AI Tool Integration) (In Progress)
+## v0.7 (AI Tool Integration) (Shipped)
 
 Goals:
 - Make project memory "stick" inside AI tools that support repo-local instruction files.
@@ -98,7 +98,7 @@ Done:
   - `.cursor/rules/rmemo.mdc`
 - Add `--check/--dry-run/--targets/--force` flags and smoke tests
 
-## v0.8 (Always-On Workflow) (In Progress)
+## v0.8 (Always-On Workflow) (Shipped)
 
 Goals:
 - Make the workflow "set and forget" for each repo.
@@ -111,7 +111,7 @@ Done:
   - `post-commit/post-merge/post-checkout`: `rmemo sync` (non-blocking)
 - Add `rmemo setup --check` and `rmemo setup --uninstall` for audit and rollback
 
-## v0.9 (Handoff Pack) (In Progress)
+## v0.9 (Handoff Pack) (Shipped)
 
 Goals:
 - Generate a single, paste-ready markdown "handoff" for AI sessions.
@@ -120,7 +120,7 @@ Goals:
 Done:
 - Add `rmemo handoff` to update scan/context and generate `.repo-memory/handoff.md`
 
-## v1.0 (PR Assistant) (In Progress)
+## v1.0 (PR Assistant) (Shipped)
 
 Goals:
 - Generate a PR-ready markdown summary (commits/files + brief status).
@@ -129,7 +129,7 @@ Goals:
 Done:
 - Add `rmemo pr` to generate `.repo-memory/pr.md` (supports `--base`, `--format json`, `--no-refresh`)
 
-## v1.1 (GitHub PR Automation) (In Progress)
+## v1.1 (GitHub PR Automation) (Shipped)
 
 Goals:
 - Auto-run `rmemo check` on pull requests.
@@ -138,7 +138,7 @@ Goals:
 Done:
 - Add GitHub Actions workflow: `.github/workflows/pr-assistant.yml`
 
-## v1.2 (Watch Mode) (In Progress)
+## v1.2 (Watch Mode) (Shipped)
 
 Goals:
 - Keep `.repo-memory/context.md` and instruction files fresh while you work.
@@ -147,7 +147,7 @@ Goals:
 Done:
 - Add `rmemo watch` (poll-based) with `--interval`, `--once`, and `--no-sync`
 
-## v1.3 (Monorepo Workspaces) (In Progress)
+## v1.3 (Monorepo Workspaces) (Shipped)
 
 Goals:
 - Make `--root <subdir>` behave correctly in git repos (scope file listing).
@@ -157,7 +157,7 @@ Done:
 - Scope `git ls-files` to `--root` subdir when `--root` is inside a git repo
 - Add `rmemo ws` (workspace helper) to list/detect subprojects and run commands inside them
 
-## v1.4 (Workspace Batch) (In Progress)
+## v1.4 (Workspace Batch) (Shipped)
 
 Goals:
 - Batch-generate handoff/pr/sync/start across all detected subprojects.
@@ -218,7 +218,7 @@ Done:
   - `POST /log`, `POST /sync`, `POST /embed/auto`
 - Token auth support: `--token` / `RMEMO_TOKEN`
 
-## v1.8 (MCP Server) (Planned)
+## v1.8 (MCP Server) (Shipped)
 
 Goals:
 - Provide the same capabilities over stdio for AI tools that support MCP.
@@ -229,7 +229,7 @@ Done:
    - Write tools (disabled by default; enable with `--allow-write`):
      - `rmemo_todo_add`, `rmemo_todo_done`, `rmemo_log`, `rmemo_sync`, `rmemo_embed_auto`
 
-## v1.9 (Integrations + Doctor) (In Progress)
+## v1.9 (Integrations + Doctor) (Shipped)
 
 Goals:
 - Reduce friction when integrating with IDEs/agents (especially MCP clients running with restricted PATH).
@@ -240,7 +240,7 @@ Done:
   - `rmemo integrate antigravity` (JSON snippet for Antigravity raw config)
 - Add `rmemo doctor` to print diagnostics (node/bin/registry/config) and common fixes.
 
-## v2.0 (Persistent Workbench) (In Progress)
+## v2.0 (Persistent Workbench) (Shipped)
 
 Goals:
 - Turn `rmemo serve` into a long-running local workbench with live events and runtime controls.
@@ -480,17 +480,26 @@ Done:
 - Workspace intelligence v13 (Action board pulse + SLA overdue):
   - Detect stalled board tasks by status-specific SLA thresholds (todo/doing/blocked)
   - Persist pulse incidents under `.repo-memory/ws-focus/action-boards/pulse-history.json`
+  - Generate remediation plans for overdue tasks (`pulse-plan`)
+  - Apply remediation plans to todos/journal (`pulse-apply`)
   - CLI:
     - `rmemo ws alerts board pulse [--limit-boards <n>] [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--save]`
     - `rmemo ws alerts board pulse-history [--limit <n>]`
+    - `rmemo ws alerts board pulse-plan [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>]`
+    - `rmemo ws alerts board pulse-apply [--todo-hours <n>] [--doing-hours <n>] [--blocked-hours <n>] [--limit-items <n>]`
   - HTTP:
     - `GET /ws/focus/alerts/board-pulse`
     - `GET /ws/focus/alerts/board-pulse-history`
+    - `GET /ws/focus/alerts/board-pulse-plan`
+    - `POST /ws/focus/alerts/board-pulse-apply`
   - MCP:
     - `rmemo_ws_focus_alerts_board_pulse`
     - `rmemo_ws_focus_alerts_board_pulse_history`
+    - `rmemo_ws_focus_alerts_board_pulse_plan`
+    - `rmemo_ws_focus_alerts_board_pulse_apply`
   - UI:
     - `WS Alerts Board Pulse` and `WS Alerts Pulse History`
+    - `WS Alerts Pulse Plan` and `WS Alerts Pulse Apply`
     - SSE event: `ws:alerts:board-pulse`
 - Add UI control panels for live events, watch status/control, and refresh actions.
 - `rmemo mcp` MCP stdio server (JSON-RPC, one JSON per line; logs to stderr)
