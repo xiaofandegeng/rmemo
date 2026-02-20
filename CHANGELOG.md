@@ -20,6 +20,12 @@ All notable changes to this project will be documented in this file.
 - Add `rmemo ws alerts board pulse-plan` and `rmemo ws alerts board pulse-apply` workflows.
 - Add `rmemo embed` to build a local embeddings index and support semantic search (CLI/HTTP/MCP).
 
+- Add persistent Action Job queue and execution manager for background processing.
+- Add `rmemo ws alerts action-job` CLI commands (enqueue, list, show, pause, resume, cancel).
+- Expose Action Job HTTP endpoints and Server-Sent Events (SSE) for progress updates.
+- Expose Action Job control tools over MCP (`rmemo_ws_focus_action_jobs`, `rmemo_ws_focus_action_job_enqueue`, `rmemo_ws_focus_action_job_control`).
+- Add Action Jobs dashboard and controls to the web UI.
+
 ## [0.36.0](https://github.com/xiaofandegeng/rmemo/compare/v0.35.0...v0.36.0) (2026-02-20)
 
 

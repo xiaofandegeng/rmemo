@@ -239,4 +239,47 @@ describe("Action Jobs Lifecycle", () => {
             try { await fs.rm(root, { recursive: true, force: true }); } catch (e) { }
         }
     });
+
+    it('should process a large batch job (>200 items) and persist correctly', async () => {
+        const root = await makeTempRepo("rmemo-test-action-jobs-large-");
+        try {
+            const actionsDir = path.join(root, ".repo-memory", "ws-focus", "actions");
+            await fs.mkdir(actionsDir, { recursive: true });
+
+            const actionId = "act-large-test";
+            const fakeAction = {
+                schema: 1,
+                actionId,
+                plan: {
+                    title: "Large Plan",
+                    tasks: Array.from({ length: 250 }, (_, i) => ({ id: `t${i}`, kind: "todo", text: `Stress Task ${i}` }))
+                }
+            };
+            await writeJson(path.join(actionsDir, `${actionId}.json`), fakeAction);
+
+            // Enqueue job with batch size 50
+            const enqueueResult = await enqueueWorkspaceFocusAlertsActionJob(root, {
+                actionId,
+                batchSize: 50
+            });
+
+            const jobId = enqueueResult.id;
+
+            // Wait until done
+            let job = enqueueResult;
+            let retries = 100; // max 10s wait
+            while (retries-- > 0) {
+                job = await getWorkspaceFocusAlertsActionJob(root, jobId);
+                if (job.status === "succeeded" || job.status === "failed") break;
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            assert.strictEqual(job.status, "succeeded", "Large job should succeed");
+            assert.strictEqual(job.state.processedCount, 250, "Should process all 250 items");
+            assert.strictEqual(job.state.successCount, 250, "Should succeed all 250 items");
+            assert.strictEqual(job.state.resumeToken, 250, "Resume token should be 250");
+        } finally {
+            try { await fs.rm(root, { recursive: true, force: true }); } catch (e) { }
+        }
+    });
 });
