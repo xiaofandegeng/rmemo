@@ -448,6 +448,12 @@ rmemo ws alerts action-apply --format json --action <actionId> --include-blocker
 rmemo ws alerts board create --format json --action <actionId> --title "daily board"
 rmemo ws alerts board list --format json --limit 20
 rmemo ws alerts board show --format json --board <boardId>
+rmemo ws alerts board remove --format json --board <boardId> --item <itemId>
+rmemo ws action-jobs list --format json --limit 20
+rmemo ws action-jobs show --format json --job <jobId>
+rmemo ws action-jobs pause --format json --job <jobId>
+rmemo ws action-jobs resume --format json --job <jobId>
+rmemo ws action-jobs cancel --format json --job <jobId>
 rmemo ws alerts board update --format json --board <boardId> --item <itemId> --status doing --note "started"
 rmemo ws alerts board report --format json --board <boardId> --max-items 20
 rmemo ws alerts board close --format json --board <boardId> --reason "done" --force
@@ -577,3 +583,16 @@ rmemo --root . init --auto
 - v0.2: better heuristics for monorepos, miniapp projects, and API contracts
 - v0.3: `rmemo check` to enforce structure/rules (CI + git hook)
 - v0.4: VS Code extension (quick log + generate/print context)
+
+## SRE & Publish Runbook
+
+Since `v0.40.0`, all package publishing occurs automatically via the `.github/workflows/release-please.yml` pipeline.
+If the pipeline fails, it will attempt to dump a JSON diagnostics payload to the Action logs.
+
+**Manual Fallback Publishing (Emergency Only)**
+If GitHub Actions is down or npm tokens are expired, a manual release requires administrator privileges:
+1. Generate diagnostics to ensure your local environment is sound: `rmemo diagnostics export` Check that `npm identity` matches the org owner.
+2. Checkout the `main` branch and pull latest changes.
+3. Verify tests pass: `node --test`
+4. Publish: `npm publish`
+5. Create a GitHub release from the local tag.
