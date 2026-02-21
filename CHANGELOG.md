@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.37.3](https://github.com/xiaofandegeng/rmemo/compare/v0.37.2...v0.37.3) (2026-02-21)
+
+
+### 📚 Documentation
+
+* add v1.0 chapter with completion audit and release gates ([36c7d46](https://github.com/xiaofandegeng/rmemo/commit/36c7d467e391731bb6bda9d78f058c34dacc9c20))
+
 ## [0.37.2](https://github.com/xiaofandegeng/rmemo/compare/v0.37.1...v0.37.2) (2026-02-21)
 
 
