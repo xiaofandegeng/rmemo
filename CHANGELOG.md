@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## [1.0.0] - 2026-02-21
+
+- **Stability Contract Milestone**: All CLI commands, HTTP endpoints, and MCP Schemas have been frozen. Backwards compatibility for `.repo-memory/` formats and AI payloads is formally guaranteed for all 1.x releases.
+- Add `UPGRADING_TO_1_0.md` Migration Guide to document seamless upgrades from 0.3x environments.
+- Stabilized failure governance payloads with JSON CI/CD exports (`node bin/rmemo.js diagnostics export --format json`) integrated into PR assistant and GitHub pipelines.
+- Consolidated release pipeline using `release-please` for NPM dry-run validation and GitHub robust releases.
+
+## [v0.39.0] - 2026-02-21
 
 - Add `rmemo sync` to generate AI tool instruction files from `.repo-memory/`.
 - Add `.repo-memory/config.json` and `rmemo setup` (one-time hooks + config).
