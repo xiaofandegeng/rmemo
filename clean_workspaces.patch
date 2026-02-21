@@ -1,0 +1,4 @@
+diff --git a/src/core/workspaces.js b/src/core/workspaces.js
+index 43a38da..e293149 100644
+--- a/src/core/workspaces.js
++++ b/src/core/workspaces.js

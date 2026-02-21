@@ -1,0 +1,391 @@
+diff --git a/src/core/workspaces.js b/src/core/workspaces.js
+index 43a38da..e293149 100644
+--- a/src/core/workspaces.js
++++ b/src/core/workspaces.js
+@@ -2,9 +2,9 @@ import path from "node:path";
+ import fs from "node:fs/promises";
+ import { scanRepo } from "./scan.js";
+ import { generateFocus } from "./focus.js";
+-import { addTodoBlocker, addTodoNext } from "./todos.js";
++import { addTodoNext, addTodoBlocker } from "./todos.js";
+ import { appendJournalEntry } from "./journal.js";
+-import { fileExists, readJson, writeJson } from "../lib/io.js";
++import { readJson, writeJson, ensureDir, fileExists, readJsonSafe } from "../lib/io.js";
+ import {
+   wsFocusAlertsActionPath,
+   wsFocusAlertsActionsDir,
+@@ -145,13 +145,13 @@ export async function batchWorkspaceFocus(
+ function makeSnapshotId() {
+   const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+   const rand = Math.random().toString(36).slice(2, 8);
+-  return `${iso}-${rand}`;
++  return `${iso} -${rand} `;
+ }
+ 
+ function makeReportId() {
+   const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+   const rand = Math.random().toString(36).slice(2, 8);
+-  return `rpt-${iso}-${rand}`;
++  return `rpt - ${iso} -${rand} `;
+ }
+ 
+ async function readWsFocusIndex(root) {
+@@ -333,19 +333,19 @@ function scoreChange(c) {
+ function markdownFromReport(r, { maxItems = 50 } = {}) {
+   const lines = [];
+   lines.push("# Workspace Focus Drift Report\n");
+-  lines.push(`Generated: ${r.generatedAt}\n`);
++  lines.push(`Generated: ${r.generatedAt} \n`);
+   lines.push(`From: ${r.from.id} (${r.from.createdAt})`);
+-  lines.push(`To: ${r.to.id} (${r.to.createdAt})\n`);
++  lines.push(`To: ${r.to.id} (${r.to.createdAt}) \n`);
+   lines.push(`Query: "${r.query || ""}"`);
+-  lines.push(`Mode: ${r.mode || ""}\n`);
++  lines.push(`Mode: ${r.mode || ""} \n`);
+   lines.push("## Summary\n");
+-  lines.push(`- changedCount: ${r.summary.changedCount}`);
+-  lines.push(`- increased: ${r.summary.increased}`);
+-  lines.push(`- decreased: ${r.summary.decreased}`);
+-  lines.push(`- regressedErrors: ${r.summary.regressedErrors}`);
+-  lines.push(`- recovered: ${r.summary.recovered}`);
+-  lines.push(`- added: ${r.summary.added}`);
+-  lines.push(`- removed: ${r.summary.removed}\n`);
++  lines.push(`- changedCount: ${r.summary.changedCount} `);
++  lines.push(`- increased: ${r.summary.increased} `);
++  lines.push(`- decreased: ${r.summary.decreased} `);
++  lines.push(`- regressedErrors: ${r.summary.regressedErrors} `);
++  lines.push(`- recovered: ${r.summary.recovered} `);
++  lines.push(`- added: ${r.summary.added} `);
++  lines.push(`- removed: ${r.summary.removed} \n`);
+   lines.push("## Top Drift\n");
+   const top = Array.isArray(r.topChanges) ? r.topChanges.slice(0, Math.max(1, Number(maxItems || 50))) : [];
+   if (!top.length) {
+@@ -353,7 +353,7 @@ function markdownFromReport(r, { maxItems = 50 } = {}) {
+     return lines.join("\n");
+   }
+   for (const c of top) {
+-    lines.push(`- ${c.dir}: ${c.changeType} prev=${c.previous?.hits ?? "-"} -> cur=${c.current?.hits ?? "-"} (delta=${c.deltaHits}, score=${c.impactScore})`);
++    lines.push(`- ${c.dir}: ${c.changeType} prev = ${c.previous?.hits ?? "-"} -> cur=${c.current?.hits ?? "-"} (delta = ${c.deltaHits}, score = ${c.impactScore})`);
+   }
+   lines.push("");
+   return lines.join("\n");
+@@ -478,7 +478,7 @@ export async function getWorkspaceFocusReport(root, id) {
+ }
+ 
+ function normalizeTrendKey(query, mode) {
+-  return `${String(mode || "").trim()}::${String(query || "").trim()}`;
++  return `${String(mode || "").trim()}::${String(query || "").trim()} `;
+ }
+ 
+ function splitTrendKey(key) {
+@@ -655,9 +655,9 @@ export async function evaluateWorkspaceFocusAlerts(root, { limitGroups = 20, lim
+     const level = computeAlertLevel({ regressedErrors, avgChangedCount, maxChangedCount }, cfg);
+     if (level === "none") continue;
+     const reasons = [];
+-    if (regressedErrors > cfg.maxRegressedErrors) reasons.push(`maxRegressedErrors ${regressedErrors} > ${cfg.maxRegressedErrors}`);
+-    if (maxChangedCount > cfg.maxChangedCount) reasons.push(`maxChangedCount ${maxChangedCount} > ${cfg.maxChangedCount}`);
+-    if (avgChangedCount > cfg.maxAvgChangedCount) reasons.push(`avgChangedCount ${avgChangedCount} > ${cfg.maxAvgChangedCount}`);
++    if (regressedErrors > cfg.maxRegressedErrors) reasons.push(`maxRegressedErrors ${regressedErrors} > ${cfg.maxRegressedErrors} `);
++    if (maxChangedCount > cfg.maxChangedCount) reasons.push(`maxChangedCount ${maxChangedCount} > ${cfg.maxChangedCount} `);
++    if (avgChangedCount > cfg.maxAvgChangedCount) reasons.push(`avgChangedCount ${avgChangedCount} > ${cfg.maxAvgChangedCount} `);
+     alerts.push({
+       key: g.key,
+       query: g.query,
+@@ -703,7 +703,7 @@ async function readWorkspaceFocusAlertsHistory(root) {
+ function makeAlertsIncidentId() {
+   const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+   const rand = Math.random().toString(36).slice(2, 8);
+-  return `alrt-${iso}-${rand}`;
++  return `alrt - ${iso} -${rand} `;
+ }
+ 
+ function simplifyAlert(a) {
+@@ -821,16 +821,16 @@ function markdownFromRca(rca) {
+   const lines = [];
+   lines.push("# Workspace Alerts RCA");
+   lines.push("");
+-  lines.push(`- generatedAt: ${rca.generatedAt}`);
+-  lines.push(`- incidentId: ${rca.anchor?.id || "-"}`);
+-  lines.push(`- keyFilter: ${rca.keyFilter || "(none)"}`);
+-  lines.push(`- windowSize: ${rca.window?.length || 0}`);
++  lines.push(`- generatedAt: ${rca.generatedAt} `);
++  lines.push(`- incidentId: ${rca.anchor?.id || "-"} `);
++  lines.push(`- keyFilter: ${rca.keyFilter || "(none)"} `);
++  lines.push(`- windowSize: ${rca.window?.length || 0} `);
+   lines.push("");
+   lines.push("## Window Summary");
+-  lines.push(`- high: ${rca.stats?.levelCount?.high ?? 0}`);
+-  lines.push(`- medium: ${rca.stats?.levelCount?.medium ?? 0}`);
+-  lines.push(`- maxRegressedErrors: ${rca.stats?.maxRegressed ?? 0}`);
+-  lines.push(`- maxChangedCount: ${rca.stats?.maxChanged ?? 0}`);
++  lines.push(`- high: ${rca.stats?.levelCount?.high ?? 0} `);
++  lines.push(`- medium: ${rca.stats?.levelCount?.medium ?? 0} `);
++  lines.push(`- maxRegressedErrors: ${rca.stats?.maxRegressed ?? 0} `);
++  lines.push(`- maxChangedCount: ${rca.stats?.maxChanged ?? 0} `);
+   lines.push("");
+   lines.push("## Top Reasons");
+   if (!rca.stats?.topReasons?.length) lines.push("- (none)");
+@@ -841,7 +841,7 @@ function markdownFromRca(rca) {
+   else for (const k of rca.stats.hotKeys) lines.push(`- ${k.key} (${k.count})`);
+   lines.push("");
+   lines.push("## Recommendations");
+-  for (const x of rca.recommendations || []) lines.push(`- ${x}`);
++  for (const x of rca.recommendations || []) lines.push(`- ${x} `);
+   lines.push("");
+   return lines.join("\n") + "\n";
+ }
+@@ -876,12 +876,12 @@ export async function generateWorkspaceFocusAlertsRca(root, { incidentId = "", k
+ function makeAlertsActionId() {
+   const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+   const rand = Math.random().toString(36).slice(2, 8);
+-  return `act-${iso}-${rand}`;
++  return `act - ${iso} -${rand} `;
+ }
+ 
+ function toActionTask(text, { kind = "next", source = "rca" } = {}) {
+   return {
+-    id: `task-${Math.random().toString(36).slice(2, 10)}`,
++    id: `task - ${Math.random().toString(36).slice(2, 10)} `,
+     kind: String(kind || "next"),
+     text: String(text || "").trim(),
+     source: String(source || "rca")
+@@ -907,7 +907,7 @@ function buildAlertsActionPlanFromRca(rca) {
+   const dedup = new Set();
+   const uniq = [];
+   for (const t of tasks) {
+-    const key = `${t.kind}::${t.text}`;
++    const key = `${t.kind}::${t.text} `;
+     if (!t.text || dedup.has(key)) continue;
+     dedup.add(key);
+     uniq.push(t);
+@@ -930,19 +930,19 @@ function markdownFromAlertsActionPlan(plan) {
+   const lines = [];
+   lines.push("# Workspace Alerts Action Plan");
+   lines.push("");
+-  lines.push(`- generatedAt: ${plan.generatedAt}`);
+-  lines.push(`- anchorIncident: ${plan.rcaAnchor?.id || "-"}`);
+-  lines.push(`- tasks: ${plan.summary?.totalTasks || 0}`);
++  lines.push(`- generatedAt: ${plan.generatedAt} `);
++  lines.push(`- anchorIncident: ${plan.rcaAnchor?.id || "-"} `);
++  lines.push(`- tasks: ${plan.summary?.totalTasks || 0} `);
+   lines.push("");
+   lines.push("## Next");
+   const next = (plan.tasks || []).filter((x) => x.kind === "next");
+   if (!next.length) lines.push("- (none)");
+-  else for (const t of next) lines.push(`- ${t.text}`);
++  else for (const t of next) lines.push(`- ${t.text} `);
+   lines.push("");
+   lines.push("## Blockers");
+   const blockers = (plan.tasks || []).filter((x) => x.kind === "blocker");
+   if (!blockers.length) lines.push("- (none)");
+-  else for (const t of blockers) lines.push(`- ${t.text}`);
++  else for (const t of blockers) lines.push(`- ${t.text} `);
+   lines.push("");
+   return lines.join("\n") + "\n";
+ }
+@@ -1047,11 +1047,11 @@ export async function applyWorkspaceFocusAlertsActionPlan(root, { id = "", inclu
+   let journalPath = null;
+   if (!noLog) {
+     const lines = [];
+-    lines.push(`Applied workspace alerts action plan: ${doc.id}`);
+-    lines.push(`Tasks appended: next=${applied.next.length}, blockers=${applied.blockers.length}`);
+-    if (doc.plan?.rcaAnchor?.id) lines.push(`Anchor incident: ${doc.plan.rcaAnchor.id}`);
+-    if (applied.next.length) lines.push(`Next: ${applied.next.join(" | ")}`);
+-    if (applied.blockers.length) lines.push(`Blockers: ${applied.blockers.join(" | ")}`);
++    lines.push(`Applied workspace alerts action plan: ${doc.id} `);
++    lines.push(`Tasks appended: next = ${applied.next.length}, blockers = ${applied.blockers.length} `);
++    if (doc.plan?.rcaAnchor?.id) lines.push(`Anchor incident: ${doc.plan.rcaAnchor.id} `);
++    if (applied.next.length) lines.push(`Next: ${applied.next.join(" | ")} `);
++    if (applied.blockers.length) lines.push(`Blockers: ${applied.blockers.join(" | ")} `);
+     journalPath = await appendJournalEntry(root, { kind: "WS Alerts Plan", text: lines.join("\n") });
+   }
+   return {
+@@ -1071,7 +1071,7 @@ const ACTION_BOARD_STATUSES = new Set(["todo", "doing", "done", "blocked"]);
+ function makeAlertsBoardId() {
+   const iso = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+   const rand = Math.random().toString(36).slice(2, 8);
+-  return `brd-${iso}-${rand}`;
++  return `brd - ${iso} -${rand} `;
+ }
+ 
+ function normalizeBoardStatus(status) {
+@@ -1100,7 +1100,7 @@ function boardPriority(a) {
+ 
+ function toBoardItem(task, idx) {
+   return {
+-    id: `item-${String(task?.id || idx + 1)}`,
++    id: `item - ${String(task?.id || idx + 1)} `,
+     taskId: String(task?.id || ""),
+     kind: String(task?.kind || "next"),
+     text: String(task?.text || ""),
+@@ -1142,7 +1142,7 @@ export async function createWorkspaceFocusAlertsBoard(root, { actionId = "", tit
+     closedAt: null,
+     closeReason: "",
+     root,
+-    title: String(title || "").trim() || `Action Board ${aid}`,
++    title: String(title || "").trim() || `Action Board ${aid} `,
+     actionId: aid,
+     rcaAnchor: action?.plan?.rcaAnchor || null,
+     summary: boardSummary(items),
+@@ -1269,13 +1269,13 @@ export async function generateWorkspaceFocusAlertsBoardReport(root, { boardId =
+     completedPreview: done
+   };
+   const lines = [];
+-  lines.push(`# Workspace Alerts Board Report ${board.id}`);
++  lines.push(`# Workspace Alerts Board Report ${board.id} `);
+   lines.push("");
+-  lines.push(`- title: ${board.title || "-"}`);
+-  lines.push(`- actionId: ${board.actionId || "-"}`);
+-  lines.push(`- createdAt: ${board.createdAt || "-"}`);
+-  lines.push(`- updatedAt: ${board.updatedAt || "-"}`);
+-  lines.push(`- closedAt: ${board.closedAt || "-"}`);
++  lines.push(`- title: ${board.title || "-"} `);
++  lines.push(`- actionId: ${board.actionId || "-"} `);
++  lines.push(`- createdAt: ${board.createdAt || "-"} `);
++  lines.push(`- updatedAt: ${board.updatedAt || "-"} `);
++  lines.push(`- closedAt: ${board.closedAt || "-"} `);
+   lines.push(`- progress: ${summary.done}/${summary.total} (${percent}%)`);
+   lines.push(`- status: todo=${summary.todo} doing=${summary.doing} blocked=${summary.blocked} done=${summary.done}`);
+   if (board.closeReason) lines.push(`- closeReason: ${board.closeReason}`);
+@@ -1735,7 +1735,7 @@ function generateJobId() {
+   return "job_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
+ }
+ 
+-export async function enqueueWorkspaceFocusAlertsActionJob(root, { actionId, priority = "normal", batchSize = 10, retryPolicy = "standard" } = {}) {
++export async function enqueueWorkspaceFocusAlertsActionJob(root, { actionId, priority = "normal", batchSize = 10, retryPolicy = "standard", events } = {}) {
+   const actionsDir = wsFocusAlertsActionsDir(root);
+   const actionPath = path.join(actionsDir, `${actionId}.json`);
+   if (!(await fileExists(actionPath))) {
+@@ -1787,7 +1787,7 @@ export async function enqueueWorkspaceFocusAlertsActionJob(root, { actionId, pri
+   await writeJson(indexPath, index);
+ 
+   // Background execution
+-  processWorkspaceFocusAlertsActionJob(root, job.id).catch((err) => {
++  processWorkspaceFocusAlertsActionJob(root, job.id, { events }).catch((err) => {
+     console.error(`Action Job ${job.id} background execution failed:`, err);
+   });
+ 
+@@ -1799,7 +1799,7 @@ export async function listWorkspaceFocusAlertsActionJobs(root, { limit = 20 } =
+   if (!(await fileExists(indexPath))) {
+     return { schema: 1, jobs: [] };
+   }
+-  const index = await readJson(indexPath);
++  const index = await readJsonSafe(indexPath);
+   let jobs = Array.isArray(index.jobs) ? index.jobs : [];
+ 
+   // Sort by newest first
+@@ -1816,7 +1816,7 @@ export async function getWorkspaceFocusAlertsActionJob(root, jobId) {
+   if (!(await fileExists(jobPath))) {
+     throw new Error(`Action job not found: ${jobId}`);
+   }
+-  return await readJson(jobPath);
++  return await readJsonSafe(jobPath);
+ }
+ 
+ async function updateActionJobStatus(root, jobId, newStatus) {
+@@ -1825,7 +1825,7 @@ async function updateActionJobStatus(root, jobId, newStatus) {
+     throw new Error(`Action job not found: ${jobId}`);
+   }
+ 
+-  const job = await readJson(jobPath);
++  const job = await readJsonSafe(jobPath);
+   job.status = newStatus;
+   job.updatedAt = new Date().toISOString();
+   await writeJson(jobPath, job);
+@@ -1833,7 +1833,7 @@ async function updateActionJobStatus(root, jobId, newStatus) {
+   // Update index
+   const indexPath = wsFocusAlertsActionJobsIndexPath(root);
+   if (await fileExists(indexPath)) {
+-    const index = await readJson(indexPath);
++    const index = await readJsonSafe(indexPath);
+     const mapped = index.jobs?.find(j => j.id === jobId);
+     if (mapped) {
+       mapped.status = newStatus;
+@@ -1844,26 +1844,31 @@ async function updateActionJobStatus(root, jobId, newStatus) {
+   return job;
+ }
+ 
+-export async function pauseWorkspaceFocusAlertsActionJob(root, jobId) {
+-  return updateActionJobStatus(root, jobId, "paused");
++export async function pauseWorkspaceFocusAlertsActionJob(root, jobId, { events } = {}) {
++  const job = await updateActionJobStatus(root, jobId, "paused");
++  events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: "paused" });
++  return job;
+ }
+ 
+-export async function resumeWorkspaceFocusAlertsActionJob(root, jobId) {
++export async function resumeWorkspaceFocusAlertsActionJob(root, jobId, { events } = {}) {
+   const job = await updateActionJobStatus(root, jobId, "running");
++  events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: "running" });
+ 
+   // Kick off background execution again
+-  processWorkspaceFocusAlertsActionJob(root, job.id).catch((err) => {
++  processWorkspaceFocusAlertsActionJob(root, job.id, { events }).catch((err) => {
+     console.error(`Action Job ${job.id} resume execution failed:`, err);
+   });
+ 
+   return job;
+ }
+ 
+-export async function cancelWorkspaceFocusAlertsActionJob(root, jobId) {
+-  return updateActionJobStatus(root, jobId, "canceled");
++export async function cancelWorkspaceFocusAlertsActionJob(root, jobId, { events } = {}) {
++  const job = await updateActionJobStatus(root, jobId, "canceled");
++  events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: "canceled" });
++  return job;
+ }
+ 
+-export async function processWorkspaceFocusAlertsActionJob(root, jobId) {
++export async function processWorkspaceFocusAlertsActionJob(root, jobId, { events } = {}) {
+   let job = await getWorkspaceFocusAlertsActionJob(root, jobId);
+   if (job.status !== "running" && job.status !== "queued") {
+     return job; // Already paused, canceled, or finished
+@@ -1872,6 +1877,7 @@ export async function processWorkspaceFocusAlertsActionJob(root, jobId) {
+   // Mark running if queued
+   if (job.status === "queued") {
+     job = await updateActionJobStatus(root, jobId, "running");
++    events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: "running" });
+   }
+   if (!job.state.startedAt) {
+     job.state.startedAt = new Date().toISOString();
+@@ -1882,10 +1888,13 @@ export async function processWorkspaceFocusAlertsActionJob(root, jobId) {
+ 
+   while (job.state.resumeToken < job.tasks.length) {
+     // Re-read job state to check if it was paused or canceled externally (e.g. via UI/MCP)
+-    job = await getWorkspaceFocusAlertsActionJob(root, jobId);
+-    if (job.status !== "running") {
+-      return job; // Halted externally
++    const freshJob = await getWorkspaceFocusAlertsActionJob(root, jobId);
++    if (freshJob.status !== "running") {
++      events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: freshJob.status });
++      return freshJob; // Halted externally
+     }
++    // Sync external cancellations back to local job memory object
++    job.status = freshJob.status;
+ 
+     const batch = job.tasks.slice(job.state.resumeToken, job.state.resumeToken + batchSize);
+ 
+@@ -1914,6 +1923,15 @@ export async function processWorkspaceFocusAlertsActionJob(root, jobId) {
+     job.updatedAt = new Date().toISOString();
+     await writeJson(wsFocusAlertsActionJobPath(root, jobId), job);
+ 
++    events?.emit?.({
++      type: "ws:alerts:action-job:progress",
++      jobId,
++      processedCount: job.state.processedCount,
++      total: job.tasks.length,
++      successCount: job.state.successCount,
++      errorCount: job.state.errorCount
++    });
++
+     // Optional delay between batches to reduce load can be added here if retryPolicy dictates
+   }
+ 
+@@ -1925,6 +1943,7 @@ export async function processWorkspaceFocusAlertsActionJob(root, jobId) {
+ 
+   // Update index
+   await updateActionJobStatus(root, jobId, job.status);
++  events?.emit?.({ type: "ws:alerts:action-job:status", jobId, status: job.status });
+ 
+   return job;
+ }

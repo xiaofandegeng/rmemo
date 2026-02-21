@@ -26,6 +26,10 @@ All notable changes to this project will be documented in this file.
 - Expose Action Job control tools over MCP (`rmemo_ws_focus_action_jobs`, `rmemo_ws_focus_action_job_enqueue`, `rmemo_ws_focus_action_job_control`).
 - Add Action Jobs dashboard and controls to the web UI.
 
+- Add unified diagnostics model and HTTP endpoint `GET /diagnostics/export`.
+- Add `rmemo diagnostics export` CLI command and `rmemo_diagnostics_export` MCP Tool.
+- Expand `rmemo doctor` CLI command with npm authentication and Git configuration checks.
+
 ## [0.36.0](https://github.com/xiaofandegeng/rmemo/compare/v0.35.0...v0.36.0) (2026-02-20)
 
 

@@ -100,6 +100,8 @@ rmemo session
 rmemo serve
 rmemo mcp
 rmemo embed
+rmemo doctor
+rmemo diagnostics export
 ```
 
 ## Sync AI Tool Instructions
@@ -119,6 +121,49 @@ rmemo sync --check
 rmemo sync --targets agents,copilot,cursor
 rmemo sync --force
 ```
+
+```json
+{
+  "sync": {
+    "targets": ["agents", "copilot", "cursor"]
+  }
+}
+```
+
+## Observability & SRE Runbook
+
+`rmemo` now includes a unified diagnostic and observability model to help troubleshoot token setups, configuration drift, and system environments.
+
+### System Diagnostics
+
+Use `rmemo diagnostics export` to extract a complete, formatted snapshot of your local `rmemo` workspace limits and environment payload. 
+
+```bash
+rmemo diagnostics export --format json
+rmemo diagnostics export --format md
+```
+
+*This is exceptionally useful when reporting bugs or providing a context dump to an AI assistant.*
+
+### Environment Health Check
+
+If you are experiencing unexpected authentication, git, or binary path issues, run:
+
+```bash
+rmemo doctor
+```
+
+`rmemo doctor` validates:
+- **Binary Resolution**: Validates the executing binary matches the internal package runner.
+- **Git Configuration**: Ensures `user.name` and `user.email` are properly set.
+- **Auth & Release**: Checks for `npm` authentication and the presence of `GH_TOKEN` or `GITHUB_TOKEN`.
+- **Repo Config Parsing**: Verifies that your `.repo-memory/config.json` doesn't contain breaking syntax errors.
+
+---
+
+## Multiple Profiles
+
+If you work on different kinds of projects (e.g., Python vs Node.js vs Rust), you can use profiles.
 
 ## One-Time Setup (Recommended)
 
