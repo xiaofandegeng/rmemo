@@ -6,8 +6,17 @@
 
 文档：
 - [使用方式（配合 AI 开发）](./docs/USAGE.zh-CN.md)
-- [发布说明](./RELEASING.md)
+- [发版说明](./RELEASING.md)
 - [PR 自动化](./docs/PR_AUTOMATION.md)
+- [升级到 v1.0 指南](./docs/UPGRADING_TO_1_0.md)
+- [长期演进路线 (ZH)](./docs/LONG_TERM_ROADMAP.zh-CN.md)
+- [迭代开发看板 (ZH)](./docs/ITERATION_MASTER_PLAN.zh-CN.md)
+
+## 🛡 稳定性契约 (v1.0.0+)
+自 v1.0.0 起，`rmemo` 保证以下接口和行为的向后兼容性：
+- **CLI 命令**：命令字（如 `rmemo ws`, `rmemo embed`）及其对应参数不再更改或删除。只有重大版本升级（Major version）才会包含破坏性更改，次要版本（Minor version）仅允许附加新增参数。
+- **HTTP/MCP 接口**：响应体结构的向后兼容性受到严格保护。新字段可能被添加，但已被定义的字段类型不会被改变。
+- **存储格式**：`.repo-memory` 文件夹内的目录拓扑形态（如 `context.md`, `rules.md`, `todos.md`, `ws-focus/`）已被冻结。这确保外部自动化工作流对该格式解析的稳定预期。
 
 ## 为什么需要它
 

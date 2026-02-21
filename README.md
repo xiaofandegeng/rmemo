@@ -8,8 +8,15 @@ Docs:
 - [Usage (AI Workflow)](./docs/USAGE.md)
 - [Releasing](./RELEASING.md)
 - [PR Automation](./docs/PR_AUTOMATION.md)
+- [Upgrading to v1.0](./docs/UPGRADING_TO_1_0.md)
 - [Long-term Roadmap (ZH)](./docs/LONG_TERM_ROADMAP.zh-CN.md)
 - [Iteration Master Plan (ZH)](./docs/ITERATION_MASTER_PLAN.zh-CN.md)
+
+## 🛡 Stability Contract (v1.0.0+)
+From v1.0.0 onwards, `rmemo` guarantees the following:
+- **CLI Commands**: Command names (e.g. `rmemo ws`, `rmemo embed`) and their flags will not be removed or renamed without a major version bump. Additive flags are permitted in minor versions.
+- **HTTP/MCP APIs**: Response payloads will remain structurally backwards-compatible. New fields may be appended, but existing fields will remain typed identically. Breaking changes require a `v2.0.0` release.
+- **Storage Format**: `.repo-memory` folder structure (`context.md`, `rules.md`, `todos.md`, `ws-focus/`) is frozen. We guarantee seamless parsing for downstream workflow integrations.
 
 ## Why
 
