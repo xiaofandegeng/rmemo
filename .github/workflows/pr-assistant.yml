@@ -101,3 +101,10 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
+
+      - name: Output Diagnostic Envelope on Failure
+        if: failure()
+        run: |
+          echo "::group::Rmemo Diagnostics Dump"
+          node ./bin/rmemo.js diagnostics export --format json || echo "Failed to run diagnostics."
+          echo "::endgroup::"
