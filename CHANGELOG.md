@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.37.2](https://github.com/xiaofandegeng/rmemo/compare/v0.37.1...v0.37.2) (2026-02-21)
+
+
+### 📚 Documentation
+
+* add v1.0.0 stability contract and migration guide ([d5e0f09](https://github.com/xiaofandegeng/rmemo/commit/d5e0f09d88a4fcfd84386ba7eecb13eff7759799))
+
+
+### 🧹 Chores
+
+* freeze master plan checkboxes ([923157a](https://github.com/xiaofandegeng/rmemo/commit/923157a3d3868e4ed0f3291cbfc909947f299665))
+* prepare for v1.0.0 stability contract release ([b8705e8](https://github.com/xiaofandegeng/rmemo/commit/b8705e8f01ec464adaf20f60b52782f4c2179e3d))
+
 ## [1.0.0] - 2026-02-21
 
 - **Stability Contract Milestone**: All CLI commands, HTTP endpoints, and MCP Schemas have been frozen. Backwards compatibility for `.repo-memory/` formats and AI payloads is formally guaranteed for all 1.x releases.
