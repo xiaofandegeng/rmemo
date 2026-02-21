@@ -63,7 +63,13 @@ import {
   saveWorkspaceFocusAlertsActionPlan,
   updateWorkspaceFocusAlertsBoardItem,
   getWorkspaceFocusAlertsBoardPolicy,
-  setWorkspaceFocusAlertsBoardPolicy
+  setWorkspaceFocusAlertsBoardPolicy,
+  enqueueWorkspaceFocusAlertsActionJob,
+  listWorkspaceFocusAlertsActionJobs,
+  getWorkspaceFocusAlertsActionJob,
+  pauseWorkspaceFocusAlertsActionJob,
+  resumeWorkspaceFocusAlertsActionJob,
+  cancelWorkspaceFocusAlertsActionJob
 } from "./workspaces.js";
 
 function json(res, code, obj) {
@@ -114,6 +120,8 @@ function sseWrite(res, { event, data, id } = {}) {
   res.write(s);
 }
 
+import { formatDiagnosticEvent, exportWorkspaceDiagnostics } from "./diagnostics.js";
+
 function ssePing(res) {
   // Comment line keeps the connection alive without firing an event handler.
   res.write(`: ping ${Date.now()}\n\n`);
@@ -130,6 +138,7 @@ function eventToMdLine(e) {
 }
 
 async function buildDiagnostics(root, { events, watchState, limitEvents = 200, recentDays = 7, snipLines = 120 } = {}) {
+  const sysDiag = await exportWorkspaceDiagnostics(root);
   const status = await buildStatus(root, { format: "json", mode: "full", recentDays, snipLines });
   const hist = (events?.history?.() || []).slice(-Math.min(2000, Math.max(1, Number(limitEvents || 200))));
   const watch = {
@@ -146,7 +155,8 @@ async function buildDiagnostics(root, { events, watchState, limitEvents = 200, r
     }
   };
   return {
-    schema: 1,
+    ...sysDiag,
+    formatVersion: 2,
     generatedAt: new Date().toISOString(),
     root,
     watch,
@@ -539,6 +549,18 @@ export function createServeHandler(root, opts = {}) {
           lines.push(`- generatedAt: ${d.generatedAt}`);
           lines.push(`- root: ${d.root}`);
           lines.push(`- events: ${d.events.length}`);
+          lines.push(`- node: ${d.environment?.nodeVersion || "unknown"}`);
+          lines.push(`- platform: ${d.environment?.platform || "unknown"} ${d.environment?.arch || ""}`);
+          lines.push("");
+          lines.push("## Configs");
+          lines.push(`- rules.md exists: ${!!d.files?.rulesExists}`);
+          lines.push(`- config.json exists: ${!!d.files?.configExists}`);
+          lines.push(`- manifest.json exists: ${!!d.files?.manifestExists}`);
+          if (d.config) {
+            lines.push("```json");
+            lines.push(JSON.stringify(d.config, null, 2));
+            lines.push("```");
+          }
           lines.push("");
           lines.push("## Watch");
           lines.push(`- enabled: ${d.watch.enabled}`);
@@ -1587,6 +1609,52 @@ export function createServeHandler(root, opts = {}) {
           blockers: out.applied?.blockers?.length || 0
         });
         return json(res, 200, { ok: true, result: out });
+      }
+
+      // --- Action Jobs ---
+      if (req.method === "GET" && url.pathname.startsWith("/ws/focus/alerts/action-jobs")) {
+        // GET /ws/focus/alerts/action-jobs/events 
+        // We will implement SSE in Sprint 3. For now, pass.
+
+        let match = url.pathname.match(/^\/ws\/focus\/alerts\/action-jobs\/([^/]+)$/);
+        if (match) {
+          const out = await getWorkspaceFocusAlertsActionJob(root, match[1]);
+          return json(res, 200, out);
+        }
+
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const out = await listWorkspaceFocusAlertsActionJobs(root, { limit });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "POST" && url.pathname.startsWith("/ws/focus/alerts/action-jobs")) {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+
+        if (url.pathname === "/ws/focus/alerts/action-jobs") {
+          const body = await readBodyJsonOr400(req, res);
+          if (!body) return;
+          if (!body.actionId) return badRequest(res, "Missing actionId");
+          const out = await enqueueWorkspaceFocusAlertsActionJob(root, {
+            actionId: String(body.actionId),
+            priority: body.priority,
+            batchSize: body.batchSize,
+            retryPolicy: body.retryPolicy,
+            events
+          });
+          return json(res, 200, out);
+        }
+
+        let match = url.pathname.match(/^\/ws\/focus\/alerts\/action-jobs\/([^/]+)\/(pause|resume|cancel)$/);
+        if (match) {
+          const jobId = match[1];
+          const action = match[2];
+          let out;
+          if (action === "pause") out = await pauseWorkspaceFocusAlertsActionJob(root, jobId, { events });
+          else if (action === "resume") out = await resumeWorkspaceFocusAlertsActionJob(root, jobId, { events });
+          else if (action === "cancel") out = await cancelWorkspaceFocusAlertsActionJob(root, jobId, { events });
+
+          return json(res, 200, out);
+        }
       }
 
       if (req.method === "POST" && url.pathname === "/ws/focus/alerts/board-create") {

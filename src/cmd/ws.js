@@ -43,7 +43,13 @@ import {
   saveWorkspaceFocusSnapshot,
   updateWorkspaceFocusAlertsBoardItem,
   getWorkspaceFocusAlertsBoardPolicy,
-  setWorkspaceFocusAlertsBoardPolicy
+  setWorkspaceFocusAlertsBoardPolicy,
+  enqueueWorkspaceFocusAlertsActionJob,
+  listWorkspaceFocusAlertsActionJobs,
+  getWorkspaceFocusAlertsActionJob,
+  pauseWorkspaceFocusAlertsActionJob,
+  resumeWorkspaceFocusAlertsActionJob,
+  cancelWorkspaceFocusAlertsActionJob
 } from "../core/workspaces.js";
 import { ensureRepoMemory } from "../core/memory.js";
 import { wsSummaryPath } from "../lib/paths.js";
@@ -797,6 +803,103 @@ export async function cmdWs({ rest, flags }) {
       }
       const out = await applyWorkspaceFocusAlertsActionPlan(root, { id: actionId, includeBlockers, noLog, maxTasks });
       process.stdout.write(format === "json" ? JSON.stringify(out, null, 2) + "\n" : `Applied action ${out.actionId}: next=${out.applied?.next?.length || 0}, blockers=${out.applied?.blockers?.length || 0}\n`);
+      return;
+    }
+    if (op === "action-job") {
+      const jobOp = String(rest[2] || "").trim();
+      if (jobOp === "enqueue") {
+        if (!actionId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job enqueue --action <id> [--priority normal] [--batch-size 10] [--retry-policy standard]\n");
+          process.exitCode = 2;
+          return;
+        }
+        const priority = flags.priority || "normal";
+        const batchSize = Number(flags["batch-size"] || 10);
+        const retryPolicy = flags["retry-policy"] || "standard";
+
+        const out = await enqueueWorkspaceFocusAlertsActionJob(root, { actionId, priority, batchSize, retryPolicy });
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Enqueued Action Job ${out.id} for action ${out.actionId}\n`);
+        return;
+      }
+      if (jobOp === "list") {
+        const limit = Number(flags.limit || 20);
+        const out = await listWorkspaceFocusAlertsActionJobs(root, { limit });
+        if (format === "json") {
+          process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        } else {
+          const lines = ["# Workspace Alerts Action Jobs\n", `Root: ${root}\n`];
+          if (!out.jobs?.length) lines.push("No action jobs found.\n");
+          else {
+            for (const j of out.jobs) {
+              lines.push(`- ${j.id} [${j.status}] action=${j.actionId} @ ${j.createdAt}`);
+            }
+            lines.push("");
+          }
+          process.stdout.write(lines.join("\n"));
+        }
+        return;
+      }
+      if (jobOp === "show") {
+        const jobId = rest[3];
+        if (!jobId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job show <jobId>\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await getWorkspaceFocusAlertsActionJob(root, jobId);
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else {
+          const lines = [
+            `# Action Job ${out.id}`,
+            `Action: ${out.actionId}`,
+            `Status: ${out.status}`,
+            `Progress: ${out.state.processedCount} / ${out.tasks.length} (Success: ${out.state.successCount}, Err: ${out.state.errorCount})`,
+            `Created: ${out.createdAt}`,
+            `Updated: ${out.updatedAt}`
+          ];
+          process.stdout.write(lines.join("\n") + "\n");
+        }
+        return;
+      }
+      if (jobOp === "pause") {
+        const jobId = rest[3];
+        if (!jobId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job pause <jobId>\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await pauseWorkspaceFocusAlertsActionJob(root, jobId);
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Job ${out.id} paused.\n`);
+        return;
+      }
+      if (jobOp === "resume") {
+        const jobId = rest[3];
+        if (!jobId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job resume <jobId>\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await resumeWorkspaceFocusAlertsActionJob(root, jobId);
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Job ${out.id} resumed.\n`);
+        return;
+      }
+      if (jobOp === "cancel") {
+        const jobId = rest[3];
+        if (!jobId) {
+          process.stderr.write("Usage: rmemo ws alerts action-job cancel <jobId>\n");
+          process.exitCode = 2;
+          return;
+        }
+        const out = await cancelWorkspaceFocusAlertsActionJob(root, jobId);
+        if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+        else process.stdout.write(`Job ${out.id} canceled.\n`);
+        return;
+      }
+      process.stderr.write("Usage: rmemo ws alerts action-job <enqueue|list|show|pause|resume|cancel>\n");
+      process.exitCode = 2;
       return;
     }
     if (op === "board") {

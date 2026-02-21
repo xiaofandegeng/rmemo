@@ -435,6 +435,16 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <button class="btn secondary" id="closeWsAlertsBoard">WS Alerts Board Close</button>
               </div>
               <div style="height: 8px;"></div>
+              <div class="row" style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; border: 1px solid var(--border);">
+                <input id="wsActionJobId" type="text" placeholder="action job id" style="width: 250px;" />
+                <input id="wsActionJobLimit" type="number" min="1" step="1" placeholder="limit" style="width: 80px;" value="20" />
+                <button class="btn secondary" id="loadWsAlertsActionJobs">Action Jobs List</button>
+                <button class="btn secondary" id="showWsAlertsActionJob">Show Job</button>
+                <button class="btn secondary" id="pauseWsAlertsActionJob">Pause</button>
+                <button class="btn secondary" id="resumeWsAlertsActionJob">Resume</button>
+                <button class="btn secondary" id="cancelWsAlertsActionJob">Cancel</button>
+              </div>
+              <div style="height: 8px;"></div>
               <div class="row">
                 <span style="font-size: 13px; margin-right: 4px;">Global Policy:</span>
                 <select id="wsPulsePolicyGlobal" style="width: 100px;">
@@ -1149,6 +1159,63 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         qs("#title").textContent = "Workspace Alerts Board Pulse History";
       }
 
+      // --- Action Jobs ---
+      async function loadWsAlertsActionJobs() {
+        err(""); msg("Loading workspace alerts action jobs...");
+        const limit = Number((qs("#wsActionJobLimit").value || "").trim() || 20);
+        const j = await apiFetch("/ws/focus/alerts/action-jobs?limit=" + encodeURIComponent(String(limit)), { accept: "application/json", json: true });
+        const first = j && Array.isArray(j.jobs) && j.jobs.length ? j.jobs[0] : null;
+        if (first && first.id) qs("#wsActionJobId").value = first.id;
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Jobs";
+      }
+
+      async function showWsAlertsActionJob() {
+        err(""); msg("Loading workspace alerts action job...");
+        const id = (qs("#wsActionJobId").value || "").trim();
+        if (!id) return msg("Missing job id.");
+        const j = await apiFetch("/ws/focus/alerts/action-jobs/" + encodeURIComponent(id), { accept: "application/json", json: true });
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Job Details";
+      }
+
+      async function pauseWsAlertsActionJob() {
+        err(""); msg("Pausing workspace alerts action job...");
+        const id = (qs("#wsActionJobId").value || "").trim();
+        if (!id) return msg("Missing job id.");
+        const j = await apiPost("/ws/focus/alerts/action-jobs/" + encodeURIComponent(id) + "/pause", {});
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Job Paused";
+      }
+
+      async function resumeWsAlertsActionJob() {
+        err(""); msg("Resuming workspace alerts action job...");
+        const id = (qs("#wsActionJobId").value || "").trim();
+        if (!id) return msg("Missing job id.");
+        const j = await apiPost("/ws/focus/alerts/action-jobs/" + encodeURIComponent(id) + "/resume", {});
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Job Resumed";
+      }
+
+      async function cancelWsAlertsActionJob() {
+        err(""); msg("Canceling workspace alerts action job...");
+        const id = (qs("#wsActionJobId").value || "").trim();
+        if (!id) return msg("Missing job id.");
+        const j = await apiPost("/ws/focus/alerts/action-jobs/" + encodeURIComponent(id) + "/cancel", {});
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        msg("OK");
+        qs("#title").textContent = "Workspace Alerts Action Job Canceled";
+      }
+
       async function runWsAlertsBoardPulsePlan() {
         err(""); msg("Generating workspace alerts board pulse plan...");
         const rawTodo = (qs("#wsPulseTodoHours").value || "").trim();
@@ -1774,6 +1841,11 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadWsAlertsBoardPulseHistory").addEventListener("click", () => loadWsAlertsBoardPulseHistory().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsAlertsBoardPolicy").addEventListener("click", () => loadWsAlertsBoardPolicy().catch((e) => { err(String(e)); msg(""); }));
       qs("#saveWsAlertsBoardPolicy").addEventListener("click", () => saveWsAlertsBoardPolicy().catch((e) => { err(String(e)); msg(""); }));
+      qs("#loadWsAlertsActionJobs").addEventListener("click", () => loadWsAlertsActionJobs().catch((e) => { err(String(e)); msg(""); }));
+      qs("#showWsAlertsActionJob").addEventListener("click", () => showWsAlertsActionJob().catch((e) => { err(String(e)); msg(""); }));
+      qs("#pauseWsAlertsActionJob").addEventListener("click", () => pauseWsAlertsActionJob().catch((e) => { err(String(e)); msg(""); }));
+      qs("#resumeWsAlertsActionJob").addEventListener("click", () => resumeWsAlertsActionJob().catch((e) => { err(String(e)); msg(""); }));
+      qs("#cancelWsAlertsActionJob").addEventListener("click", () => cancelWsAlertsActionJob().catch((e) => { err(String(e)); msg(""); }));
       qs("#addTodo").addEventListener("click", () => addTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#rmTodo").addEventListener("click", () => rmTodo().catch((e) => { err(String(e)); msg(""); }));
       qs("#addLog").addEventListener("click", () => addLog().catch((e) => { err(String(e)); msg(""); }));

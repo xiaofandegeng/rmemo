@@ -9,7 +9,12 @@ import {
     evaluateWorkspaceFocusAlertsBoardsPulse,
     createWorkspaceFocusAlertsBoard,
     getWorkspaceFocusAlertsBoardPolicy,
-    setWorkspaceFocusAlertsBoardPolicy
+    setWorkspaceFocusAlertsBoardPolicy,
+    enqueueWorkspaceFocusAlertsActionJob,
+    getWorkspaceFocusAlertsActionJob,
+    pauseWorkspaceFocusAlertsActionJob,
+    resumeWorkspaceFocusAlertsActionJob,
+    processWorkspaceFocusAlertsActionJob
 } from "../src/core/workspaces.js";
 import { fileExists, writeJson, readJson } from "../src/lib/io.js";
 import { ensureRepoMemory } from "../src/core/memory.js";
@@ -172,3 +177,111 @@ describe("Policy Templates", () => {
         }
     });
 });
+
+
+describe("Action Jobs Lifecycle", () => {
+    it("should enqueue, pause, resume, and complete a multi-batch action job", async () => {
+        const root = await makeTempRepo("rmemo-test-action-jobs-");
+        try {
+            const actionId = "act-mock-123";
+            const actionsDir = path.join(root, ".repo-memory", "ws-focus", "actions");
+            await fs.mkdir(actionsDir, { recursive: true });
+
+            // Create a mock action with 5 tasks
+            const fakeAction = {
+                schema: 1,
+                actionId,
+                plan: {
+                    title: "Mock Plan",
+                    tasks: Array.from({ length: 5 }, (_, i) => ({ id: `t${i + 1}`, kind: "todo", text: `Mock Task ${i + 1}` }))
+                }
+            };
+            await writeJson(path.join(actionsDir, `${actionId}.json`), fakeAction);
+
+            // 1. Enqueue job (batch size = 2)
+            const enqueueResult = await enqueueWorkspaceFocusAlertsActionJob(root, {
+                actionId,
+                batchSize: 2
+            });
+
+            assert.ok(enqueueResult.id, "Job ID should be generated");
+            assert.strictEqual(enqueueResult.status, "queued", "Job should start queued");
+            assert.strictEqual(enqueueResult.tasks.length, 5, "Job should contain all tasks from action");
+
+            const jobId = enqueueResult.id;
+
+            // Wait a moment for background processing to start and do *something*,
+            // but we want to intercept it or observe its states
+            // We will pause it immediately to test interruption
+            await new Promise(r => setTimeout(r, 50));
+            await pauseWorkspaceFocusAlertsActionJob(root, jobId);
+
+            // Fetch current state
+            let job = await getWorkspaceFocusAlertsActionJob(root, jobId);
+            assert.strictEqual(job.status, "paused", "Job should successfully toggle to paused");
+
+            // Resume the job and WAIT for processing to finish
+            await resumeWorkspaceFocusAlertsActionJob(root, jobId);
+
+            // Poll for completion (up to 5s)
+            let retries = 50;
+            while (retries-- > 0) {
+                job = await getWorkspaceFocusAlertsActionJob(root, jobId);
+                if (job.status === "succeeded" || job.status === "failed") break;
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            assert.strictEqual(job.status, "succeeded", "Job should eventually succeed");
+            assert.strictEqual(job.state.processedCount, 5, "Should process all 5 items");
+            assert.strictEqual(job.state.successCount, 5, "Should succeed all 5 items");
+            assert.strictEqual(job.state.resumeToken, 5, "Resume token should advance to end of tasks array");
+
+        } finally {
+            try { await fs.rm(root, { recursive: true, force: true }); } catch (e) { }
+        }
+    });
+
+    it('should process a large batch job (>200 items) and persist correctly', async () => {
+        const root = await makeTempRepo("rmemo-test-action-jobs-large-");
+        try {
+            const actionsDir = path.join(root, ".repo-memory", "ws-focus", "actions");
+            await fs.mkdir(actionsDir, { recursive: true });
+
+            const actionId = "act-large-test";
+            const fakeAction = {
+                schema: 1,
+                actionId,
+                plan: {
+                    title: "Large Plan",
+                    tasks: Array.from({ length: 250 }, (_, i) => ({ id: `t${i}`, kind: "todo", text: `Stress Task ${i}` }))
+                }
+            };
+            await writeJson(path.join(actionsDir, `${actionId}.json`), fakeAction);
+
+            // Enqueue job with batch size 50
+            const enqueueResult = await enqueueWorkspaceFocusAlertsActionJob(root, {
+                actionId,
+                batchSize: 50
+            });
+
+            const jobId = enqueueResult.id;
+
+            // Wait until done
+            let job = enqueueResult;
+            let retries = 100; // max 10s wait
+            while (retries-- > 0) {
+                job = await getWorkspaceFocusAlertsActionJob(root, jobId);
+                if (job.status === "succeeded" || job.status === "failed") break;
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            assert.strictEqual(job.status, "succeeded", "Large job should succeed");
+            assert.strictEqual(job.state.processedCount, 250, "Should process all 250 items");
+            assert.strictEqual(job.state.successCount, 250, "Should succeed all 250 items");
+            assert.strictEqual(job.state.resumeToken, 250, "Resume token should be 250");
+        } finally {
+            try { await fs.rm(root, { recursive: true, force: true }); } catch (e) { }
+        }
+    });
+});
+>>>>>>> origin/main
