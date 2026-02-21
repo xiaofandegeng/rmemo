@@ -26,6 +26,23 @@ All notable changes to this project will be documented in this file.
 - Expose Action Job control tools over MCP (`rmemo_ws_focus_action_jobs`, `rmemo_ws_focus_action_job_enqueue`, `rmemo_ws_focus_action_job_control`).
 - Add Action Jobs dashboard and controls to the web UI.
 
+## [0.37.1](https://github.com/xiaofandegeng/rmemo/compare/v0.37.0...v0.37.1) (2026-02-21)
+
+
+### 📚 Documentation
+
+* add release runbook ([1b118be](https://github.com/xiaofandegeng/rmemo/commit/1b118be93350118d5f9d33918c4cb6fd56c2d95e))
+
+
+### 🧹 Chores
+
+* consolidate publishing pipeline to release-please ([71fbd8b](https://github.com/xiaofandegeng/rmemo/commit/71fbd8bb9845f3d0ffb6b1d4f042518c30e09118))
+
+
+### 🎯 Testing
+
+* remove stray merge marker from workspaces.test.js ([6b2697a](https://github.com/xiaofandegeng/rmemo/commit/6b2697a35a0a1fa545295d60f2c7e6329eb42b22))
+
 ## [0.37.0](https://github.com/xiaofandegeng/rmemo/compare/v0.36.0...v0.37.0) (2026-02-20)
 
 
