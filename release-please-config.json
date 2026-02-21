@@ -4,7 +4,44 @@
     ".": {
       "package-name": "@xiaofandegeng/rmemo",
       "release-type": "node",
-      "include-component-in-tag": false
+      "include-component-in-tag": false,
+      "changelog-sections": [
+        {
+          "type": "feat",
+          "section": "✨ Features",
+          "hidden": false
+        },
+        {
+          "type": "fix",
+          "section": "🐛 Bug Fixes",
+          "hidden": false
+        },
+        {
+          "type": "perf",
+          "section": "🚀 Performance",
+          "hidden": false
+        },
+        {
+          "type": "docs",
+          "section": "📚 Documentation",
+          "hidden": false
+        },
+        {
+          "type": "chore",
+          "section": "🧹 Chores",
+          "hidden": false
+        },
+        {
+          "type": "test",
+          "section": "🎯 Testing",
+          "hidden": false
+        },
+        {
+          "type": "refactor",
+          "section": "🛠 Refactoring",
+          "hidden": false
+        }
+      ]
     }
   }
 }
