@@ -90,6 +90,7 @@ Usage:
   rmemo integrate            Generate paste-ready integration snippets (e.g. Antigravity MCP config)
   rmemo doctor               Diagnose environment + integration issues
   rmemo diagnostics <cmd>    Diagnostic utilities (e.g. export)
+  rmemo contract check       Validate CLI/HTTP/MCP contracts against contracts/*.json snapshots
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
@@ -167,6 +168,7 @@ Options:
   --format <md|json>         For embed status/search: output format
   --min-score <n>            For embed search: minimum cosine similarity (default: 0.15)
   --k <n>                    For embed search: top-k hits (default: 8)
+  --fail-on <mode>           For contract check: breaking|any|none (default: breaking)
 `;
   process.stdout.write(help.trimStart());
 }
