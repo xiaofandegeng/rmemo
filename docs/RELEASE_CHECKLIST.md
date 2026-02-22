@@ -10,6 +10,7 @@ This checklist is the single source of truth for shipping `rmemo` releases.
 - [ ] `npm run pack:dry`
 - [ ] `node bin/rmemo.js contract check --format json`
 - [ ] `npm run verify:matrix`
+- [ ] `npm run verify:release-ready`
 
 ## 2. Version + notes preparation
 

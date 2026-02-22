@@ -32,3 +32,12 @@ After a release is published, validate npm + GitHub release consistency:
 npm run verify:release-health
 node scripts/release-health.js --repo xiaofandegeng/rmemo --version 1.0.0 --tag v1.0.0 --format json
 ```
+
+## Release readiness
+
+Run one aggregated gate before release:
+
+```bash
+npm run verify:release-ready
+node scripts/release-ready.js --format json
+```
