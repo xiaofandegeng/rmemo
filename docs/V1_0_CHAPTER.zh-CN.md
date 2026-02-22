@@ -1,5 +1,8 @@
 # rmemo v1.0 新篇章（验证报告 + 执行计划）
 
+> 状态：已完成（v1.0 已发布）。  
+> 后续开发请切换到：`docs/V1_1_CYCLE_PLAN.zh-CN.md` 与 `docs/NEXT_CYCLE_PLAN.md`。
+
 更新时间：2026-02-21  
 验证基线：`main@c48b8bd`（`@xiaofandegeng/rmemo@0.37.2`）
 

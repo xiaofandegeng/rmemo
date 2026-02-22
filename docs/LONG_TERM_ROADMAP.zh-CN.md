@@ -1,5 +1,8 @@
 # rmemo 长期开发路线图（多模型可接力）
 
+> 状态：路线有效，版本进度描述部分已过时（停在 `0.36.x` 叙述）。  
+> 执行以 `docs/NEXT_CYCLE_PLAN.md`（短周期）和 `docs/V1_1_CYCLE_PLAN.zh-CN.md`（当前周期）为准。
+
 更新时间：2026-02-20  
 适用仓库：`@xiaofandegeng/rmemo`  
 当前基线：`0.36.x`
