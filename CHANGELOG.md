@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0](https://github.com/xiaofandegeng/rmemo/compare/v0.37.3...v1.0.0) (2026-02-22)
+
+
+### 🧹 Chores
+
+* trigger release-please for v1.0.0 ([c9d0995](https://github.com/xiaofandegeng/rmemo/commit/c9d09957876e5ba3b5ae1e19e98d946ed19927b4))
+* trigger release-please for v1.0.0 ([7a081e6](https://github.com/xiaofandegeng/rmemo/commit/7a081e68a1266cd13ed8470750c1eb703ff66990))
+
 ## [0.37.3](https://github.com/xiaofandegeng/rmemo/compare/v0.37.2...v0.37.3) (2026-02-21)
 
 
