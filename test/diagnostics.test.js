@@ -20,6 +20,10 @@ test("exportWorkspaceDiagnostics returns full environment suite", async () => {
     assert.equal(diag.files.manifestExists, false);
     assert.equal(diag.files.configExists, true);
     assert.equal(diag.files.rulesExists, true);
+    assert.ok(diag.contracts);
+    assert.equal(typeof diag.contracts.enabled, "boolean");
+    assert.equal(typeof diag.releaseHealth.scriptExists, "boolean");
+    assert.equal(typeof diag.releaseHealth.workflowReleasePleaseExists, "boolean");
 
     const event = formatDiagnosticEvent({
         source: "test",
@@ -34,4 +38,5 @@ test("exportWorkspaceDiagnostics returns full environment suite", async () => {
     assert.equal(event.costMs, 15);
     assert.equal(event.errorClass, null);
     assert.equal(event.payload.environment.platform, diag.environment.platform);
+    assert.equal(typeof event.payload.contracts.enabled, "boolean");
 });

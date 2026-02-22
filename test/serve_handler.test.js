@@ -251,10 +251,14 @@ test("serve handler: /diagnostics/export supports json and md", async () => {
   assert.ok(jsonDiag.body.includes("\"watch\""));
   assert.ok(jsonDiag.body.includes("\"status\""));
   assert.ok(jsonDiag.body.includes("\"events\""));
+  assert.ok(jsonDiag.body.includes("\"contracts\""));
+  assert.ok(jsonDiag.body.includes("\"releaseHealth\""));
 
   const mdDiag = await run(handler, { method: "GET", url: "/diagnostics/export?format=md&token=t" });
   assert.equal(mdDiag.status, 200);
   assert.ok(mdDiag.body.includes("# Diagnostics"));
+  assert.ok(mdDiag.body.includes("## Contracts"));
+  assert.ok(mdDiag.body.includes("## Release Health"));
   assert.ok(mdDiag.body.includes("## Watch"));
   assert.ok(mdDiag.body.includes("## Events"));
 });

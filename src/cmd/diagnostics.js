@@ -54,6 +54,17 @@ export async function cmdDiagnostics({ rest, flags }) {
                     console.log(JSON.stringify(diag.config, null, 2));
                     console.log("```");
                 }
+                console.log();
+                console.log("### Contracts");
+                console.log(`- **enabled**: ${diag.contracts?.enabled ? "yes" : "no"}`);
+                console.log(`- **ok**: ${diag.contracts?.ok === null ? "unknown" : diag.contracts.ok ? "yes" : "no"}`);
+                if (diag.contracts?.hasDrift !== null) console.log(`- **hasDrift**: ${diag.contracts.hasDrift ? "yes" : "no"}`);
+                if (diag.contracts?.hasBreaking !== null) console.log(`- **hasBreaking**: ${diag.contracts.hasBreaking ? "yes" : "no"}`);
+                if (diag.contracts?.error) console.log(`- **error**: ${diag.contracts.error}`);
+                console.log();
+                console.log("### Release Health");
+                console.log(`- **scriptExists**: ${diag.releaseHealth?.scriptExists ? "yes" : "no"}`);
+                console.log(`- **workflowReleasePleaseExists**: ${diag.releaseHealth?.workflowReleasePleaseExists ? "yes" : "no"}`);
             }
             break;
         }

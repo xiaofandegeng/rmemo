@@ -20,7 +20,9 @@
   },
   "scripts": {
     "test": "node --test",
-    "pack:dry": "npm_config_cache=.npm-cache npm pack --dry-run"
+    "pack:dry": "npm_config_cache=.npm-cache npm pack --dry-run",
+    "verify:matrix": "node scripts/regression-matrix.js --format md",
+    "verify:release-health": "node scripts/release-health.js --format md"
   },
   "files": [
     "bin/",

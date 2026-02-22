@@ -562,6 +562,23 @@ export function createServeHandler(root, opts = {}) {
             lines.push("```");
           }
           lines.push("");
+          lines.push("## Contracts");
+          lines.push(`- enabled: ${d.contracts?.enabled ? "yes" : "no"}`);
+          lines.push(`- ok: ${d.contracts?.ok === null ? "unknown" : d.contracts.ok ? "yes" : "no"}`);
+          if (d.contracts?.hasDrift !== null && d.contracts?.hasDrift !== undefined) {
+            lines.push(`- hasDrift: ${d.contracts.hasDrift ? "yes" : "no"}`);
+          }
+          if (d.contracts?.hasBreaking !== null && d.contracts?.hasBreaking !== undefined) {
+            lines.push(`- hasBreaking: ${d.contracts.hasBreaking ? "yes" : "no"}`);
+          }
+          if (typeof d.contracts?.additiveCount === "number") lines.push(`- additiveCount: ${d.contracts.additiveCount}`);
+          if (typeof d.contracts?.breakingCount === "number") lines.push(`- breakingCount: ${d.contracts.breakingCount}`);
+          if (d.contracts?.error) lines.push(`- error: ${d.contracts.error}`);
+          lines.push("");
+          lines.push("## Release Health");
+          lines.push(`- scriptExists: ${d.releaseHealth?.scriptExists ? "yes" : "no"}`);
+          lines.push(`- workflowReleasePleaseExists: ${d.releaseHealth?.workflowReleasePleaseExists ? "yes" : "no"}`);
+          lines.push("");
           lines.push("## Watch");
           lines.push(`- enabled: ${d.watch.enabled}`);
           lines.push(`- intervalMs: ${d.watch.intervalMs}`);

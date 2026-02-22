@@ -9,6 +9,10 @@
 - [发版说明](./RELEASING.md)
 - [PR 自动化](./docs/PR_AUTOMATION.md)
 - [升级到 v1.0 指南](./docs/UPGRADING_TO_1_0.md)
+- [接口契约（Contracts）](./docs/CONTRACTS.md)
+- [回归矩阵（Regression Matrix）](./docs/REGRESSION_MATRIX.md)
+- [发布检查清单（Release Checklist）](./docs/RELEASE_CHECKLIST.md)
+- [发布说明模板（Release Notes Template）](./docs/RELEASE_NOTES_TEMPLATE.md)
 - [长期演进路线 (ZH)](./docs/LONG_TERM_ROADMAP.zh-CN.md)
 - [迭代开发看板 (ZH)](./docs/ITERATION_MASTER_PLAN.zh-CN.md)
 
@@ -107,6 +111,7 @@ rmemo session
 rmemo serve
 rmemo mcp
 rmemo embed
+rmemo contract check
 rmemo context
 rmemo print
 rmemo template ls

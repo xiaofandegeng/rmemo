@@ -19,6 +19,10 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: Run tests
         run: node --test
+      - name: Contract drift check
+        run: node bin/rmemo.js contract check --format json
+      - name: Regression matrix check
+        run: npm run verify:matrix
       - name: Run rmemo self-check
         run: |
           node bin/rmemo.js init

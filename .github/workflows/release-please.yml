@@ -54,6 +54,12 @@ jobs:
       - name: Run tests
         run: node --test
 
+      - name: Contract drift check
+        run: node bin/rmemo.js contract check --format json
+
+      - name: Regression matrix check
+        run: npm run verify:matrix
+
       - name: Publish to npm (skip if already published)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -138,6 +144,13 @@ jobs:
           done
           echo "❌ Failed to verify $PKG@$V on NPM."
           exit 1
+
+      - name: Release health check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          node scripts/release-health.js --format md --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}"
           
       - name: Output Diagnostic Envelope on Failure
         if: failure()

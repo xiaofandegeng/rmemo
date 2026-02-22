@@ -9,6 +9,10 @@ Docs:
 - [Releasing](./RELEASING.md)
 - [PR Automation](./docs/PR_AUTOMATION.md)
 - [Upgrading to v1.0](./docs/UPGRADING_TO_1_0.md)
+- [Contracts](./docs/CONTRACTS.md)
+- [Regression Matrix](./docs/REGRESSION_MATRIX.md)
+- [Release Checklist](./docs/RELEASE_CHECKLIST.md)
+- [Release Notes Template](./docs/RELEASE_NOTES_TEMPLATE.md)
 - [Long-term Roadmap (ZH)](./docs/LONG_TERM_ROADMAP.zh-CN.md)
 - [Iteration Master Plan (ZH)](./docs/ITERATION_MASTER_PLAN.zh-CN.md)
 
@@ -107,6 +111,7 @@ rmemo session
 rmemo serve
 rmemo mcp
 rmemo embed
+rmemo contract check
 ```
 
 ## Sync AI Tool Instructions
@@ -593,7 +598,7 @@ rmemo --root . init --auto
 
 ## SRE & Publish Runbook
 
-Since `v0.40.0`, all package publishing occurs automatically via the `.github/workflows/release-please.yml` pipeline.
+Since `v1.0.0`, package publishing is automated via `.github/workflows/release-please.yml`.
 If the pipeline fails, it will attempt to dump a JSON diagnostics payload to the Action logs.
 
 **Manual Fallback Publishing (Emergency Only)**

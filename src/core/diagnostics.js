@@ -3,6 +3,7 @@ import path from "path";
 import { readJsonSafe } from "../lib/io.js";
 import { fileExists, readText } from "../lib/io.js";
 import { memDir, manifestPath, configPath, rulesPath } from "../lib/paths.js";
+import { runContractCheck } from "./contract.js";
 
 // Standardized Error Codes
 export const ERROR_CODES = {
@@ -68,7 +69,20 @@ export async function exportWorkspaceDiagnostics(root) {
         },
         // Extracted configurations
         config: null,
-        manifestMeta: null
+        manifestMeta: null,
+        contracts: {
+            enabled: false,
+            ok: null,
+            hasDrift: null,
+            hasBreaking: null,
+            additiveCount: 0,
+            breakingCount: 0,
+            error: null
+        },
+        releaseHealth: {
+            scriptExists: false,
+            workflowReleasePleaseExists: false
+        }
     };
 
     if (result.files.configExists) {
@@ -90,6 +104,34 @@ export async function exportWorkspaceDiagnostics(root) {
             result.manifestMeta = { error: "Unparseable JSON", raw: e.message };
         }
     }
+
+    try {
+        const c = await runContractCheck({ root, failOn: "breaking", update: false });
+        result.contracts = {
+            enabled: true,
+            ok: !!c.ok,
+            hasDrift: !!c.hasDrift,
+            hasBreaking: !!c.hasBreaking,
+            additiveCount: Number(c.additiveCount || 0),
+            breakingCount: Number(c.breakingCount || 0),
+            error: null
+        };
+    } catch (e) {
+        result.contracts = {
+            enabled: false,
+            ok: null,
+            hasDrift: null,
+            hasBreaking: null,
+            additiveCount: 0,
+            breakingCount: 0,
+            error: String(e?.message || e)
+        };
+    }
+
+    result.releaseHealth = {
+        scriptExists: await fileExists(path.join(root, "scripts", "release-health.js")),
+        workflowReleasePleaseExists: await fileExists(path.join(root, ".github", "workflows", "release-please.yml"))
+    };
 
     return result;
 }
