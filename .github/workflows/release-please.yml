@@ -151,10 +151,21 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           node scripts/release-health.js --format md --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}"
-          
-      - name: Output Diagnostic Envelope on Failure
+
+      - name: Collect diagnostics on failure
         if: failure()
         run: |
-          echo "::group::Rmemo Diagnostics Dump"
-          node ./bin/rmemo.js diagnostics export --format json || echo "Failed to run diagnostics."
-          echo "::endgroup::"
+          mkdir -p artifacts
+          node ./bin/rmemo.js diagnostics export --format json > artifacts/diagnostics.json || echo '{"error":"Failed to run diagnostics export"}' > artifacts/diagnostics.json
+          node ./bin/rmemo.js contract check --format json > artifacts/contract-check.json || echo '{"error":"Failed to run contract check"}' > artifacts/contract-check.json
+          npm run verify:matrix -- --format json > artifacts/regression-matrix.json || echo '{"error":"Failed to run regression matrix"}' > artifacts/regression-matrix.json
+          node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" > artifacts/release-health.json || echo '{"error":"Failed to run release health"}' > artifacts/release-health.json
+
+      - name: Upload failure diagnostics artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rmemo-release-diagnostics-${{ steps.vars.outputs.version || 'unknown' }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30

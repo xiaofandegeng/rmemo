@@ -44,6 +44,9 @@ Release is driven by `release-please` on `main` push.
 If release workflow fails:
 
 - [ ] Check workflow logs for failing step
+- [ ] Download workflow artifact:
+  - [ ] `rmemo-release-diagnostics-<version>` (release workflow)
+  - [ ] `rmemo-ci-diagnostics-node-<node>` (CI workflow)
 - [ ] Export diagnostics:
   - [ ] `node bin/rmemo.js diagnostics export --format json`
 - [ ] Confirm whether failure is:
