@@ -2,6 +2,11 @@
 
 Use this template for GitHub Release body.
 
+Automation:
+
+- `node scripts/release-notes.js --version <x.y.z> --out artifacts/release-notes.md`
+- release workflow will auto-sync GitHub Release body from CHANGELOG section when body is empty/placeholder.
+
 ## Title
 
 `vX.Y.Z`

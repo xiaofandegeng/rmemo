@@ -77,6 +77,50 @@ jobs:
       - name: Build npm tarball (for release assets)
         run: npm_config_cache=.npm-cache npm pack
 
+      - name: Generate release notes from changelog
+        run: |
+          mkdir -p artifacts
+          node scripts/release-notes.js --version "${{ steps.vars.outputs.version }}" --out artifacts/release-notes.md
+
+      - name: Sync GitHub Release body from changelog section
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const tag = "v${{ steps.vars.outputs.version }}";
+            const notesPath = "artifacts/release-notes.md";
+            if (!fs.existsSync(notesPath)) {
+              core.warning(`Missing ${notesPath}, skip release body sync.`);
+              return;
+            }
+            const notes = fs.readFileSync(notesPath, "utf8").trim();
+            if (!notes) {
+              core.warning("release notes is empty, skip release body sync.");
+              return;
+            }
+            let rel;
+            try {
+              rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+            } catch (e) {
+              core.warning(`Release ${tag} not found, skip body sync.`);
+              return;
+            }
+            const current = String(rel.data.body || "");
+            const placeholder = !current.trim() || /^Full Changelog:/m.test(current.trim());
+            if (!placeholder) {
+              core.info("Release body is non-empty and not placeholder, keep existing body.");
+              return;
+            }
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id: rel.data.id,
+              body: notes
+            });
+            core.info(`Updated release body for ${tag} from CHANGELOG.`);
+
       - name: Upload release assets (tgz)
         uses: actions/github-script@v7
         with:
@@ -156,6 +200,7 @@ jobs:
         if: failure()
         run: |
           mkdir -p artifacts
+          node scripts/release-notes.js --version "${{ steps.vars.outputs.version }}" --out artifacts/release-notes.md || echo "release notes generation failed" > artifacts/release-notes.md
           node ./bin/rmemo.js diagnostics export --format json > artifacts/diagnostics.json || echo '{"error":"Failed to run diagnostics export"}' > artifacts/diagnostics.json
           node ./bin/rmemo.js contract check --format json > artifacts/contract-check.json || echo '{"error":"Failed to run contract check"}' > artifacts/contract-check.json
           npm run verify:matrix -- --format json > artifacts/regression-matrix.json || echo '{"error":"Failed to run regression matrix"}' > artifacts/regression-matrix.json
