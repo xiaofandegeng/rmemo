@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0](https://github.com/xiaofandegeng/rmemo/compare/v1.0.0...v1.1.0) (2026-02-22)
+
+
+### ✨ Features
+
+* **contract:** add contract check with snapshots and fail policies ([5f9cf3a](https://github.com/xiaofandegeng/rmemo/commit/5f9cf3af6116c99cd2373dc868d65b450482270e))
+* **release:** add regression matrix and release health verification ([8142287](https://github.com/xiaofandegeng/rmemo/commit/8142287d851b4a702170860c0a3f1e559042cf55))
+
+
+### 📚 Documentation
+
+* **plan:** align v1.1 cycle status and archive legacy plans ([361d799](https://github.com/xiaofandegeng/rmemo/commit/361d7993bf88fb482f6d908fb2f28f775c26949b))
+
 ## [1.0.0](https://github.com/xiaofandegeng/rmemo/compare/v0.37.3...v1.0.0) (2026-02-22)
 
 
