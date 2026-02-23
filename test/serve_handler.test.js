@@ -302,6 +302,20 @@ test("serve handler: /timeline and /resume support json and md", async () => {
   const resumeMd = await run(handler, { method: "GET", url: "/resume?token=t&format=md&brief=1" });
   assert.equal(resumeMd.status, 200);
   assert.ok(resumeMd.body.includes("# Resume Pack"));
+
+  const digestJson = await run(
+    handler,
+    { method: "GET", url: "/resume/digest?token=t&format=json&timelineDays=7&timelineLimit=20&maxTimeline=8&maxTodos=5" }
+  );
+  assert.equal(digestJson.status, 200);
+  const dj = JSON.parse(digestJson.body);
+  assert.equal(dj.schema, 1);
+  assert.ok(Array.isArray(dj.next));
+  assert.ok(Array.isArray(dj.timeline));
+
+  const digestMd = await run(handler, { method: "GET", url: "/resume/digest?token=t&format=md" });
+  assert.equal(digestMd.status, 200);
+  assert.ok(digestMd.body.includes("# Resume Digest"));
 });
 
 test("serve handler: /embed/status /embed/plan and /embed/build work", async () => {

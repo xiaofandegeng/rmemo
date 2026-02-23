@@ -22,6 +22,7 @@
     "GET /manifest",
     "GET /pr",
     "GET /resume",
+    "GET /resume/digest",
     "GET /rules",
     "GET /rules.json",
     "GET /search",

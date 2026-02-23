@@ -238,6 +238,7 @@ Then fetch:
 - `GET /search?mode=semantic&q=...` (semantic search; requires `rmemo embed build`)
 - `GET /timeline?format=md|json&days=14&limit=80&include=journal,session,todo` (ordered project memory timeline)
 - `GET /resume?format=md|json&timelineDays=14&timelineLimit=40` (next-day resume pack)
+- `GET /resume/digest?format=md|json&timelineDays=7&timelineLimit=20` (auto concise handoff digest)
 - `GET /ws/list?only=apps/a,apps/b` (detected monorepo subprojects)
 - `GET /ws/focus?q=...&mode=semantic|keyword` (cross-workspace aggregated focus results; supports `save=1`, `compareLatest=1`, `tag=...`)
 - `GET /ws/focus/snapshots?limit=20` (workspace focus snapshot history)

@@ -21,7 +21,7 @@ import { generatePr } from "./pr.js";
 import { buildEmbeddingsIndex, defaultEmbeddingConfig, planEmbeddingsBuild, semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
 import { buildTimeline, formatTimelineMarkdown } from "./timeline.js";
-import { buildResumePack, formatResumeMarkdown } from "./resume.js";
+import { buildResumeDigest, buildResumePack, formatResumeDigestMarkdown, formatResumeMarkdown } from "./resume.js";
 import { renderUiHtml } from "./ui.js";
 import { addTodoBlocker, addTodoNext, removeTodoBlockerByIndex, removeTodoNextByIndex } from "./todos.js";
 import { appendJournalEntry } from "./journal.js";
@@ -195,7 +195,7 @@ export function createEventsBus({ max = 200 } = {}) {
   return { add, emit, history: () => history.slice(), size: () => clients.size };
 }
 
-export function createWatchController(root, { events, watchState } = {}) {
+export function createWatchController(root, { events, watchState, onRefreshOk } = {}) {
   let abort = null;
 
   const ctl = {
@@ -235,6 +235,15 @@ export function createWatchController(root, { events, watchState } = {}) {
               sync: e.sync || null,
               embed: e.embed || null
             };
+            if (typeof onRefreshOk === "function") {
+              void Promise.resolve(onRefreshOk(e)).catch((err) => {
+                events?.emit?.({
+                  type: "resume:digest:error",
+                  error: err?.message || String(err),
+                  reason: e.reason || "watch"
+                });
+              });
+            }
           } else if (e.type === "refresh:err") {
             watchState.lastErrAt = e.at;
             watchState.lastErr = e.error || null;
@@ -1369,6 +1378,26 @@ export function createServeHandler(root, opts = {}) {
         return text(res, 200, formatResumeMarkdown(out, { brief }), "text/markdown; charset=utf-8");
       }
 
+      if (req.method === "GET" && url.pathname === "/resume/digest") {
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "md" && format !== "json") return badRequest(res, "format must be md|json");
+        const timelineDays = Number(url.searchParams.get("timelineDays") || 7);
+        const timelineLimit = Number(url.searchParams.get("timelineLimit") || 20);
+        const maxTimeline = Number(url.searchParams.get("maxTimeline") || 8);
+        const maxTodos = Number(url.searchParams.get("maxTodos") || 5);
+        const pack = await buildResumePack(root, {
+          timelineDays,
+          timelineLimit,
+          includeTimeline: true,
+          includeContext: false,
+          contextLines: 0,
+          recentDays: 7
+        });
+        const digest = buildResumeDigest(pack, { maxTimeline, maxTodos });
+        if (format === "json") return json(res, 200, digest);
+        return text(res, 200, formatResumeDigestMarkdown(digest), "text/markdown; charset=utf-8");
+      }
+
       if (req.method === "GET" && url.pathname === "/ws/list") {
         const maxFiles = Number(url.searchParams.get("maxFiles") || 4000);
         const preferGit = url.searchParams.get("noGit") === "1" ? false : true;
@@ -1925,7 +1954,26 @@ export async function startServe(root, opts = {}) {
     lastErr: null,
     lastRefresh: null
   };
-  const watchCtl = createWatchController(root, { events, watchState });
+  const watchCtl = createWatchController(root, {
+    events,
+    watchState,
+    onRefreshOk: async (refreshEvent) => {
+      const pack = await buildResumePack(root, {
+        timelineDays: 7,
+        timelineLimit: 20,
+        includeTimeline: true,
+        includeContext: false,
+        contextLines: 0,
+        recentDays: 7
+      });
+      const digest = buildResumeDigest(pack, { maxTimeline: 8, maxTodos: 5 });
+      events?.emit?.({
+        type: "resume:digest",
+        reason: refreshEvent?.reason || "watch",
+        digest
+      });
+    }
+  });
   const embedJobs = createEmbedJobsController(root, { events, maxHistory: 50 });
   const handler = createServeHandler(root, {
     host,

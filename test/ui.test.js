@@ -11,8 +11,10 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/focus?q="));
   assert.ok(html.includes("/timeline?format=json"));
   assert.ok(html.includes("/resume?format=json"));
+  assert.ok(html.includes("/resume/digest?format=json"));
   assert.ok(html.includes("loadTimeline"));
   assert.ok(html.includes("loadResume"));
+  assert.ok(html.includes("loadResumeDigest"));
   assert.ok(html.includes("/ws/list"));
   assert.ok(html.includes("/ws/focus?q="));
   assert.ok(html.includes("/ws/focus/snapshots"));
@@ -149,6 +151,8 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("ws:alerts:board-closed"));
   assert.ok(html.includes("ws:alerts:board-pulse"));
   assert.ok(html.includes("ws:alerts:board-pulse-applied"));
+  assert.ok(html.includes("resume:digest"));
+  assert.ok(html.includes("resume:digest:error"));
   assert.ok(html.includes("embed:build:progress"));
   assert.ok(html.includes("/refresh"));
   assert.ok(html.includes("/watch"));

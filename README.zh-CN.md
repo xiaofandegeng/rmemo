@@ -242,6 +242,7 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /search?mode=semantic&q=...`（语义检索；需要先执行 `rmemo embed build`）
 - `GET /timeline?format=md|json&days=14&limit=80&include=journal,session,todo`（按时间顺序的项目记忆时间线）
 - `GET /resume?format=md|json&timelineDays=14&timelineLimit=40`（次日续接包）
+- `GET /resume/digest?format=md|json&timelineDays=7&timelineLimit=20`（自动化精简续接摘要）
 - `GET /ws/list?only=apps/a,apps/b`（列出检测到的 monorepo 子项目）
 - `GET /ws/focus?q=...&mode=semantic|keyword`（跨子项目聚合 focus 检索；支持 `save=1`、`compareLatest=1`、`tag=...`）
 - `GET /ws/focus/snapshots?limit=20`（workspace focus 快照历史）

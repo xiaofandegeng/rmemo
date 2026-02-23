@@ -130,6 +130,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <button class="btn secondary" id="loadContext">Context</button>
                 <button class="btn secondary" id="loadTimeline">Timeline</button>
                 <button class="btn secondary" id="loadResume">Resume</button>
+                <button class="btn secondary" id="loadResumeDigest">Digest</button>
               </div>
 
               <div class="row">
@@ -675,6 +676,26 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         }
         msg("OK");
         qs("#title").textContent = "Resume Pack";
+      }
+      async function loadResumeDigest() {
+        err(""); msg("Loading resume digest...");
+        const tab = qs("#out").dataset.tab || "md";
+        if (tab === "json") {
+          const j = await apiFetch("/resume/digest?format=json&timelineDays=7&timelineLimit=20&maxTimeline=8&maxTodos=5", {
+            accept: "application/json",
+            json: true
+          });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        } else {
+          const t = await apiFetch("/resume/digest?format=md&timelineDays=7&timelineLimit=20&maxTimeline=8&maxTodos=5", {
+            accept: "text/markdown"
+          });
+          out(t);
+          setTab("md");
+        }
+        msg("OK");
+        qs("#title").textContent = "Resume Digest";
       }
 
       async function loadWatch() {
@@ -1831,6 +1852,12 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "ws:alerts:board-pulse-applied"); }
           loadTodos().catch(() => {});
         });
+        evt.addEventListener("resume:digest", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "resume:digest"); }
+        });
+        evt.addEventListener("resume:digest:error", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "resume:digest:error"); }
+        });
       }
 
       qs("#saveToken").addEventListener("click", saveToken);
@@ -1842,6 +1869,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadContext").addEventListener("click", loadContext);
       qs("#loadTimeline").addEventListener("click", loadTimeline);
       qs("#loadResume").addEventListener("click", loadResume);
+      qs("#loadResumeDigest").addEventListener("click", loadResumeDigest);
       qs("#doSearch").addEventListener("click", () => doSearch().catch((e) => { err(String(e)); msg(""); }));
       qs("#doFocus").addEventListener("click", () => doFocus().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsList").addEventListener("click", () => loadWsList().catch((e) => { err(String(e)); msg(""); }));

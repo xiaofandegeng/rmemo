@@ -156,3 +156,68 @@ export function formatResumeMarkdown(pack, { brief = false } = {}) {
 
   return lines.join("\n").trimEnd() + "\n";
 }
+
+export function buildResumeDigest(pack, { maxTimeline = 8, maxTodos = 5 } = {}) {
+  const timelineEvents = Array.isArray(pack?.timeline?.events) ? pack.timeline.events.slice(0, Math.max(1, Number(maxTimeline || 8))) : [];
+  const next = Array.isArray(pack?.todos?.next) ? pack.todos.next.slice(0, Math.max(1, Number(maxTodos || 5))) : [];
+  const blockers = Array.isArray(pack?.todos?.blockers) ? pack.todos.blockers.slice(0, Math.max(1, Number(maxTodos || 5))) : [];
+
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root: pack?.root || "",
+    sessions: pack?.sessions || { active: null, latest: null },
+    summary: {
+      nextCount: Array.isArray(pack?.todos?.next) ? pack.todos.next.length : 0,
+      blockerCount: Array.isArray(pack?.todos?.blockers) ? pack.todos.blockers.length : 0,
+      timelineCount: Array.isArray(pack?.timeline?.events) ? pack.timeline.events.length : 0
+    },
+    next,
+    blockers,
+    timeline: timelineEvents
+  };
+}
+
+export function formatResumeDigestMarkdown(digest) {
+  const lines = [];
+  lines.push("# Resume Digest");
+  lines.push("");
+  lines.push(`- generatedAt: ${digest.generatedAt}`);
+  lines.push(`- root: ${digest.root}`);
+  lines.push(
+    `- summary: next=${digest.summary.nextCount}, blockers=${digest.summary.blockerCount}, timeline=${digest.summary.timelineCount}`
+  );
+  lines.push("");
+
+  lines.push("## Active Session");
+  lines.push("");
+  if (digest.sessions?.active) lines.push(`- ${digest.sessions.active.id} (started ${digest.sessions.active.startedAt || "unknown"})`);
+  else lines.push("- (none)");
+  lines.push("");
+
+  lines.push("## Next (Top)");
+  lines.push("");
+  if (digest.next.length) lines.push(...digest.next.map((x) => `- ${x}`));
+  else lines.push("- (empty)");
+  lines.push("");
+
+  lines.push("## Blockers (Top)");
+  lines.push("");
+  if (digest.blockers.length) lines.push(...digest.blockers.map((x) => `- ${x}`));
+  else lines.push("- (none)");
+  lines.push("");
+
+  lines.push("## Timeline (Recent)");
+  lines.push("");
+  if (digest.timeline.length) {
+    for (const e of digest.timeline) {
+      lines.push(`- ${e.at} | ${e.title} | ${e.source}`);
+      if (e.summary) lines.push(`  - ${e.summary}`);
+    }
+  } else {
+    lines.push("- (no recent events)");
+  }
+  lines.push("");
+
+  return lines.join("\n").trimEnd() + "\n";
+}
