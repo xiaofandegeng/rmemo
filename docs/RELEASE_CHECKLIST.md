@@ -6,6 +6,8 @@ This checklist is the single source of truth for shipping `rmemo` releases.
 
 - [ ] `git pull --ff-only origin main`
 - [ ] `git status --short` is clean
+- [ ] Preferred one-command rehearsal:
+  - [ ] `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo`
 - [ ] `node --test`
 - [ ] `npm run pack:dry`
 - [ ] `npm run verify:changelog`
@@ -15,6 +17,11 @@ This checklist is the single source of truth for shipping `rmemo` releases.
 - [ ] Archive readiness report:
   - [ ] `node scripts/release-ready.js --format md --out artifacts/release-ready.md`
   - [ ] `node scripts/release-ready.js --format json --out artifacts/release-ready.json`
+  - [ ] `artifacts/release-notes.md`
+  - [ ] `artifacts/release-health.md`
+  - [ ] `artifacts/release-health.json`
+  - [ ] `artifacts/release-rehearsal.md`
+  - [ ] `artifacts/release-rehearsal.json`
 
 ## 2. Version + notes preparation
 

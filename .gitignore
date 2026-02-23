@@ -6,6 +6,7 @@ out
 
 # rmemo-generated outputs (should not be committed in this repo)
 .repo-memory
+artifacts
 
 # npm cache (local pack/test)
 .npm-cache

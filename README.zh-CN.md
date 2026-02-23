@@ -579,6 +579,20 @@ rmemo --root . profile apply web-admin-vue
 rmemo --root . init --auto
 ```
 
+## 发布演练（推荐）
+
+`v1.0.0` 之后默认使用 GitHub Actions 自动发布。发布前建议先执行一次本地“彩排”：
+
+```bash
+npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
+```
+
+该命令会统一生成 `artifacts/` 下的审计文件：
+- `release-notes.md`
+- `release-ready.md` / `release-ready.json`
+- `release-health.md` / `release-health.json`
+- `release-rehearsal.md` / `release-rehearsal.json`
+
 ## Roadmap（简版）
 
 - v0.2：增强通用扫描（monorepo/子项目/API 契约/文档根目录）

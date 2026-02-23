@@ -45,7 +45,15 @@ Release workflow also uploads audit artifact:
 Run one aggregated gate before release:
 
 ```bash
+npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 npm run verify:release-ready
 node scripts/release-ready.js --format json
 node scripts/release-ready.js --format md --out artifacts/release-ready.md
 ```
+
+`verify:release-rehearsal` also writes:
+- `artifacts/release-notes.md`
+- `artifacts/release-health.md`
+- `artifacts/release-health.json`
+- `artifacts/release-rehearsal.md`
+- `artifacts/release-rehearsal.json`

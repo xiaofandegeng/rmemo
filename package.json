@@ -25,6 +25,7 @@
     "verify:matrix": "node scripts/regression-matrix.js --format md",
     "verify:release-health": "node scripts/release-health.js --format md",
     "verify:release-ready": "node scripts/release-ready.js --format md",
+    "verify:release-rehearsal": "node scripts/release-rehearsal.js --format md",
     "release:notes": "node scripts/release-notes.js"
   },
   "files": [

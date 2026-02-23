@@ -28,6 +28,28 @@ What it does:
 4. Publishes to npm
 5. Creates a GitHub Release for the tag (release notes auto-generated)
 
+## Local Release Rehearsal (Recommended)
+
+Before shipping, run one command locally to generate all audit artifacts:
+
+```bash
+npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
+```
+
+Generated files (default under `artifacts/`):
+- `release-notes.md`
+- `release-ready.md`
+- `release-ready.json`
+- `release-health.md`
+- `release-health.json`
+- `release-rehearsal.md`
+- `release-rehearsal.json`
+
+Useful flags:
+- `--skip-health` when network/GitHub API is unavailable
+- `--allow-dirty` for local dry runs with uncommitted changes
+- `--skip-tests` for quick smoke rehearsal
+
 ## Fully Automatic Release (Recommended)
 
 If you want "no GitHub clicking", you have 2 options:

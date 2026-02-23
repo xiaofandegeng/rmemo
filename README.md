@@ -601,6 +601,18 @@ rmemo --root . init --auto
 Since `v1.0.0`, package publishing is automated via `.github/workflows/release-please.yml`.
 If the pipeline fails, it will attempt to dump a JSON diagnostics payload to the Action logs.
 
+**One-command release rehearsal**
+
+```bash
+npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
+```
+
+This writes release audit files to `artifacts/`:
+- `release-notes.md`
+- `release-ready.md` / `release-ready.json`
+- `release-health.md` / `release-health.json`
+- `release-rehearsal.md` / `release-rehearsal.json`
+
 **Manual Fallback Publishing (Emergency Only)**
 If GitHub Actions is down or npm tokens are expired, a manual release requires administrator privileges:
 1. Generate diagnostics to ensure your local environment is sound: `rmemo diagnostics export` Check that `npm identity` matches the org owner.
