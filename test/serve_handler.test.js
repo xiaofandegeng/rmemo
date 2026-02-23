@@ -263,6 +263,47 @@ test("serve handler: /diagnostics/export supports json and md", async () => {
   assert.ok(mdDiag.body.includes("## Events"));
 });
 
+test("serve handler: /timeline and /resume support json and md", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
+  await fs.mkdir(path.join(root, ".repo-memory", "journal"), { recursive: true });
+  await fs.writeFile(
+    path.join(root, ".repo-memory", "todos.md"),
+    "# Todos\n\n## Next\n- timeline-next\n\n## Blockers\n- timeline-blocker\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(root, ".repo-memory", "rules.md"), "# Rules\n- Keep contracts stable.\n", "utf8");
+  await fs.writeFile(path.join(root, ".repo-memory", "manifest.json"), JSON.stringify({ schema: 1, title: "demo" }, null, 2) + "\n", "utf8");
+  await fs.writeFile(
+    path.join(root, ".repo-memory", "journal", "2026-02-23.md"),
+    "# Journal 2026-02-23\n\n## 10:00 Done\nShip timeline endpoint.\n",
+    "utf8"
+  );
+
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", events: createEventsBus() });
+
+  const timelineJson = await run(handler, { method: "GET", url: "/timeline?token=t&format=json&days=30&limit=20" });
+  assert.equal(timelineJson.status, 200);
+  const tj = JSON.parse(timelineJson.body);
+  assert.equal(tj.schema, 1);
+  assert.ok(Array.isArray(tj.events));
+  assert.ok(tj.events.some((e) => e.source === "journal"));
+
+  const timelineMd = await run(handler, { method: "GET", url: "/timeline?token=t&format=md&days=30&limit=20" });
+  assert.equal(timelineMd.status, 200);
+  assert.ok(timelineMd.body.includes("# Timeline"));
+
+  const resumeJson = await run(handler, { method: "GET", url: "/resume?token=t&format=json&timelineDays=30&timelineLimit=20" });
+  assert.equal(resumeJson.status, 200);
+  const rj = JSON.parse(resumeJson.body);
+  assert.equal(rj.schema, 1);
+  assert.ok(rj.todos);
+  assert.ok(rj.timeline);
+
+  const resumeMd = await run(handler, { method: "GET", url: "/resume?token=t&format=md&brief=1" });
+  assert.equal(resumeMd.status, 200);
+  assert.ok(resumeMd.body.includes("# Resume Pack"));
+});
+
 test("serve handler: /embed/status /embed/plan and /embed/build work", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-serve-"));
   await fs.writeFile(path.join(root, "README.md"), "# Demo\n", "utf8");

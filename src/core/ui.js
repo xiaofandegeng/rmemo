@@ -128,6 +128,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <button class="btn secondary" id="loadRules">Rules</button>
                 <button class="btn secondary" id="loadTodos">Todos</button>
                 <button class="btn secondary" id="loadContext">Context</button>
+                <button class="btn secondary" id="loadTimeline">Timeline</button>
+                <button class="btn secondary" id="loadResume">Resume</button>
               </div>
 
               <div class="row">
@@ -643,6 +645,36 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         out(t);
         msg("OK");
         qs("#title").textContent = "Context";
+      }
+      async function loadTimeline() {
+        err(""); msg("Loading timeline...");
+        const tab = qs("#out").dataset.tab || "md";
+        if (tab === "json") {
+          const j = await apiFetch("/timeline?format=json&days=14&limit=80", { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        } else {
+          const t = await apiFetch("/timeline?format=md&days=14&limit=80", { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        }
+        msg("OK");
+        qs("#title").textContent = "Timeline";
+      }
+      async function loadResume() {
+        err(""); msg("Loading resume pack...");
+        const tab = qs("#out").dataset.tab || "md";
+        if (tab === "json") {
+          const j = await apiFetch("/resume?format=json&timelineDays=14&timelineLimit=40", { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        } else {
+          const t = await apiFetch("/resume?format=md&timelineDays=14&timelineLimit=40", { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        }
+        msg("OK");
+        qs("#title").textContent = "Resume Pack";
       }
 
       async function loadWatch() {
@@ -1808,6 +1840,8 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadRules").addEventListener("click", loadRules);
       qs("#loadTodos").addEventListener("click", loadTodos);
       qs("#loadContext").addEventListener("click", loadContext);
+      qs("#loadTimeline").addEventListener("click", loadTimeline);
+      qs("#loadResume").addEventListener("click", loadResume);
       qs("#doSearch").addEventListener("click", () => doSearch().catch((e) => { err(String(e)); msg(""); }));
       qs("#doFocus").addEventListener("click", () => doFocus().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsList").addEventListener("click", () => loadWsList().catch((e) => { err(String(e)); msg(""); }));

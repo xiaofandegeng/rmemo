@@ -9,6 +9,10 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/status?format=json"));
   assert.ok(html.includes("/search?mode=semantic"));
   assert.ok(html.includes("/focus?q="));
+  assert.ok(html.includes("/timeline?format=json"));
+  assert.ok(html.includes("/resume?format=json"));
+  assert.ok(html.includes("loadTimeline"));
+  assert.ok(html.includes("loadResume"));
   assert.ok(html.includes("/ws/list"));
   assert.ok(html.includes("/ws/focus?q="));
   assert.ok(html.includes("/ws/focus/snapshots"));

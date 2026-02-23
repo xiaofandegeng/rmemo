@@ -20,6 +20,8 @@ import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
 import { buildEmbeddingsIndex, defaultEmbeddingConfig, planEmbeddingsBuild, semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
+import { buildTimeline, formatTimelineMarkdown } from "./timeline.js";
+import { buildResumePack, formatResumeMarkdown } from "./resume.js";
 import { renderUiHtml } from "./ui.js";
 import { addTodoBlocker, addTodoNext, removeTodoBlockerByIndex, removeTodoNextByIndex } from "./todos.js";
 import { appendJournalEntry } from "./journal.js";
@@ -1333,6 +1335,38 @@ export function createServeHandler(root, opts = {}) {
         const out = await generateFocus(root, { q, mode, format, k, minScore, maxHits, recentDays, includeStatus });
         if (format === "json") return json(res, 200, out.json);
         return text(res, 200, out.markdown, "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "GET" && url.pathname === "/timeline") {
+        const format = String(url.searchParams.get("format") || "md").toLowerCase();
+        if (format !== "md" && format !== "json") return badRequest(res, "format must be md|json");
+        const days = Number(url.searchParams.get("days") || 14);
+        const limit = Number(url.searchParams.get("limit") || 80);
+        const includeRaw = String(url.searchParams.get("include") || "journal,session,todo");
+        const include = includeRaw
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean);
+        const brief = url.searchParams.get("brief") === "1";
+        const out = await buildTimeline(root, { days, limit, include });
+        if (format === "json") return json(res, 200, out);
+        return text(res, 200, formatTimelineMarkdown(out, { brief }), "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "GET" && url.pathname === "/resume") {
+        const format = String(url.searchParams.get("format") || "md").toLowerCase();
+        if (format !== "md" && format !== "json") return badRequest(res, "format must be md|json");
+        const brief = url.searchParams.get("brief") === "1";
+        const timelineDays = Number(url.searchParams.get("timelineDays") || 14);
+        const timelineLimit = Number(url.searchParams.get("timelineLimit") || 40);
+        const contextLines = Number(url.searchParams.get("contextLines") || 100);
+        const recentDays = Number(url.searchParams.get("recentDays") || 7);
+        const includeTimeline = url.searchParams.get("includeTimeline") === "0" ? false : true;
+        const includeContext = url.searchParams.get("includeContext") === "0" ? false : true;
+
+        const out = await buildResumePack(root, { timelineDays, timelineLimit, includeTimeline, includeContext, contextLines, recentDays });
+        if (format === "json") return json(res, 200, out);
+        return text(res, 200, formatResumeMarkdown(out, { brief }), "text/markdown; charset=utf-8");
       }
 
       if (req.method === "GET" && url.pathname === "/ws/list") {
