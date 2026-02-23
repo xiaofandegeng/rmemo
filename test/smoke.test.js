@@ -1559,6 +1559,54 @@ test("rmemo session start/note/end works (no git)", async () => {
   assert.equal(await exists(path.join(tmp, ".repo-memory", "sessions", active.id, "context.md")), true);
 });
 
+test("rmemo timeline aggregates journal/session/todo events", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-timeline-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "log", "timeline-log-note"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "add", "timeline-next-task"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "--title", "Timeline Demo", "session", "start"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "session", "note", "timeline-session-note"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "session", "end"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "--days", "30", "--limit", "20", "timeline"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.ok(Array.isArray(j.events));
+    assert.ok(j.events.some((e) => e.source === "journal"), "timeline should include journal events");
+    assert.ok(j.events.some((e) => e.source === "session"), "timeline should include session events");
+    assert.ok(j.events.some((e) => e.source === "todo"), "timeline should include todo events");
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--brief", "timeline"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("# Timeline"));
+  }
+});
+
 test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-handoff-json-"));

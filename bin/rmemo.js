@@ -27,6 +27,7 @@ import { cmdIntegrate } from "../src/cmd/integrate.js";
 import { cmdDoctor } from "../src/cmd/doctor.js";
 import { cmdDiagnostics } from "../src/cmd/diagnostics.js";
 import { cmdContract } from "../src/cmd/contract.js";
+import { cmdTimeline } from "../src/cmd/timeline.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -118,6 +119,9 @@ try {
       break;
     case "contract":
       await cmdContract({ rest, flags });
+      break;
+    case "timeline":
+      await cmdTimeline({ flags });
       break;
     case "help":
     case undefined:

@@ -549,6 +549,14 @@ rmemo todo done 1
 rmemo todo unblock 1
 ```
 
+时间线（按时间顺序汇总记忆，方便第二天续接）：
+
+```bash
+rmemo timeline --days 14 --limit 80
+rmemo timeline --format json --include journal,session,todo
+rmemo timeline --brief
+```
+
 ## 扫描结果输出（可选）
 
 把 scan 结果打印到 stdout：

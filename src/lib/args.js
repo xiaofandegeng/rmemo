@@ -38,7 +38,8 @@ export function parseArgs(argv) {
           k === "watch-no-sync" ||
           k === "watch-embed" ||
           k === "embed" ||
-          k === "no-status"
+          k === "no-status" ||
+          k === "brief"
         ) {
           flags[k] = true;
           continue;
@@ -91,6 +92,7 @@ Usage:
   rmemo doctor               Diagnose environment + integration issues
   rmemo diagnostics <cmd>    Diagnostic utilities (e.g. export)
   rmemo contract check       Validate CLI/HTTP/MCP contracts against contracts/*.json snapshots
+  rmemo timeline             Build a chronological timeline from journal/sessions/todos
   rmemo hook install         Install a git pre-commit hook that runs \`rmemo check\`
   rmemo start                Scan + generate context + print status (daily entrypoint)
   rmemo done                 Append end-of-day notes to journal (supports stdin) and optionally update todos
@@ -168,6 +170,10 @@ Options:
   --format <md|json>         For embed status/search: output format
   --min-score <n>            For embed search: minimum cosine similarity (default: 0.15)
   --k <n>                    For embed search: top-k hits (default: 8)
+  --days <n>                 For timeline: include events in last N days (default: 14)
+  --limit <n>                For timeline: max events to output (default: 80)
+  --include <list>           For timeline: comma-separated sources (journal,session,todo)
+  --brief                    For timeline md: hide long details
   --fail-on <mode>           For contract check: breaking|any|none (default: breaking)
 `;
   process.stdout.write(help.trimStart());

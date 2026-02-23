@@ -560,6 +560,14 @@ rmemo todo done 1
 rmemo todo unblock 1
 ```
 
+Timeline (ordered memory for handoff/next-day resume):
+
+```bash
+rmemo timeline --days 14 --limit 80
+rmemo timeline --format json --include journal,session,todo
+rmemo timeline --brief
+```
+
 ## Scan Output (Optional)
 
 Print scan results to stdout:
