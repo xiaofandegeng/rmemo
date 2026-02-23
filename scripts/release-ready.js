@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import path from "node:path";
+import fs from "node:fs/promises";
 
 function parseFlags(argv) {
   const flags = {};
@@ -77,6 +78,7 @@ async function main() {
   const format = String(flags.format || "md").toLowerCase();
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
+  const outPath = flags.out ? path.resolve(root, String(flags.out)) : "";
   if (!["md", "json"].includes(format)) throw new Error("format must be md|json");
 
   const checks = [];
@@ -116,8 +118,12 @@ async function main() {
     ok: summary.fail === 0
   };
 
-  if (format === "json") process.stdout.write(JSON.stringify(report, null, 2) + "\n");
-  else process.stdout.write(toMd(report) + "\n");
+  const rendered = format === "json" ? JSON.stringify(report, null, 2) + "\n" : toMd(report) + "\n";
+  process.stdout.write(rendered);
+  if (outPath) {
+    await fs.mkdir(path.dirname(outPath), { recursive: true });
+    await fs.writeFile(outPath, rendered, "utf8");
+  }
 
   if (!report.ok) process.exitCode = 1;
 }

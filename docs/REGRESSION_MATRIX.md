@@ -40,4 +40,5 @@ Run one aggregated gate before release:
 ```bash
 npm run verify:release-ready
 node scripts/release-ready.js --format json
+node scripts/release-ready.js --format md --out artifacts/release-ready.md
 ```

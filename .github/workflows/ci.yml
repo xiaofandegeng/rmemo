@@ -31,6 +31,18 @@ jobs:
           node bin/rmemo.js check
       - name: Verify npm package contents (dry-run)
         run: npm run pack:dry
+      - name: Generate release readiness report
+        run: |
+          mkdir -p artifacts
+          node scripts/release-ready.js --format md --out artifacts/release-ready.md
+          node scripts/release-ready.js --format json --out artifacts/release-ready.json
+      - name: Upload release readiness artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rmemo-release-ready-node-${{ matrix.node }}
+          path: artifacts/release-ready.*
+          if-no-files-found: warn
+          retention-days: 14
       - name: Collect diagnostics on failure
         if: failure()
         run: |
