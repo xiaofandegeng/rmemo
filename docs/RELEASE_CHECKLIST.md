@@ -40,6 +40,8 @@ Release is driven by `release-please` on `main` push.
 - [ ] Verify npm package is published:
   - [ ] `npm view @xiaofandegeng/rmemo@<version> version`
 - [ ] Verify GitHub Release exists for tag `v<version>`
+- [ ] Download release audit artifact:
+  - [ ] `rmemo-release-audit-<version>`
 - [ ] Run:
   - [ ] `node scripts/release-health.js --repo xiaofandegeng/rmemo --version <version> --tag v<version> --format md`
 - [ ] Confirm release assets contain expected `.tgz` file

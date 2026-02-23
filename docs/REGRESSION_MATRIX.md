@@ -33,6 +33,13 @@ npm run verify:release-health
 node scripts/release-health.js --repo xiaofandegeng/rmemo --version 1.0.0 --tag v1.0.0 --format json
 ```
 
+Release workflow also uploads audit artifact:
+- `rmemo-release-audit-<version>`
+  - `release-notes.md`
+  - `release-health.json`
+  - `release-ready.md`
+  - `release-ready.json`
+
 ## Release readiness
 
 Run one aggregated gate before release:
