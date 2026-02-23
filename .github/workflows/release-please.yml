@@ -54,6 +54,9 @@ jobs:
       - name: Run tests
         run: node --test
 
+      - name: Changelog lint
+        run: npm run verify:changelog
+
       - name: Contract drift check
         run: node bin/rmemo.js contract check --format json
 

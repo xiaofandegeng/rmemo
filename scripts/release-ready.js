@@ -93,6 +93,7 @@ async function main() {
     checks.push(t);
   }
   checks.push(await check("pack-dry", "npm", ["run", "pack:dry"], root));
+  checks.push(await check("changelog-lint", "npm", ["run", "verify:changelog"], root));
   checks.push(await check("contract-check", "node", ["bin/rmemo.js", "contract", "check", "--format", "json"], root));
   checks.push(await check("regression-matrix", "npm", ["run", "verify:matrix"], root));
 

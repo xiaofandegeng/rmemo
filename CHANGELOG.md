@@ -43,37 +43,6 @@ All notable changes to this project will be documented in this file.
 * freeze master plan checkboxes ([923157a](https://github.com/xiaofandegeng/rmemo/commit/923157a3d3868e4ed0f3291cbfc909947f299665))
 * prepare for v1.0.0 stability contract release ([b8705e8](https://github.com/xiaofandegeng/rmemo/commit/b8705e8f01ec464adaf20f60b52782f4c2179e3d))
 
-## [1.0.0] - 2026-02-21
-
-- **Stability Contract Milestone**: All CLI commands, HTTP endpoints, and MCP Schemas have been frozen. Backwards compatibility for `.repo-memory/` formats and AI payloads is formally guaranteed for all 1.x releases.
-- Add `UPGRADING_TO_1_0.md` Migration Guide to document seamless upgrades from 0.3x environments.
-- Stabilized failure governance payloads with JSON CI/CD exports (`node bin/rmemo.js diagnostics export --format json`) integrated into PR assistant and GitHub pipelines.
-- Consolidated release pipeline using `release-please` for NPM dry-run validation and GitHub robust releases.
-
-## [v0.39.0] - 2026-02-21
-
-- Add `rmemo sync` to generate AI tool instruction files from `.repo-memory/`.
-- Add `.repo-memory/config.json` and `rmemo setup` (one-time hooks + config).
-- Add `rmemo handoff` to generate a one-file, paste-ready AI handoff markdown.
-- Add `rmemo pr` to generate a PR-ready markdown summary (`.repo-memory/pr.md`).
-- Add a GitHub Actions PR workflow that comments rmemo summaries on pull requests.
-- Add `rmemo watch` to auto-refresh context/sync while working (poll-based).
-- Add `--format json` for `handoff` and `pr`, with `--max-changes` and `.repo-memory/*.json` outputs.
-- Add monorepo workspace helper `rmemo ws` and scope git scanning to `--root` subdir.
-- Add `rmemo ws batch` to run handoff/pr/sync/start across subprojects and write `.repo-memory/ws.md`.
-- Add profiles (`rmemo profile`) and `rmemo init --auto` (detect + apply recommended profile).
-- Add `rmemo profile check/upgrade` for profile drift reporting and safe re-apply with backups.
-- Add `rmemo session` (start/note/end) to store sequential handoff snapshots in `.repo-memory/sessions/`.
-- Add `rmemo serve` to expose repo memory over local HTTP (read-only by default, supports token auth).
-- Add `rmemo ws alerts board pulse-plan` and `rmemo ws alerts board pulse-apply` workflows.
-- Add `rmemo embed` to build a local embeddings index and support semantic search (CLI/HTTP/MCP).
-
-- Add persistent Action Job queue and execution manager for background processing.
-- Add `rmemo ws alerts action-job` CLI commands (enqueue, list, show, pause, resume, cancel).
-- Expose Action Job HTTP endpoints and Server-Sent Events (SSE) for progress updates.
-- Expose Action Job control tools over MCP (`rmemo_ws_focus_action_jobs`, `rmemo_ws_focus_action_job_enqueue`, `rmemo_ws_focus_action_job_control`).
-- Add Action Jobs dashboard and controls to the web UI.
-
 ## [0.37.1](https://github.com/xiaofandegeng/rmemo/compare/v0.37.0...v0.37.1) (2026-02-21)
 
 

@@ -21,6 +21,7 @@
   "scripts": {
     "test": "node --test",
     "pack:dry": "npm_config_cache=.npm-cache npm pack --dry-run",
+    "verify:changelog": "node scripts/changelog-lint.js --format md",
     "verify:matrix": "node scripts/regression-matrix.js --format md",
     "verify:release-health": "node scripts/release-health.js --format md",
     "verify:release-ready": "node scripts/release-ready.js --format md",
