@@ -568,6 +568,14 @@ rmemo timeline --format json --include journal,session,todo
 rmemo timeline --brief
 ```
 
+Resume pack (single command for next-day continuation):
+
+```bash
+rmemo resume
+rmemo resume --brief --no-context
+rmemo resume --format json --timeline-days 14 --timeline-limit 40
+```
+
 ## Scan Output (Optional)
 
 Print scan results to stdout:

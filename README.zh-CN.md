@@ -557,6 +557,14 @@ rmemo timeline --format json --include journal,session,todo
 rmemo timeline --brief
 ```
 
+续接包（次日开工一条命令）：
+
+```bash
+rmemo resume
+rmemo resume --brief --no-context
+rmemo resume --format json --timeline-days 14 --timeline-limit 40
+```
+
 ## 扫描结果输出（可选）
 
 把 scan 结果打印到 stdout：

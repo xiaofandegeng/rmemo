@@ -39,7 +39,9 @@ export function parseArgs(argv) {
           k === "watch-embed" ||
           k === "embed" ||
           k === "no-status" ||
-          k === "brief"
+          k === "brief" ||
+          k === "no-timeline" ||
+          k === "no-context"
         ) {
           flags[k] = true;
           continue;
@@ -88,6 +90,7 @@ Usage:
   rmemo mcp                  MCP server over stdio (tools: status/context/handoff/pr/rules/todos/search)
   rmemo embed                Build embeddings index and run semantic search (local-first)
   rmemo focus                Generate a paste-ready "focus pack" for a question (status + relevant hits)
+  rmemo resume               Generate a next-day resume pack (timeline + todos + latest session/context)
   rmemo integrate            Generate paste-ready integration snippets (e.g. Antigravity MCP config)
   rmemo doctor               Diagnose environment + integration issues
   rmemo diagnostics <cmd>    Diagnostic utilities (e.g. export)
@@ -174,6 +177,11 @@ Options:
   --limit <n>                For timeline: max events to output (default: 80)
   --include <list>           For timeline: comma-separated sources (journal,session,todo)
   --brief                    For timeline md: hide long details
+  --timeline-days <n>        For resume: timeline window days (default: 14)
+  --timeline-limit <n>       For resume: max timeline events (default: 40)
+  --context-lines <n>        For resume: context excerpt lines (default: 100)
+  --no-timeline              For resume: skip timeline section
+  --no-context               For resume: skip context excerpt
   --fail-on <mode>           For contract check: breaking|any|none (default: breaking)
 `;
   process.stdout.write(help.trimStart());

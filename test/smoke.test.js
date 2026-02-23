@@ -1607,6 +1607,46 @@ test("rmemo timeline aggregates journal/session/todo events", async () => {
   }
 });
 
+test("rmemo resume generates next-day pack", async () => {
+  const rmemoBin = path.resolve("bin/rmemo.js");
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-resume-"));
+
+  await fs.writeFile(path.join(tmp, "README.md"), "# Demo\n", "utf8");
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--no-git", "init"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "add", "resume-task-next"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "todo", "block", "resume-task-blocker"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "log", "resume-journal-note"]);
+    assert.equal(r.code, 0, r.err || r.out);
+  }
+
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "--timeline-limit", "10", "resume"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.ok(j.todos.next.includes("resume-task-next"));
+    assert.ok(j.todos.blockers.includes("resume-task-blocker"));
+    assert.ok(Array.isArray(j.timeline?.events));
+    assert.ok(j.context?.path, "resume json should include context path");
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--brief", "--no-context", "resume"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.ok(r.out.includes("# Resume Pack"));
+    assert.ok(r.out.includes("## Timeline Highlights"));
+  }
+});
+
 test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
   const rmemoBin = path.resolve("bin/rmemo.js");
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-handoff-json-"));
