@@ -318,7 +318,7 @@ If your AI tool supports MCP, you can run:
 rmemo mcp --root .
 ```
 
-It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`, `rmemo_embed_status`, `rmemo_embed_plan`.
+It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`, `rmemo_focus`, `rmemo_timeline`, `rmemo_resume`, `rmemo_embed_status`, `rmemo_embed_plan`.
 
 Optional: enable write tools (safety: disabled by default):
 

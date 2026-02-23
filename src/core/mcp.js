@@ -24,6 +24,8 @@ import { generateHandoff } from "./handoff.js";
 import { generatePr } from "./pr.js";
 import { buildEmbeddingsIndex, defaultEmbeddingConfig, planEmbeddingsBuild, semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
+import { buildTimeline, formatTimelineMarkdown } from "./timeline.js";
+import { buildResumePack, formatResumeMarkdown } from "./resume.js";
 import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
@@ -345,6 +347,33 @@ function toolsList() {
         includeStatus: { type: "boolean", default: true }
       },
       required: ["q"],
+      additionalProperties: false
+    }),
+    tool("rmemo_timeline", "Build a chronological timeline from journal/sessions/todos.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        format: { type: "string", enum: ["md", "json"], default: "json" },
+        days: { type: "number", default: 14 },
+        limit: { type: "number", default: 80 },
+        include: { type: "string", default: "journal,session,todo" },
+        brief: { type: "boolean", default: false }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_resume", "Generate a next-day resume pack (timeline + todos + latest session/context).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        format: { type: "string", enum: ["md", "json"], default: "md" },
+        timelineDays: { type: "number", default: 14 },
+        timelineLimit: { type: "number", default: 40 },
+        contextLines: { type: "number", default: 100 },
+        recentDays: { type: "number", default: 7 },
+        includeTimeline: { type: "boolean", default: true },
+        includeContext: { type: "boolean", default: true },
+        brief: { type: "boolean", default: false }
+      },
       additionalProperties: false
     }),
     tool("rmemo_ws_list", "List detected monorepo subprojects from root manifest scan.", {
@@ -1149,6 +1178,45 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
 
     const r = await generateFocus(root, { q, mode, format, k, minScore, maxHits, recentDays, includeStatus });
     return format === "json" ? JSON.stringify(r.json, null, 2) : r.markdown;
+  }
+
+  if (name === "rmemo_timeline") {
+    const format = String(args?.format || "json").toLowerCase();
+    const days = args?.days !== undefined ? Number(args.days) : 14;
+    const limit = args?.limit !== undefined ? Number(args.limit) : 80;
+    const include = String(args?.include || "journal,session,todo")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    const brief = !!args?.brief;
+
+    const report = await buildTimeline(root, { days, limit, include });
+    if (format === "md") return formatTimelineMarkdown(report, { brief });
+    if (format !== "json") throw new Error("format must be md|json");
+    return JSON.stringify(report, null, 2);
+  }
+
+  if (name === "rmemo_resume") {
+    const format = String(args?.format || "md").toLowerCase();
+    const brief = !!args?.brief;
+    const timelineDays = args?.timelineDays !== undefined ? Number(args.timelineDays) : 14;
+    const timelineLimit = args?.timelineLimit !== undefined ? Number(args.timelineLimit) : 40;
+    const contextLines = args?.contextLines !== undefined ? Number(args.contextLines) : 100;
+    const recentDays = args?.recentDays !== undefined ? Number(args.recentDays) : 7;
+    const includeTimeline = args?.includeTimeline !== undefined ? !!args.includeTimeline : true;
+    const includeContext = args?.includeContext !== undefined ? !!args.includeContext : true;
+
+    const pack = await buildResumePack(root, {
+      timelineDays,
+      timelineLimit,
+      includeTimeline,
+      includeContext,
+      contextLines,
+      recentDays
+    });
+    if (format === "md") return formatResumeMarkdown(pack, { brief });
+    if (format !== "json") throw new Error("format must be md|json");
+    return JSON.stringify(pack, null, 2);
   }
 
   if (name === "rmemo_ws_list") {

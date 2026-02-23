@@ -27,10 +27,12 @@
     "rmemo_handoff",
     "rmemo_log",
     "rmemo_pr",
+    "rmemo_resume",
     "rmemo_rules",
     "rmemo_search",
     "rmemo_status",
     "rmemo_sync",
+    "rmemo_timeline",
     "rmemo_todo_add",
     "rmemo_todo_done",
     "rmemo_todos",
@@ -69,5 +71,5 @@
     "rmemo_ws_focus_trends",
     "rmemo_ws_list"
   ],
-  "generatedAt": "2026-02-22T10:09:44.793Z"
+  "generatedAt": "2026-02-23T09:24:01.848Z"
 }

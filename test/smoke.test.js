@@ -1796,10 +1796,22 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
     method: "tools/call",
     params: { name: "rmemo_embed_plan", arguments: { root: tmp, provider: "mock", dim: 64 } }
   });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 7,
+    method: "tools/call",
+    params: { name: "rmemo_timeline", arguments: { root: tmp, format: "json", days: 30, limit: 20 } }
+  });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 8,
+    method: "tools/call",
+    params: { name: "rmemo_resume", arguments: { root: tmp, format: "json", timelineLimit: 10 } }
+  });
 
   await waitFor(() => {
     const lines = parseJsonLines(mcp.getOut());
-    return lines.some((x) => x.id === 6) ? true : false;
+    return lines.some((x) => x.id === 8) ? true : false;
   });
 
   const lines = parseJsonLines(mcp.getOut());
@@ -1829,6 +1841,17 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   assert.ok(embPlanJson.summary);
   assert.ok(Array.isArray(embPlanJson.files));
   assert.equal(embPlanJson.runtime.parallelism, 4);
+
+  const timeline = lines.find((x) => x.id === 7);
+  const timelineJson = JSON.parse(timeline.result.content[0].text);
+  assert.equal(timelineJson.schema, 1);
+  assert.ok(Array.isArray(timelineJson.events));
+
+  const resume = lines.find((x) => x.id === 8);
+  const resumeJson = JSON.parse(resume.result.content[0].text);
+  assert.equal(resumeJson.schema, 1);
+  assert.ok(resumeJson.todos);
+  assert.ok(resumeJson.timeline);
 
   mcp.closeIn();
   try {

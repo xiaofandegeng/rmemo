@@ -314,7 +314,7 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 rmemo mcp --root .
 ```
 
-它会暴露一组 tools（示例）：`rmemo_status`、`rmemo_context`、`rmemo_handoff`、`rmemo_pr`、`rmemo_rules`、`rmemo_todos`、`rmemo_search`、`rmemo_embed_status`、`rmemo_embed_plan`。
+它会暴露一组 tools（示例）：`rmemo_status`、`rmemo_context`、`rmemo_handoff`、`rmemo_pr`、`rmemo_rules`、`rmemo_todos`、`rmemo_search`、`rmemo_focus`、`rmemo_timeline`、`rmemo_resume`、`rmemo_embed_status`、`rmemo_embed_plan`。
 
 可选：开启写入 tools（出于安全默认关闭）：
 
