@@ -160,3 +160,19 @@ export function embeddingsIndexPath(root) {
 export function embeddingsMetaPath(root) {
   return path.join(embeddingsDir(root), "meta.json");
 }
+
+export function resumeDir(root) {
+  return path.join(memDir(root), "resume");
+}
+
+export function resumeSnapshotsDir(root) {
+  return path.join(resumeDir(root), "snapshots");
+}
+
+export function resumeIndexPath(root) {
+  return path.join(resumeDir(root), "index.json");
+}
+
+export function resumeSnapshotPath(root, id) {
+  return path.join(resumeSnapshotsDir(root), `${String(id)}.json`);
+}

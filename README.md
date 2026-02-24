@@ -239,6 +239,9 @@ Then fetch:
 - `GET /timeline?format=md|json&days=14&limit=80&include=journal,session,todo` (ordered project memory timeline)
 - `GET /resume?format=md|json&timelineDays=14&timelineLimit=40` (next-day resume pack)
 - `GET /resume/digest?format=md|json&timelineDays=7&timelineLimit=20` (auto concise handoff digest)
+- `GET /resume/history?format=md|json&limit=20` (resume digest snapshots history)
+- `GET /resume/history/item?id=<snapshotId>&format=md|json` (one snapshot detail)
+- `GET /resume/history/compare?from=<id>&to=<id>&format=md|json` (snapshot diff for resume handoff)
 - `GET /ws/list?only=apps/a,apps/b` (detected monorepo subprojects)
 - `GET /ws/focus?q=...&mode=semantic|keyword` (cross-workspace aggregated focus results; supports `save=1`, `compareLatest=1`, `tag=...`)
 - `GET /ws/focus/snapshots?limit=20` (workspace focus snapshot history)
@@ -282,6 +285,7 @@ Write endpoints:
 - `POST /todos/next/done {index}` (1-based)
 - `POST /todos/blockers/unblock {index}` (1-based)
 - `POST /log {text, kind?}`
+- `POST /resume/history/save {timelineDays?,timelineLimit?,maxTimeline?,maxTodos?,tag?}`
 - `POST /sync`
 - `POST /embed/auto`
 - `POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}`
@@ -321,7 +325,7 @@ If your AI tool supports MCP, you can run:
 rmemo mcp --root .
 ```
 
-It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`, `rmemo_focus`, `rmemo_timeline`, `rmemo_resume`, `rmemo_resume_digest`, `rmemo_embed_status`, `rmemo_embed_plan`.
+It exposes tools (examples): `rmemo_status`, `rmemo_context`, `rmemo_handoff`, `rmemo_pr`, `rmemo_rules`, `rmemo_todos`, `rmemo_search`, `rmemo_focus`, `rmemo_timeline`, `rmemo_resume`, `rmemo_resume_digest`, `rmemo_resume_history`, `rmemo_embed_status`, `rmemo_embed_plan`.
 
 Optional: enable write tools (safety: disabled by default):
 
@@ -333,6 +337,7 @@ Write tools:
 - `rmemo_todo_add`
 - `rmemo_todo_done`
 - `rmemo_log`
+- `rmemo_resume_history_save`
 - `rmemo_sync`
 - `rmemo_embed_auto`
 - `rmemo_embed_build`
@@ -347,6 +352,7 @@ Write tools:
 - `rmemo_embed_jobs_governance_benchmark_adopt`
 
 Read tool:
+- `rmemo_resume_history`
 - `rmemo_embed_jobs`
 - `rmemo_embed_jobs_failures`
 - `rmemo_embed_jobs_governance`
@@ -579,6 +585,9 @@ rmemo resume --brief --no-context
 rmemo resume --format json --timeline-days 14 --timeline-limit 40
 rmemo resume digest
 rmemo resume digest --format json --timeline-days 7 --timeline-limit 20 --max-timeline 8 --max-todos 5
+rmemo resume history list --format md --limit 20
+rmemo resume history save --tag daily-check
+rmemo resume history compare <fromId> <toId> --format json
 ```
 
 ## Scan Output (Optional)

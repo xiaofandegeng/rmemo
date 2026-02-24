@@ -23,6 +23,9 @@
     "GET /pr",
     "GET /resume",
     "GET /resume/digest",
+    "GET /resume/history",
+    "GET /resume/history/compare",
+    "GET /resume/history/item",
     "GET /rules",
     "GET /rules.json",
     "GET /search",
@@ -68,6 +71,7 @@
     "POST /embed/jobs/retry-failed",
     "POST /log",
     "POST /refresh",
+    "POST /resume/history/save",
     "POST /shutdown",
     "POST /sync",
     "POST /todos/*",
@@ -85,5 +89,5 @@
     "POST regex:/^\\/embed\\/jobs\\/([^/]+)\\/cancel$/",
     "POST regex:/^\\/embed\\/jobs\\/([^/]+)\\/retry$/"
   ],
-  "generatedAt": "2026-02-24T04:10:09.745Z"
+  "generatedAt": "2026-02-24T08:10:53.316Z"
 }

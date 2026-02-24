@@ -92,6 +92,7 @@ Usage:
   rmemo focus                Generate a paste-ready "focus pack" for a question (status + relevant hits)
   rmemo resume               Generate a next-day resume pack (timeline + todos + latest session/context)
   rmemo resume digest        Generate a concise resume digest (top todos + recent timeline)
+  rmemo resume history       Manage resume digest snapshots (list/save/show/compare)
   rmemo integrate            Generate paste-ready integration snippets (e.g. Antigravity MCP config)
   rmemo doctor               Diagnose environment + integration issues
   rmemo diagnostics <cmd>    Diagnostic utilities (e.g. export)

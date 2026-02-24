@@ -1654,6 +1654,30 @@ test("rmemo resume generates next-day pack", async () => {
     assert.ok(Array.isArray(j.blockers));
     assert.ok(Array.isArray(j.timeline));
   }
+  let sid = "";
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "--tag", "daily", "resume", "history", "save"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    sid = j.saved?.id || "";
+    assert.ok(sid);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "resume", "history", "list"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.ok(Array.isArray(j.snapshots));
+    assert.ok(j.snapshots.some((x) => x.id === sid));
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "resume", "history", "compare", sid, sid]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.equal(j.summary.nextAdded, 0);
+  }
 });
 
 test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
@@ -1823,10 +1847,16 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
     method: "tools/call",
     params: { name: "rmemo_resume_digest", arguments: { root: tmp, format: "json", maxTimeline: 6, maxTodos: 4 } }
   });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 10,
+    method: "tools/call",
+    params: { name: "rmemo_resume_history", arguments: { root: tmp, op: "list", format: "json", limit: 5 } }
+  });
 
   await waitFor(() => {
     const lines = parseJsonLines(mcp.getOut());
-    return lines.some((x) => x.id === 9) ? true : false;
+    return lines.some((x) => x.id === 10) ? true : false;
   });
 
   const lines = parseJsonLines(mcp.getOut());
@@ -1836,6 +1866,7 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   const list = lines.find((x) => x.id === 2);
   assert.ok(Array.isArray(list.result.tools));
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_status"));
+  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_resume_history"));
 
   const status = lines.find((x) => x.id === 3);
   assert.ok(status.result.content[0].text.includes("\"schema\": 1"));
@@ -1873,6 +1904,11 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   assert.equal(digestJson.schema, 1);
   assert.ok(Array.isArray(digestJson.next));
   assert.ok(Array.isArray(digestJson.timeline));
+
+  const hist = lines.find((x) => x.id === 10);
+  const histJson = JSON.parse(hist.result.content[0].text);
+  assert.equal(histJson.schema, 1);
+  assert.ok(Array.isArray(histJson.snapshots));
 
   mcp.closeIn();
   try {
@@ -2317,15 +2353,25 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
         arguments: { root: tmp, limit: 20, format: "json", save: true, tag: "mcp-act" }
       }
     });
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 21,
+      method: "tools/call",
+      params: {
+        name: "rmemo_resume_history_save",
+        arguments: { root: tmp, maxTimeline: 6, maxTodos: 4, tag: "mcp-history" }
+      }
+    });
     await waitFor(() => {
       const lines = parseJsonLines(mcp.getOut());
-      return lines.some((x) => x.id === 17) && lines.some((x) => x.id === 20);
+      return lines.some((x) => x.id === 17) && lines.some((x) => x.id === 20) && lines.some((x) => x.id === 21);
     });
 
     const lines = parseJsonLines(mcp.getOut());
     const list = lines.find((x) => x.id === 2);
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_todo_add"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_log"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_resume_history_save"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_job_enqueue"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_failures"));
@@ -2368,6 +2414,11 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     const jobs = lines.find((x) => x.id === 5);
     const jobsJson = JSON.parse(jobs.result.content[0].text);
     assert.equal(jobsJson.schema, 1);
+
+    const resumeSave = lines.find((x) => x.id === 21);
+    const resumeSaveJson = JSON.parse(resumeSave.result.content[0].text);
+    assert.equal(resumeSaveJson.schema, 1);
+    assert.ok(resumeSaveJson.saved?.id);
     assert.ok(
       (jobsJson.active && jobsJson.active.id) ||
       (Array.isArray(jobsJson.queued) && jobsJson.queued.length >= 0) ||

@@ -316,6 +316,50 @@ test("serve handler: /timeline and /resume support json and md", async () => {
   const digestMd = await run(handler, { method: "GET", url: "/resume/digest?token=t&format=md" });
   assert.equal(digestMd.status, 200);
   assert.ok(digestMd.body.includes("# Resume Digest"));
+
+  const history0 = await run(handler, { method: "GET", url: "/resume/history?token=t&format=json&limit=5" });
+  assert.equal(history0.status, 200);
+  const h0 = JSON.parse(history0.body);
+  assert.equal(h0.schema, 1);
+  assert.ok(Array.isArray(h0.snapshots));
+
+  const denySave = await run(handler, { method: "POST", url: "/resume/history/save?token=t", bodyObj: { tag: "t1" } });
+  assert.equal(denySave.status, 400);
+
+  const rw = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events: createEventsBus() });
+  const saved = await run(rw, { method: "POST", url: "/resume/history/save?token=t", bodyObj: { tag: "daily-1", maxTimeline: 6, maxTodos: 4 } });
+  assert.equal(saved.status, 200);
+  const sj = JSON.parse(saved.body);
+  assert.equal(sj.schema, 1);
+  assert.ok(sj.saved?.id);
+
+  const history1 = await run(handler, { method: "GET", url: "/resume/history?token=t&format=json&limit=5" });
+  assert.equal(history1.status, 200);
+  const h1 = JSON.parse(history1.body);
+  assert.ok(h1.snapshots.length >= 1);
+
+  const sid = h1.snapshots[0].id;
+  const item = await run(handler, { method: "GET", url: `/resume/history/item?token=t&format=json&id=${encodeURIComponent(sid)}` });
+  assert.equal(item.status, 200);
+  const itemJson = JSON.parse(item.body);
+  assert.equal(itemJson.snapshot.id, sid);
+  assert.ok(itemJson.snapshot.digest);
+
+  const cmp = await run(handler, {
+    method: "GET",
+    url: `/resume/history/compare?token=t&format=json&from=${encodeURIComponent(sid)}&to=${encodeURIComponent(sid)}`
+  });
+  assert.equal(cmp.status, 200);
+  const cmpJson = JSON.parse(cmp.body);
+  assert.equal(cmpJson.schema, 1);
+  assert.equal(cmpJson.summary.nextAdded, 0);
+
+  const cmpMd = await run(handler, {
+    method: "GET",
+    url: `/resume/history/compare?token=t&format=md&from=${encodeURIComponent(sid)}&to=${encodeURIComponent(sid)}`
+  });
+  assert.equal(cmpMd.status, 200);
+  assert.ok(cmpMd.body.includes("# Resume History Compare"));
 });
 
 test("serve handler: /embed/status /embed/plan and /embed/build work", async () => {

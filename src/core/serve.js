@@ -22,6 +22,15 @@ import { buildEmbeddingsIndex, defaultEmbeddingConfig, planEmbeddingsBuild, sema
 import { generateFocus } from "./focus.js";
 import { buildTimeline, formatTimelineMarkdown } from "./timeline.js";
 import { buildResumeDigest, buildResumePack, formatResumeDigestMarkdown, formatResumeMarkdown } from "./resume.js";
+import {
+  compareResumeDigestSnapshots,
+  formatResumeHistoryCompareMarkdown,
+  formatResumeHistoryListMarkdown,
+  formatResumeHistorySnapshotMarkdown,
+  getResumeDigestSnapshot,
+  listResumeDigestSnapshots,
+  saveResumeDigestSnapshot
+} from "./resume_history.js";
 import { renderUiHtml } from "./ui.js";
 import { addTodoBlocker, addTodoNext, removeTodoBlockerByIndex, removeTodoNextByIndex } from "./todos.js";
 import { appendJournalEntry } from "./journal.js";
@@ -1396,6 +1405,59 @@ export function createServeHandler(root, opts = {}) {
         const digest = buildResumeDigest(pack, { maxTimeline, maxTodos });
         if (format === "json") return json(res, 200, digest);
         return text(res, 200, formatResumeDigestMarkdown(digest), "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "GET" && url.pathname === "/resume/history") {
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "md" && format !== "json") return badRequest(res, "format must be md|json");
+        const limit = Number(url.searchParams.get("limit") || 20);
+        const out = await listResumeDigestSnapshots(root, { limit });
+        if (format === "json") return json(res, 200, out);
+        return text(res, 200, formatResumeHistoryListMarkdown(out), "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "GET" && url.pathname === "/resume/history/item") {
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "md" && format !== "json") return badRequest(res, "format must be md|json");
+        const id = String(url.searchParams.get("id") || "").trim();
+        if (!id) return badRequest(res, "Missing id");
+        const out = await getResumeDigestSnapshot(root, id);
+        if (format === "json") return json(res, 200, out);
+        return text(res, 200, `${formatResumeHistorySnapshotMarkdown(out)}\n${formatResumeDigestMarkdown(out.snapshot.digest)}`, "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "GET" && url.pathname === "/resume/history/compare") {
+        const format = String(url.searchParams.get("format") || "json").toLowerCase();
+        if (format !== "md" && format !== "json") return badRequest(res, "format must be md|json");
+        const fromId = String(url.searchParams.get("from") || "").trim();
+        const toId = String(url.searchParams.get("to") || "").trim();
+        if (!fromId || !toId) return badRequest(res, "Missing from/to snapshot ids");
+        const out = await compareResumeDigestSnapshots(root, { fromId, toId });
+        if (format === "json") return json(res, 200, out);
+        return text(res, 200, formatResumeHistoryCompareMarkdown(out), "text/markdown; charset=utf-8");
+      }
+
+      if (req.method === "POST" && url.pathname === "/resume/history/save") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const timelineDays = body.timelineDays !== undefined ? Number(body.timelineDays) : 7;
+        const timelineLimit = body.timelineLimit !== undefined ? Number(body.timelineLimit) : 20;
+        const recentDays = body.recentDays !== undefined ? Number(body.recentDays) : 7;
+        const maxTimeline = body.maxTimeline !== undefined ? Number(body.maxTimeline) : 8;
+        const maxTodos = body.maxTodos !== undefined ? Number(body.maxTodos) : 5;
+        const tag = body.tag !== undefined ? String(body.tag) : "";
+        const pack = await buildResumePack(root, {
+          timelineDays,
+          timelineLimit,
+          includeTimeline: true,
+          includeContext: false,
+          recentDays
+        });
+        const digest = buildResumeDigest(pack, { maxTimeline, maxTodos });
+        const out = await saveResumeDigestSnapshot(root, digest, { tag, source: "serve" });
+        events?.emit?.({ type: "resume:history:saved", id: out.saved.id, tag: out.saved.tag || null });
+        return json(res, 200, out);
       }
 
       if (req.method === "GET" && url.pathname === "/ws/list") {

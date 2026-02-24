@@ -243,6 +243,9 @@ rmemo serve --root . --token devtoken --port 7357
 - `GET /timeline?format=md|json&days=14&limit=80&include=journal,session,todo`（按时间顺序的项目记忆时间线）
 - `GET /resume?format=md|json&timelineDays=14&timelineLimit=40`（次日续接包）
 - `GET /resume/digest?format=md|json&timelineDays=7&timelineLimit=20`（自动化精简续接摘要）
+- `GET /resume/history?format=md|json&limit=20`（resume digest 快照历史）
+- `GET /resume/history/item?id=<snapshotId>&format=md|json`（读取单个快照）
+- `GET /resume/history/compare?from=<id>&to=<id>&format=md|json`（对比两个续接快照）
 - `GET /ws/list?only=apps/a,apps/b`（列出检测到的 monorepo 子项目）
 - `GET /ws/focus?q=...&mode=semantic|keyword`（跨子项目聚合 focus 检索；支持 `save=1`、`compareLatest=1`、`tag=...`）
 - `GET /ws/focus/snapshots?limit=20`（workspace focus 快照历史）
@@ -286,6 +289,7 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 - `POST /todos/next/done {index}`（从 1 开始）
 - `POST /todos/blockers/unblock {index}`（从 1 开始）
 - `POST /log {text, kind?}`
+- `POST /resume/history/save {timelineDays?,timelineLimit?,maxTimeline?,maxTodos?,tag?}`
 - `POST /sync`
 - `POST /embed/auto`
 - `POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}`
@@ -317,7 +321,7 @@ rmemo serve --root . --token devtoken --watch --watch-interval 2000
 rmemo mcp --root .
 ```
 
-它会暴露一组 tools（示例）：`rmemo_status`、`rmemo_context`、`rmemo_handoff`、`rmemo_pr`、`rmemo_rules`、`rmemo_todos`、`rmemo_search`、`rmemo_focus`、`rmemo_timeline`、`rmemo_resume`、`rmemo_resume_digest`、`rmemo_embed_status`、`rmemo_embed_plan`。
+它会暴露一组 tools（示例）：`rmemo_status`、`rmemo_context`、`rmemo_handoff`、`rmemo_pr`、`rmemo_rules`、`rmemo_todos`、`rmemo_search`、`rmemo_focus`、`rmemo_timeline`、`rmemo_resume`、`rmemo_resume_digest`、`rmemo_resume_history`、`rmemo_embed_status`、`rmemo_embed_plan`。
 
 可选：开启写入 tools（出于安全默认关闭）：
 
@@ -329,6 +333,7 @@ rmemo mcp --root . --allow-write
 - `rmemo_todo_add`
 - `rmemo_todo_done`
 - `rmemo_log`
+- `rmemo_resume_history_save`
 - `rmemo_sync`
 - `rmemo_embed_auto`
 - `rmemo_embed_build`
@@ -343,6 +348,7 @@ rmemo mcp --root . --allow-write
 - `rmemo_embed_jobs_governance_benchmark_adopt`
 
 读取 tool：
+- `rmemo_resume_history`
 - `rmemo_embed_jobs`
 - `rmemo_embed_jobs_failures`
 - `rmemo_embed_jobs_governance`
@@ -568,6 +574,9 @@ rmemo resume --brief --no-context
 rmemo resume --format json --timeline-days 14 --timeline-limit 40
 rmemo resume digest
 rmemo resume digest --format json --timeline-days 7 --timeline-limit 20 --max-timeline 8 --max-todos 5
+rmemo resume history list --format md --limit 20
+rmemo resume history save --tag daily-check
+rmemo resume history compare <fromId> <toId> --format json
 ```
 
 ## 扫描结果输出（可选）

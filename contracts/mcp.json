@@ -29,6 +29,8 @@
     "rmemo_pr",
     "rmemo_resume",
     "rmemo_resume_digest",
+    "rmemo_resume_history",
+    "rmemo_resume_history_save",
     "rmemo_rules",
     "rmemo_search",
     "rmemo_status",
@@ -72,5 +74,5 @@
     "rmemo_ws_focus_trends",
     "rmemo_ws_list"
   ],
-  "generatedAt": "2026-02-24T04:10:09.748Z"
+  "generatedAt": "2026-02-24T08:10:53.319Z"
 }

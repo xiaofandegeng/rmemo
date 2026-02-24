@@ -86,6 +86,9 @@ export async function cmdServe({ flags }) {
   process.stdout.write(`- GET /timeline?format=md|json&days=14&limit=80&include=journal,session,todo\n`);
   process.stdout.write(`- GET /resume?format=md|json&timelineDays=14&timelineLimit=40&brief=1\n`);
   process.stdout.write(`- GET /resume/digest?format=md|json&timelineDays=7&timelineLimit=20\n`);
+  process.stdout.write(`- GET /resume/history?format=md|json&limit=20\n`);
+  process.stdout.write(`- GET /resume/history/item?id=<snapshotId>&format=md|json\n`);
+  process.stdout.write(`- GET /resume/history/compare?from=<id>&to=<id>&format=md|json\n`);
   process.stdout.write(`- GET /ws/list?only=apps/a,apps/b\n`);
   process.stdout.write(`- GET /ws/focus?q=... (mode=semantic|keyword&only=...)\n`);
   process.stdout.write(`- GET /ws/focus/snapshots?limit=20\n`);
@@ -107,6 +110,7 @@ export async function cmdServe({ flags }) {
     process.stdout.write(`- POST /todos/next/done {index}\n`);
     process.stdout.write(`- POST /todos/blockers/unblock {index}\n`);
     process.stdout.write(`- POST /log {text,kind?}\n`);
+    process.stdout.write(`- POST /resume/history/save {timelineDays?,timelineLimit?,maxTimeline?,maxTodos?,tag?}\n`);
     process.stdout.write(`- POST /sync\n`);
     process.stdout.write(`- POST /embed/auto\n`);
     process.stdout.write(`- POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}\n`);

@@ -26,6 +26,15 @@ import { buildEmbeddingsIndex, defaultEmbeddingConfig, planEmbeddingsBuild, sema
 import { generateFocus } from "./focus.js";
 import { buildTimeline, formatTimelineMarkdown } from "./timeline.js";
 import { buildResumeDigest, buildResumePack, formatResumeDigestMarkdown, formatResumeMarkdown } from "./resume.js";
+import {
+  compareResumeDigestSnapshots,
+  formatResumeHistoryCompareMarkdown,
+  formatResumeHistoryListMarkdown,
+  formatResumeHistorySnapshotMarkdown,
+  getResumeDigestSnapshot,
+  listResumeDigestSnapshots,
+  saveResumeDigestSnapshot
+} from "./resume_history.js";
 import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
@@ -386,6 +395,19 @@ function toolsList() {
         recentDays: { type: "number", default: 7 },
         maxTimeline: { type: "number", default: 8 },
         maxTodos: { type: "number", default: 5 }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_resume_history", "Read resume digest snapshots (list/get/compare).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        op: { type: "string", enum: ["list", "get", "compare"], default: "list" },
+        format: { type: "string", enum: ["md", "json"], default: "json" },
+        limit: { type: "number", default: 20 },
+        id: { type: "string" },
+        fromId: { type: "string" },
+        toId: { type: "string" }
       },
       additionalProperties: false
     }),
@@ -770,6 +792,19 @@ function toolsListWithWrite({ allowWrite } = {}) {
         text: { type: "string" }
       },
       required: ["text"],
+      additionalProperties: false
+    }),
+    tool("rmemo_resume_history_save", "Build and persist one resume digest snapshot to .repo-memory/resume.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        timelineDays: { type: "number", default: 7 },
+        timelineLimit: { type: "number", default: 20 },
+        recentDays: { type: "number", default: 7 },
+        maxTimeline: { type: "number", default: 8 },
+        maxTodos: { type: "number", default: 5 },
+        tag: { type: "string", default: "" }
+      },
       additionalProperties: false
     }),
     tool("rmemo_ws_focus_action_jobs", "List or show details for Action Jobs execution orchestration.", {
@@ -1253,6 +1288,37 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     return JSON.stringify(digest, null, 2);
   }
 
+  if (name === "rmemo_resume_history") {
+    const op = String(args?.op || "list").toLowerCase();
+    const format = String(args?.format || "json").toLowerCase();
+    if (format !== "md" && format !== "json") throw new Error("format must be md|json");
+
+    if (op === "list" || op === "ls") {
+      const out = await listResumeDigestSnapshots(root, { limit: args?.limit !== undefined ? Number(args.limit) : 20 });
+      if (format === "md") return formatResumeHistoryListMarkdown(out);
+      return JSON.stringify(out, null, 2);
+    }
+
+    if (op === "get" || op === "show") {
+      const id = String(args?.id || "").trim();
+      if (!id) throw new Error("Missing id");
+      const out = await getResumeDigestSnapshot(root, id);
+      if (format === "md") return `${formatResumeHistorySnapshotMarkdown(out)}\n${formatResumeDigestMarkdown(out.snapshot.digest)}`;
+      return JSON.stringify(out, null, 2);
+    }
+
+    if (op === "compare" || op === "diff") {
+      const fromId = String(args?.fromId || "").trim();
+      const toId = String(args?.toId || "").trim();
+      if (!fromId || !toId) throw new Error("Missing fromId/toId");
+      const out = await compareResumeDigestSnapshots(root, { fromId, toId });
+      if (format === "md") return formatResumeHistoryCompareMarkdown(out);
+      return JSON.stringify(out, null, 2);
+    }
+
+    throw new Error("op must be list|get|compare");
+  }
+
   if (name === "rmemo_ws_list") {
     const r = await listWorkspaces(root, {
       preferGit: args?.noGit ? false : true,
@@ -1536,6 +1602,27 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const p = await appendJournalEntry(root, { kind, text });
     const s = await readMaybe(p, 2_000_000);
     return JSON.stringify({ ok: true, path: p, excerpt: clampLines(s || "", 120) }, null, 2);
+  }
+
+  if (name === "rmemo_resume_history_save") {
+    requireWrite();
+    const timelineDays = args?.timelineDays !== undefined ? Number(args.timelineDays) : 7;
+    const timelineLimit = args?.timelineLimit !== undefined ? Number(args.timelineLimit) : 20;
+    const recentDays = args?.recentDays !== undefined ? Number(args.recentDays) : 7;
+    const maxTimeline = args?.maxTimeline !== undefined ? Number(args.maxTimeline) : 8;
+    const maxTodos = args?.maxTodos !== undefined ? Number(args.maxTodos) : 5;
+    const tag = args?.tag !== undefined ? String(args.tag) : "";
+
+    const pack = await buildResumePack(root, {
+      timelineDays,
+      timelineLimit,
+      includeTimeline: true,
+      includeContext: false,
+      recentDays
+    });
+    const digest = buildResumeDigest(pack, { maxTimeline, maxTodos });
+    const out = await saveResumeDigestSnapshot(root, digest, { tag, source: "mcp" });
+    return JSON.stringify(out, null, 2);
   }
 
   if (name === "rmemo_sync") {
