@@ -125,7 +125,7 @@ try {
       await cmdTimeline({ flags });
       break;
     case "resume":
-      await cmdResume({ flags });
+      await cmdResume({ flags, rest });
       break;
     case "help":
     case undefined:

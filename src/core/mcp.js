@@ -25,7 +25,7 @@ import { generatePr } from "./pr.js";
 import { buildEmbeddingsIndex, defaultEmbeddingConfig, planEmbeddingsBuild, semanticSearch } from "./embeddings.js";
 import { generateFocus } from "./focus.js";
 import { buildTimeline, formatTimelineMarkdown } from "./timeline.js";
-import { buildResumePack, formatResumeMarkdown } from "./resume.js";
+import { buildResumeDigest, buildResumePack, formatResumeDigestMarkdown, formatResumeMarkdown } from "./resume.js";
 import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
@@ -373,6 +373,19 @@ function toolsList() {
         includeTimeline: { type: "boolean", default: true },
         includeContext: { type: "boolean", default: true },
         brief: { type: "boolean", default: false }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_resume_digest", "Generate a concise resume digest (top todos + recent timeline).", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        format: { type: "string", enum: ["md", "json"], default: "md" },
+        timelineDays: { type: "number", default: 7 },
+        timelineLimit: { type: "number", default: 20 },
+        recentDays: { type: "number", default: 7 },
+        maxTimeline: { type: "number", default: 8 },
+        maxTodos: { type: "number", default: 5 }
       },
       additionalProperties: false
     }),
@@ -1217,6 +1230,27 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     if (format === "md") return formatResumeMarkdown(pack, { brief });
     if (format !== "json") throw new Error("format must be md|json");
     return JSON.stringify(pack, null, 2);
+  }
+
+  if (name === "rmemo_resume_digest") {
+    const format = String(args?.format || "md").toLowerCase();
+    const timelineDays = args?.timelineDays !== undefined ? Number(args.timelineDays) : 7;
+    const timelineLimit = args?.timelineLimit !== undefined ? Number(args.timelineLimit) : 20;
+    const recentDays = args?.recentDays !== undefined ? Number(args.recentDays) : 7;
+    const maxTimeline = args?.maxTimeline !== undefined ? Number(args.maxTimeline) : 8;
+    const maxTodos = args?.maxTodos !== undefined ? Number(args.maxTodos) : 5;
+
+    const pack = await buildResumePack(root, {
+      timelineDays,
+      timelineLimit,
+      includeTimeline: true,
+      includeContext: false,
+      recentDays
+    });
+    const digest = buildResumeDigest(pack, { maxTimeline, maxTodos });
+    if (format === "md") return formatResumeDigestMarkdown(digest);
+    if (format !== "json") throw new Error("format must be md|json");
+    return JSON.stringify(digest, null, 2);
   }
 
   if (name === "rmemo_ws_list") {

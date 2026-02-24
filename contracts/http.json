@@ -85,5 +85,5 @@
     "POST regex:/^\\/embed\\/jobs\\/([^/]+)\\/cancel$/",
     "POST regex:/^\\/embed\\/jobs\\/([^/]+)\\/retry$/"
   ],
-  "generatedAt": "2026-02-22T10:09:44.793Z"
+  "generatedAt": "2026-02-24T04:10:09.745Z"
 }

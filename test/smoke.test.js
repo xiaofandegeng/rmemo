@@ -1645,6 +1645,15 @@ test("rmemo resume generates next-day pack", async () => {
     assert.ok(r.out.includes("# Resume Pack"));
     assert.ok(r.out.includes("## Timeline Highlights"));
   }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "resume", "digest"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.ok(Array.isArray(j.next));
+    assert.ok(Array.isArray(j.blockers));
+    assert.ok(Array.isArray(j.timeline));
+  }
 });
 
 test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
@@ -1808,10 +1817,16 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
     method: "tools/call",
     params: { name: "rmemo_resume", arguments: { root: tmp, format: "json", timelineLimit: 10 } }
   });
+  mcp.writeLine({
+    jsonrpc: "2.0",
+    id: 9,
+    method: "tools/call",
+    params: { name: "rmemo_resume_digest", arguments: { root: tmp, format: "json", maxTimeline: 6, maxTodos: 4 } }
+  });
 
   await waitFor(() => {
     const lines = parseJsonLines(mcp.getOut());
-    return lines.some((x) => x.id === 8) ? true : false;
+    return lines.some((x) => x.id === 9) ? true : false;
   });
 
   const lines = parseJsonLines(mcp.getOut());
@@ -1852,6 +1867,12 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   assert.equal(resumeJson.schema, 1);
   assert.ok(resumeJson.todos);
   assert.ok(resumeJson.timeline);
+
+  const digest = lines.find((x) => x.id === 9);
+  const digestJson = JSON.parse(digest.result.content[0].text);
+  assert.equal(digestJson.schema, 1);
+  assert.ok(Array.isArray(digestJson.next));
+  assert.ok(Array.isArray(digestJson.timeline));
 
   mcp.closeIn();
   try {

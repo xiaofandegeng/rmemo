@@ -91,6 +91,7 @@ Usage:
   rmemo embed                Build embeddings index and run semantic search (local-first)
   rmemo focus                Generate a paste-ready "focus pack" for a question (status + relevant hits)
   rmemo resume               Generate a next-day resume pack (timeline + todos + latest session/context)
+  rmemo resume digest        Generate a concise resume digest (top todos + recent timeline)
   rmemo integrate            Generate paste-ready integration snippets (e.g. Antigravity MCP config)
   rmemo doctor               Diagnose environment + integration issues
   rmemo diagnostics <cmd>    Diagnostic utilities (e.g. export)
@@ -179,6 +180,8 @@ Options:
   --brief                    For timeline md: hide long details
   --timeline-days <n>        For resume: timeline window days (default: 14)
   --timeline-limit <n>       For resume: max timeline events (default: 40)
+  --max-timeline <n>         For resume digest: max timeline events in digest (default: 8)
+  --max-todos <n>            For resume digest: max next/blockers items each (default: 5)
   --context-lines <n>        For resume: context excerpt lines (default: 100)
   --no-timeline              For resume: skip timeline section
   --no-context               For resume: skip context excerpt
