@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0](https://github.com/xiaofandegeng/rmemo/compare/v1.5.0...v1.6.0) (2026-02-25)
+
+
+### ✨ Features
+
+* **release:** add archive mode to release rehearsal ([5fc42d0](https://github.com/xiaofandegeng/rmemo/commit/5fc42d0bd5113e1db84b01685bd952b19549b163))
+* **release:** add archive query command for version and snapshot lookup ([dd5a3e2](https://github.com/xiaofandegeng/rmemo/commit/dd5a3e20e07b54dcc8284b985e55b49f6129a2a2))
+* **release:** add archive verify step to rehearsal ([071b929](https://github.com/xiaofandegeng/rmemo/commit/071b929825cb8d28418ab6ea8c73af43c716d874))
+* **release:** add failure taxonomy to rehearsal summary ([475828d](https://github.com/xiaofandegeng/rmemo/commit/475828d2dbef5071985652e082042037048f2117))
+* **release:** add versioned archive workflow for release reports ([f667b2b](https://github.com/xiaofandegeng/rmemo/commit/f667b2b7d28a9d108b1b5a2c9e1a6c10530ce451))
+* **release:** aggregate health failure codes in rehearsal summary ([8d080ed](https://github.com/xiaofandegeng/rmemo/commit/8d080edc18322f723de9e853763d8a79f8a2e545))
+* **release:** validate archive snapshot required files ([9bac9f4](https://github.com/xiaofandegeng/rmemo/commit/9bac9f4dea6ba996f8acae96af6991916f34240f))
+
 ## [1.5.0](https://github.com/xiaofandegeng/rmemo/compare/v1.4.0...v1.5.0) (2026-02-25)
 
 
