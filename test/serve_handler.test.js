@@ -333,6 +333,9 @@ test("serve handler: /timeline and /resume support json and md", async () => {
   assert.equal(sj.schema, 1);
   assert.ok(sj.saved?.id);
 
+  const denyPrune = await run(handler, { method: "POST", url: "/resume/history/prune?token=t", bodyObj: { keep: 1 } });
+  assert.equal(denyPrune.status, 400);
+
   const history1 = await run(handler, { method: "GET", url: "/resume/history?token=t&format=json&limit=5" });
   assert.equal(history1.status, 200);
   const h1 = JSON.parse(history1.body);
@@ -360,6 +363,12 @@ test("serve handler: /timeline and /resume support json and md", async () => {
   });
   assert.equal(cmpMd.status, 200);
   assert.ok(cmpMd.body.includes("# Resume History Compare"));
+
+  const pruned = await run(rw, { method: "POST", url: "/resume/history/prune?token=t", bodyObj: { keep: 0 } });
+  assert.equal(pruned.status, 200);
+  const prunedJson = JSON.parse(pruned.body);
+  assert.equal(prunedJson.schema, 1);
+  assert.ok(prunedJson.pruned >= 1);
 });
 
 test("serve handler: /embed/status /embed/plan and /embed/build work", async () => {

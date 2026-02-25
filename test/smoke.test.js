@@ -1678,6 +1678,20 @@ test("rmemo resume generates next-day pack", async () => {
     assert.equal(j.schema, 1);
     assert.equal(j.summary.nextAdded, 0);
   }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "--keep", "0", "resume", "history", "prune"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.ok(j.pruned >= 1);
+  }
+  {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "resume", "history", "list"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    const j = JSON.parse(r.out);
+    assert.equal(j.schema, 1);
+    assert.equal(j.total, 0);
+  }
 });
 
 test("rmemo handoff --format json writes handoff.json and includes structured git fields", async () => {
@@ -2355,11 +2369,23 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
       return lines.some((x) => x.id === 17) && lines.some((x) => x.id === 20) && lines.some((x) => x.id === 21);
     });
 
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 22,
+      method: "tools/call",
+      params: {
+        name: "rmemo_resume_history_prune",
+        arguments: { root: tmp, keep: 0 }
+      }
+    });
+    await waitFor(() => parseJsonLines(mcp.getOut()).some((x) => x.id === 22));
+
     const lines = parseJsonLines(mcp.getOut());
     const list = lines.find((x) => x.id === 2);
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_todo_add"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_log"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_resume_history_save"));
+    assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_resume_history_prune"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_job_enqueue"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs"));
     assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_embed_jobs_failures"));
@@ -2407,6 +2433,11 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     const resumeSaveJson = JSON.parse(resumeSave.result.content[0].text);
     assert.equal(resumeSaveJson.schema, 1);
     assert.ok(resumeSaveJson.saved?.id);
+
+    const resumePrune = lines.find((x) => x.id === 22);
+    const resumePruneJson = JSON.parse(resumePrune.result.content[0].text);
+    assert.equal(resumePruneJson.schema, 1);
+    assert.ok(resumePruneJson.pruned >= 1);
     assert.ok(
       (jobsJson.active && jobsJson.active.id) ||
       (Array.isArray(jobsJson.queued) && jobsJson.queued.length >= 0) ||

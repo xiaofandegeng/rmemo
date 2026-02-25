@@ -27,13 +27,13 @@ rmemo contract check --update
 Recommended CI gate:
 
 ```bash
-rmemo contract check --format json
+rmemo contract check --format json --fail-on any
 ```
 
 If contract snapshots drift, the command exits non-zero.
 
 ## Fail policy
 
-- `--fail-on breaking` (default): only breaking drift blocks CI (removed commands/routes/tools or missing snapshots).
+- `--fail-on breaking` (default): only breaking drift blocks checks (removed commands/routes/tools or missing snapshots).
 - `--fail-on any`: any drift blocks CI (added or removed).
 - `--fail-on none`: report-only mode (never exits non-zero due to drift).

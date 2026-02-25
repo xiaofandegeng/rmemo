@@ -58,7 +58,7 @@ jobs:
         run: npm run verify:changelog
 
       - name: Contract drift check
-        run: node bin/rmemo.js contract check --format json
+        run: node bin/rmemo.js contract check --format json --fail-on any
 
       - name: Regression matrix check
         run: npm run verify:matrix
@@ -228,7 +228,7 @@ jobs:
           mkdir -p artifacts
           node scripts/release-notes.js --version "${{ steps.vars.outputs.version }}" --out artifacts/release-notes.md || echo "release notes generation failed" > artifacts/release-notes.md
           node ./bin/rmemo.js diagnostics export --format json > artifacts/diagnostics.json || echo '{"error":"Failed to run diagnostics export"}' > artifacts/diagnostics.json
-          node ./bin/rmemo.js contract check --format json > artifacts/contract-check.json || echo '{"error":"Failed to run contract check"}' > artifacts/contract-check.json
+          node ./bin/rmemo.js contract check --format json --fail-on any > artifacts/contract-check.json || echo '{"error":"Failed to run contract check"}' > artifacts/contract-check.json
           npm run verify:matrix -- --format json > artifacts/regression-matrix.json || echo '{"error":"Failed to run regression matrix"}' > artifacts/regression-matrix.json
           node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" > artifacts/release-health.json || echo '{"error":"Failed to run release health"}' > artifacts/release-health.json
 

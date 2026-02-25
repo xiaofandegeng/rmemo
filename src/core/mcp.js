@@ -33,6 +33,7 @@ import {
   formatResumeHistorySnapshotMarkdown,
   getResumeDigestSnapshot,
   listResumeDigestSnapshots,
+  pruneResumeDigestSnapshots,
   saveResumeDigestSnapshot
 } from "./resume_history.js";
 import { syncAiInstructions } from "./sync.js";
@@ -804,6 +805,15 @@ function toolsListWithWrite({ allowWrite } = {}) {
         maxTimeline: { type: "number", default: 8 },
         maxTodos: { type: "number", default: 5 },
         tag: { type: "string", default: "" }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_resume_history_prune", "Prune resume digest snapshots by keep count and/or age in days.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        keep: { type: "number", default: 100 },
+        olderThanDays: { type: "number", default: 0 }
       },
       additionalProperties: false
     }),
@@ -1622,6 +1632,15 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     });
     const digest = buildResumeDigest(pack, { maxTimeline, maxTodos });
     const out = await saveResumeDigestSnapshot(root, digest, { tag, source: "mcp" });
+    return JSON.stringify(out, null, 2);
+  }
+
+  if (name === "rmemo_resume_history_prune") {
+    requireWrite();
+    const out = await pruneResumeDigestSnapshots(root, {
+      keep: args?.keep !== undefined ? Number(args.keep) : 100,
+      olderThanDays: args?.olderThanDays !== undefined ? Number(args.olderThanDays) : 0
+    });
     return JSON.stringify(out, null, 2);
   }
 

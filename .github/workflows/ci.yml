@@ -22,7 +22,7 @@ jobs:
       - name: Changelog lint
         run: npm run verify:changelog
       - name: Contract drift check
-        run: node bin/rmemo.js contract check --format json
+        run: node bin/rmemo.js contract check --format json --fail-on any
       - name: Regression matrix check
         run: npm run verify:matrix
       - name: Run rmemo self-check
@@ -48,7 +48,7 @@ jobs:
         run: |
           mkdir -p artifacts
           node ./bin/rmemo.js diagnostics export --format json > artifacts/diagnostics.json || echo '{"error":"Failed to run diagnostics export"}' > artifacts/diagnostics.json
-          node ./bin/rmemo.js contract check --format json > artifacts/contract-check.json || echo '{"error":"Failed to run contract check"}' > artifacts/contract-check.json
+          node ./bin/rmemo.js contract check --format json --fail-on any > artifacts/contract-check.json || echo '{"error":"Failed to run contract check"}' > artifacts/contract-check.json
           npm run verify:matrix -- --format json > artifacts/regression-matrix.json || echo '{"error":"Failed to run regression matrix"}' > artifacts/regression-matrix.json
       - name: Upload failure diagnostics artifact
         if: failure()

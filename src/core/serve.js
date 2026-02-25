@@ -29,6 +29,7 @@ import {
   formatResumeHistorySnapshotMarkdown,
   getResumeDigestSnapshot,
   listResumeDigestSnapshots,
+  pruneResumeDigestSnapshots,
   saveResumeDigestSnapshot
 } from "./resume_history.js";
 import { renderUiHtml } from "./ui.js";
@@ -1457,6 +1458,18 @@ export function createServeHandler(root, opts = {}) {
         const digest = buildResumeDigest(pack, { maxTimeline, maxTodos });
         const out = await saveResumeDigestSnapshot(root, digest, { tag, source: "serve" });
         events?.emit?.({ type: "resume:history:saved", id: out.saved.id, tag: out.saved.tag || null });
+        return json(res, 200, out);
+      }
+
+      if (req.method === "POST" && url.pathname === "/resume/history/prune") {
+        if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
+        const body = await readBodyJsonOr400(req, res);
+        if (!body) return;
+        const out = await pruneResumeDigestSnapshots(root, {
+          keep: body.keep !== undefined ? Number(body.keep) : 100,
+          olderThanDays: body.olderThanDays !== undefined ? Number(body.olderThanDays) : 0
+        });
+        events?.emit?.({ type: "resume:history:pruned", pruned: out.pruned, keep: out.keep, olderThanDays: out.olderThanDays });
         return json(res, 200, out);
       }
 

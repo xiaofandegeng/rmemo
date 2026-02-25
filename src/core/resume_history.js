@@ -1,4 +1,5 @@
 import path from "node:path";
+import fs from "node:fs/promises";
 import { ensureDir, fileExists, readJson, writeJson } from "../lib/io.js";
 import { resumeIndexPath, resumeSnapshotPath, resumeSnapshotsDir } from "../lib/paths.js";
 
@@ -167,6 +168,49 @@ export async function compareResumeDigestSnapshots(root, { fromId, toId } = {}) 
         to: sessionTo
       }
     }
+  };
+}
+
+export async function pruneResumeDigestSnapshots(root, { keep = 100, olderThanDays = 0 } = {}) {
+  const keepN = Math.max(0, Number(keep || 0));
+  const days = Math.max(0, Number(olderThanDays || 0));
+  const cutoff = days > 0 ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
+
+  const idx = await readIndex(root);
+  const deleted = [];
+  const kept = [];
+  for (let i = 0; i < idx.snapshots.length; i++) {
+    const s = idx.snapshots[i];
+    const ts = Date.parse(String(s?.createdAt || ""));
+    const oldByDays = cutoff !== null && Number.isFinite(ts) ? ts < cutoff : false;
+    const overKeep = i >= keepN;
+    if (oldByDays || overKeep) deleted.push(s);
+    else kept.push(s);
+  }
+
+  for (const s of deleted) {
+    const p = resumeSnapshotPath(root, s.id);
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.unlink(p);
+    } catch {
+      // ignore missing/corrupt files
+    }
+  }
+
+  idx.snapshots = kept;
+  idx.updatedAt = nowIso();
+  await writeJson(resumeIndexPath(root), idx);
+
+  return {
+    schema: 1,
+    root,
+    keep: keepN,
+    olderThanDays: days,
+    before: kept.length + deleted.length,
+    after: kept.length,
+    pruned: deleted.length,
+    deletedIds: deleted.map((x) => x.id)
   };
 }
 

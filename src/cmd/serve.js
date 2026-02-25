@@ -111,6 +111,7 @@ export async function cmdServe({ flags }) {
     process.stdout.write(`- POST /todos/blockers/unblock {index}\n`);
     process.stdout.write(`- POST /log {text,kind?}\n`);
     process.stdout.write(`- POST /resume/history/save {timelineDays?,timelineLimit?,maxTimeline?,maxTodos?,tag?}\n`);
+    process.stdout.write(`- POST /resume/history/prune {keep?,olderThanDays?}\n`);
     process.stdout.write(`- POST /sync\n`);
     process.stdout.write(`- POST /embed/auto\n`);
     process.stdout.write(`- POST /embed/build {force?,useConfig?,provider?,model?,dim?,parallelism?,batchDelayMs?,kinds?...}\n`);

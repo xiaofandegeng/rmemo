@@ -7,6 +7,7 @@ import {
   formatResumeHistorySnapshotMarkdown,
   getResumeDigestSnapshot,
   listResumeDigestSnapshots,
+  pruneResumeDigestSnapshots,
   saveResumeDigestSnapshot
 } from "../core/resume_history.js";
 
@@ -19,6 +20,7 @@ function help() {
     "  rmemo resume history save [--format md|json] [--tag <name>] [--timeline-days <n>] [--timeline-limit <n>] [--max-timeline <n>] [--max-todos <n>]",
     "  rmemo resume history show <id> [--format md|json]",
     "  rmemo resume history compare <fromId> <toId> [--format md|json]",
+    "  rmemo resume history prune [--format md|json] [--keep <n>] [--older-than-days <n>]",
     ""
   ].join("\n");
 }
@@ -107,6 +109,31 @@ export async function cmdResume({ flags, rest = [] }) {
       const cmp = await compareResumeDigestSnapshots(root, { fromId, toId });
       if (outFormat === "json") process.stdout.write(JSON.stringify(cmp, null, 2) + "\n");
       else process.stdout.write(formatResumeHistoryCompareMarkdown(cmp));
+      return;
+    }
+
+    if (op === "prune" || op === "clean") {
+      const out = await pruneResumeDigestSnapshots(root, {
+        keep: Number(flags.keep || 100),
+        olderThanDays: Number(flags["older-than-days"] || 0)
+      });
+      if (outFormat === "json") {
+        process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+      } else {
+        process.stdout.write(
+          [
+            "# Resume History Prune",
+            "",
+            `- keep: ${out.keep}`,
+            `- olderThanDays: ${out.olderThanDays}`,
+            `- before: ${out.before}`,
+            `- after: ${out.after}`,
+            `- pruned: ${out.pruned}`,
+            out.deletedIds.length ? `- deletedIds: ${out.deletedIds.join(", ")}` : "- deletedIds: (none)",
+            ""
+          ].join("\n")
+        );
+      }
       return;
     }
 

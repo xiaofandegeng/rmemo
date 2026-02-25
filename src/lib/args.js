@@ -92,7 +92,7 @@ Usage:
   rmemo focus                Generate a paste-ready "focus pack" for a question (status + relevant hits)
   rmemo resume               Generate a next-day resume pack (timeline + todos + latest session/context)
   rmemo resume digest        Generate a concise resume digest (top todos + recent timeline)
-  rmemo resume history       Manage resume digest snapshots (list/save/show/compare)
+  rmemo resume history       Manage resume digest snapshots (list/save/show/compare/prune)
   rmemo integrate            Generate paste-ready integration snippets (e.g. Antigravity MCP config)
   rmemo doctor               Diagnose environment + integration issues
   rmemo diagnostics <cmd>    Diagnostic utilities (e.g. export)
@@ -183,6 +183,8 @@ Options:
   --timeline-limit <n>       For resume: max timeline events (default: 40)
   --max-timeline <n>         For resume digest: max timeline events in digest (default: 8)
   --max-todos <n>            For resume digest: max next/blockers items each (default: 5)
+  --keep <n>                 For resume history prune: keep latest N snapshots (default: 100)
+  --older-than-days <n>      For resume history prune: also prune snapshots older than N days
   --context-lines <n>        For resume: context excerpt lines (default: 100)
   --no-timeline              For resume: skip timeline section
   --no-context               For resume: skip context excerpt

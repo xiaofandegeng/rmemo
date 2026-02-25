@@ -71,6 +71,7 @@
     "POST /embed/jobs/retry-failed",
     "POST /log",
     "POST /refresh",
+    "POST /resume/history/prune",
     "POST /resume/history/save",
     "POST /shutdown",
     "POST /sync",
@@ -89,5 +90,5 @@
     "POST regex:/^\\/embed\\/jobs\\/([^/]+)\\/cancel$/",
     "POST regex:/^\\/embed\\/jobs\\/([^/]+)\\/retry$/"
   ],
-  "generatedAt": "2026-02-24T08:10:53.316Z"
+  "generatedAt": "2026-02-25T04:00:16.332Z"
 }

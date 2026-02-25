@@ -11,7 +11,7 @@ This checklist is the single source of truth for shipping `rmemo` releases.
 - [ ] `node --test`
 - [ ] `npm run pack:dry`
 - [ ] `npm run verify:changelog`
-- [ ] `node bin/rmemo.js contract check --format json`
+- [ ] `node bin/rmemo.js contract check --format json --fail-on any`
 - [ ] `npm run verify:matrix`
 - [ ] `npm run verify:release-ready`
 - [ ] Archive readiness report:
