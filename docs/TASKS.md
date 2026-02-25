@@ -29,6 +29,7 @@
   - v1.5 M1 已落地：`release-archive` 版本化归档与留存清理（含 `latest/catalog` 索引）
   - v1.5 M1 已落地：`release-archive-find` 归档检索命令（版本/快照查询）
   - v1.5 M2 已启动并落地首项：`release-rehearsal --archive` 一键归档（含归档参数透传）
+  - v1.5 M2 已落地：`release-summary.json` 失败分层与恢复提示（快速定位 timeout/network/archive/config）
 
 ## Execution Rule
 

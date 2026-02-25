@@ -127,15 +127,56 @@ function toMd(report) {
 }
 
 function toSummary(report) {
+  const hints = {
+    timeout: "Increase timeout or inspect upstream command latency before rerun.",
+    network: "Retry after network/platform recovers; keep github retries enabled.",
+    auth: "Check token/permission scopes before rerun.",
+    config: "Fix command flags/environment inputs before rerun.",
+    archive: "Inspect artifacts completeness and archive parameters before rerun.",
+    unknown: "Inspect release-rehearsal step stderr/stdout for the failing step."
+  };
+
+  function classifyFailure(step) {
+    const msg = String(step.error || "").toLowerCase();
+    if (step.timedOut || /timed out|timeout/.test(msg)) {
+      return { category: "timeout", code: "STEP_TIMEOUT", retryable: true };
+    }
+    if (step.name === "release-archive") {
+      return { category: "archive", code: "RELEASE_ARCHIVE_FAILED", retryable: false };
+    }
+    if (/econn|enotfound|eai_again|429|5\d\d|network|socket|request timeout|github release unavailable/.test(msg)) {
+      return { category: "network", code: "NETWORK_UNAVAILABLE", retryable: true };
+    }
+    if (/401|403|forbidden|unauthorized|auth|token|permission/.test(msg)) {
+      return { category: "auth", code: "AUTH_FAILED", retryable: false };
+    }
+    if (/missing repo|version is required|format must be|invalid/.test(msg)) {
+      return { category: "config", code: "INPUT_INVALID", retryable: false };
+    }
+    return { category: "unknown", code: "STEP_FAILED", retryable: false };
+  }
+
   const failedSteps = report.steps
     .filter((s) => s.status === "fail")
-    .map((s) => ({
-      name: s.name,
-      optional: !!s.optional,
-      code: s.code,
-      timedOut: !!s.timedOut,
-      error: String(s.error || "").trim()
-    }));
+    .map((s) => {
+      const classified = classifyFailure(s);
+      return {
+        ...classified,
+        name: s.name,
+        optional: !!s.optional,
+        code: s.code,
+        timedOut: !!s.timedOut,
+        error: String(s.error || "").trim(),
+        nextAction: hints[classified.category] || hints.unknown
+      };
+    });
+
+  const failureBreakdown = failedSteps.reduce((acc, step) => {
+    acc[step.category] = Number(acc[step.category] || 0) + 1;
+    return acc;
+  }, {});
+  const actionHints = Array.from(new Set(failedSteps.map((x) => x.nextAction).filter(Boolean)));
+  const retryableFailures = failedSteps.filter((x) => x.retryable).length;
 
   return {
     schema: 1,
@@ -147,7 +188,10 @@ function toSummary(report) {
     repo: report.repo,
     ok: report.ok,
     summary: report.summary,
-    failedSteps
+    failedSteps,
+    failureBreakdown,
+    retryableFailures,
+    actionHints
   };
 }
 

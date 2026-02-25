@@ -33,6 +33,7 @@
 - [x] `release-rehearsal` 新增 `--archive` 一键归档模式，串联演练与 `release-archive`。
 - [x] `release-rehearsal` 支持归档参数透传（`archive-snapshot-id/archive-retention-days/archive-max-snapshots-per-version`）。
 - [x] 在 `--archive` 模式下自动输出 `artifacts/release-summary.json` 与 `artifacts/release-archive.json`，补充成功/失败测试。
+- [x] `release-summary.json` 增加失败分层与恢复提示（`category/code/retryable/nextAction` + `failureBreakdown/actionHints`）。
 
 ## 6. 启动时固定动作
 

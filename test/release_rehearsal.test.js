@@ -65,6 +65,7 @@ test("release-rehearsal marks health steps as timeout failures", async () => {
     "utf8"
   );
 
+  const summaryPath = "artifacts/release-summary.json";
   const r = await runNode(
     [
       path.resolve("scripts/release-rehearsal.js"),
@@ -76,6 +77,8 @@ test("release-rehearsal marks health steps as timeout failures", async () => {
       "json",
       "--health-timeout-ms",
       "200",
+      "--summary-out",
+      summaryPath,
       "--skip-tests",
       "--allow-dirty"
     ],
@@ -96,6 +99,14 @@ test("release-rehearsal marks health steps as timeout failures", async () => {
   assert.equal(healthJson.timedOut, true);
   assert.match(String(healthMd.error || ""), /timed out after/);
   assert.match(String(healthJson.error || ""), /timed out after/);
+
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, summaryPath), "utf8"));
+  assert.ok(Array.isArray(summary.failedSteps));
+  assert.equal(summary.failedSteps.some((x) => x.category === "timeout"), true);
+  assert.ok(Number(summary.failureBreakdown.timeout || 0) >= 1);
+  assert.ok(Number(summary.retryableFailures || 0) >= 1);
+  assert.ok(Array.isArray(summary.actionHints));
+  assert.ok(summary.actionHints.length >= 1);
 });
 
 test("release-rehearsal passes github retry flags to release-health steps", async () => {
@@ -410,4 +421,9 @@ test("release-rehearsal fails when archive step fails", async () => {
   assert.ok(archiveStep);
   assert.equal(archiveStep.status, "fail");
   assert.ok(report.summary.fail >= 1);
+
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
+  assert.equal(summary.failedSteps.some((x) => x.category === "archive"), true);
+  assert.ok(Number(summary.failureBreakdown.archive || 0) >= 1);
+  assert.equal(Number(summary.retryableFailures || 0) >= 1, false);
 });

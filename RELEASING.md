@@ -37,6 +37,12 @@ Artifacts written under `artifacts/`:
 - `release-summary.json` (auto-generated when `--archive` is enabled, or configurable via `--summary-out`)
 - `release-archive.json` (written when `--archive` is enabled)
 
+`release-summary.json` includes failure categorization for fast triage:
+- `failedSteps[].category/code/retryable/nextAction`
+- `failureBreakdown`
+- `retryableFailures`
+- `actionHints`
+
 Archive reports in a versioned snapshot (recommended):
 
 ```bash
