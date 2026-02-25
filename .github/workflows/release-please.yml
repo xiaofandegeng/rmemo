@@ -17,14 +17,43 @@ jobs:
       group: release-please
       cancel-in-progress: true
     outputs:
-      releases_created: ${{ steps.release.outputs.releases_created }}
+      releases_created: ${{ steps.release-result.outputs.releases_created }}
     steps:
-      - id: release
+      - id: release-try-1
         uses: googleapis/release-please-action@v4
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+      - id: release-try-2
+        if: steps.release-try-1.outcome == 'failure'
+        uses: googleapis/release-please-action@v4
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - id: release-result
+        shell: bash
+        run: |
+          FIRST_STATUS="${{ steps.release-try-1.outcome }}"
+          SECOND_STATUS="${{ steps.release-try-2.outcome }}"
+          FIRST_RELEASES_CREATED="${{ steps.release-try-1.outputs.releases_created }}"
+          SECOND_RELEASES_CREATED="${{ steps.release-try-2.outputs.releases_created }}"
+
+          if [[ "$FIRST_STATUS" == "success" ]]; then
+            echo "releases_created=${FIRST_RELEASES_CREATED}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$SECOND_STATUS" == "success" ]]; then
+            echo "releases_created=${SECOND_RELEASES_CREATED}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "release-please failed twice (attempt-1=${FIRST_STATUS}, attempt-2=${SECOND_STATUS:-skipped})."
+          exit 1
 
   publish-from-release-please:
     needs: release-please
