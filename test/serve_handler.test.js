@@ -279,7 +279,8 @@ test("serve handler: /timeline and /resume support json and md", async () => {
     "utf8"
   );
 
-  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", events: createEventsBus() });
+  const events = createEventsBus();
+  const handler = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", events });
 
   const timelineJson = await run(handler, { method: "GET", url: "/timeline?token=t&format=json&days=30&limit=20" });
   assert.equal(timelineJson.status, 200);
@@ -326,7 +327,7 @@ test("serve handler: /timeline and /resume support json and md", async () => {
   const denySave = await run(handler, { method: "POST", url: "/resume/history/save?token=t", bodyObj: { tag: "t1" } });
   assert.equal(denySave.status, 400);
 
-  const rw = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events: createEventsBus() });
+  const rw = createServeHandler(root, { host: "127.0.0.1", port: 7357, token: "t", allowWrite: true, events });
   const saved = await run(rw, { method: "POST", url: "/resume/history/save?token=t", bodyObj: { tag: "daily-1", maxTimeline: 6, maxTodos: 4 } });
   assert.equal(saved.status, 200);
   const sj = JSON.parse(saved.body);
@@ -369,6 +370,9 @@ test("serve handler: /timeline and /resume support json and md", async () => {
   const prunedJson = JSON.parse(pruned.body);
   assert.equal(prunedJson.schema, 1);
   assert.ok(prunedJson.pruned >= 1);
+  const hist = events.history();
+  assert.ok(hist.some((e) => e.type === "resume:history:saved"));
+  assert.ok(hist.some((e) => e.type === "resume:history:pruned"));
 });
 
 test("serve handler: /embed/status /embed/plan and /embed/build work", async () => {
