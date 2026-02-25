@@ -49,7 +49,7 @@ v1.4 聚焦“发布稳定性工程化”，确保发布链路在网络抖动、
 
 - [ ] 发布 `v1.4.0`。
 - [ ] 完成 npm 与 GitHub Release 双端校验。
-- [ ] 更新 `RELEASING.md` / `RELEASE_CHECKLIST.md` 的 v1.4 运行规范。
+- [x] 更新 `RELEASING.md` / `RELEASE_CHECKLIST.md` 的 v1.4 运行规范。
 
 验收：
 
