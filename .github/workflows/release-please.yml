@@ -162,6 +162,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const tag = "v${{ steps.vars.outputs.version }}";
+            const version = "${{ steps.vars.outputs.version }}";
             
             // Try to find the release matching the tag created by release-please
             let release_id;
@@ -179,22 +180,32 @@ jobs:
               return;
             }
 
+            const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+            const packageName = String(pkg.name || "");
+            const packageBaseName = packageName.includes("/") ? packageName.split("/").pop() : packageName;
+            const scopedPackFile = `${packageName.replace(/^@/, "").replace("/", "-")}-${version}.tgz`;
+            const preferredAssetName = `${packageBaseName}-${version}.tgz`;
+
             const assets = await github.paginate(github.rest.repos.listReleaseAssets, { owner, repo, release_id, per_page: 100 });
             const byName = new Map(assets.map((a) => [a.name, a]));
 
             for (const f of files) {
-              const existing = byName.get(f);
-              if (existing) {
-                core.info(`Deleting existing asset: ${f}`);
+              const assetName = f === scopedPackFile ? preferredAssetName : f;
+              const namesToDelete = new Set([f, assetName]);
+              for (const name of namesToDelete) {
+                const existing = byName.get(name);
+                if (!existing) continue;
+                core.info(`Deleting existing asset: ${name}`);
                 await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: existing.id });
+                byName.delete(name);
               }
               const data = fs.readFileSync(path.join(process.cwd(), f));
-              core.info(`Uploading asset: ${f} (${data.length} bytes)`);
+              core.info(`Uploading asset: ${assetName} (source: ${f}, bytes: ${data.length})`);
               await github.rest.repos.uploadReleaseAsset({
                 owner,
                 repo,
                 release_id,
-                name: f,
+                name: assetName,
                 data,
                 headers: {
                   "content-type": "application/octet-stream",
