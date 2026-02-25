@@ -38,6 +38,13 @@ Useful flags:
 - `--health-github-retry-delay-ms <ms>` delay between retry attempts during rehearsal (default `1000`)
 - `--step-timeout-ms <ms>` on `scripts/release-ready.js` to cap each readiness check (default `600000`)
 
+`release-health` JSON now includes a standardized summary block for integrations:
+- `standardized.status`
+- `standardized.resultCode`
+- `standardized.checkStatuses`
+- `standardized.failureCodes`
+- `standardized.failures`
+
 ## v1.4 release guardrails
 
 Keep these values aligned between local rehearsal and workflow:

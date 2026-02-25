@@ -137,6 +137,92 @@ async function getGithubReleaseByTagWithRetry({ owner, repo, tag, token, timeout
   return last;
 }
 
+function statusFromOk(ok) {
+  return ok ? "pass" : "fail";
+}
+
+function firstLine(v) {
+  return String(v || "").trim().split("\n")[0];
+}
+
+function isTimeoutLike(v) {
+  return /timed out|timeout/i.test(String(v || ""));
+}
+
+function buildStandardizedChecks({ npmCheck, ghCheck, releaseAssetsCheck, reportOk }) {
+  const npmStandard = {
+    status: statusFromOk(npmCheck.ok),
+    code: npmCheck.ok ? "NPM_VERSION_FOUND" : isTimeoutLike(npmCheck.error) ? "NPM_VIEW_TIMEOUT" : "NPM_VIEW_FAILED",
+    message: npmCheck.ok ? `found version ${String(npmCheck.value || "").trim()}` : firstLine(npmCheck.error) || "npm view failed",
+    retryable: false
+  };
+
+  let ghCode = "GITHUB_RELEASE_FOUND";
+  if (!ghCheck.ok) {
+    if (Number(ghCheck.status) === 429) ghCode = "GITHUB_RELEASE_RATE_LIMITED";
+    else if (Number(ghCheck.status) >= 500) ghCode = "GITHUB_RELEASE_HTTP_5XX";
+    else if (Number(ghCheck.status) >= 400) ghCode = "GITHUB_RELEASE_HTTP_4XX";
+    else if (isTimeoutLike(ghCheck.error)) ghCode = "GITHUB_RELEASE_TIMEOUT";
+    else ghCode = "GITHUB_RELEASE_UNAVAILABLE";
+  }
+  const ghStandard = {
+    status: statusFromOk(ghCheck.ok),
+    code: ghCode,
+    message: ghCheck.ok
+      ? `found release tag with ${Number(ghCheck.assetsCount || 0)} asset(s)`
+      : firstLine(ghCheck.error) || `github release check failed (http ${Number(ghCheck.status || 0)})`,
+    retryable: ghCode === "GITHUB_RELEASE_RATE_LIMITED" || ghCode === "GITHUB_RELEASE_HTTP_5XX" || ghCode === "GITHUB_RELEASE_TIMEOUT",
+    httpStatus: Number(ghCheck.status || 0),
+    attempts: Number(ghCheck.attempts || 1)
+  };
+
+  let assetCode = "RELEASE_ASSET_EXPECTED_PRESENT";
+  if (!releaseAssetsCheck.ok) {
+    if (!ghCheck.ok) assetCode = "RELEASE_ASSET_CHECK_BLOCKED";
+    else if (releaseAssetsCheck.foundLegacy && !releaseAssetsCheck.foundExpected) assetCode = "RELEASE_ASSET_LEGACY_ONLY";
+    else assetCode = "RELEASE_ASSET_EXPECTED_MISSING";
+  }
+  const assetStandard = {
+    status: statusFromOk(releaseAssetsCheck.ok),
+    code: assetCode,
+    message: releaseAssetsCheck.ok
+      ? `expected asset present: ${String(releaseAssetsCheck.expectedAsset || "")}`
+      : firstLine(releaseAssetsCheck.error) || "release asset check failed",
+    retryable: false
+  };
+
+  const checks = {
+    npm: npmStandard,
+    githubRelease: ghStandard,
+    releaseAssets: assetStandard
+  };
+  const entries = Object.entries(checks);
+  const failures = entries
+    .filter(([, v]) => v.status === "fail")
+    .map(([check, v]) => ({
+      check,
+      code: v.code,
+      message: v.message,
+      retryable: !!v.retryable,
+      ...(check === "githubRelease" ? { httpStatus: v.httpStatus, attempts: v.attempts } : {})
+    }));
+
+  return {
+    schema: 1,
+    status: statusFromOk(reportOk),
+    resultCode: reportOk ? "RELEASE_HEALTH_OK" : "RELEASE_HEALTH_FAIL",
+    summary: {
+      totalChecks: entries.length,
+      passCount: entries.filter(([, v]) => v.status === "pass").length,
+      failCount: entries.filter(([, v]) => v.status === "fail").length
+    },
+    checkStatuses: Object.fromEntries(entries.map(([k, v]) => [k, v.status])),
+    checks,
+    failureCodes: failures.map((x) => x.code),
+    failures
+  };
+}
+
 function md(report) {
   const lines = [];
   lines.push("# rmemo Release Health");
@@ -146,6 +232,10 @@ function md(report) {
   lines.push(`- tag: ${report.tag}`);
   lines.push(`- repo: ${report.repo.owner}/${report.repo.name}`);
   lines.push(`- result: ${report.ok ? "OK" : "FAIL"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
+  if (Array.isArray(report.standardized?.failureCodes) && report.standardized.failureCodes.length) {
+    lines.push(`- failureCodes: ${report.standardized.failureCodes.join(",")}`);
+  }
   lines.push("");
   lines.push("## npm");
   lines.push(`- status: ${report.checks.npm.ok ? "OK" : "FAIL"}`);
@@ -249,6 +339,12 @@ async function main() {
     },
     ok: npmCheck.ok && ghCheck.ok && releaseAssetsCheck.ok
   };
+  report.standardized = buildStandardizedChecks({
+    npmCheck,
+    ghCheck,
+    releaseAssetsCheck,
+    reportOk: report.ok
+  });
 
   if (format === "json") process.stdout.write(JSON.stringify(report, null, 2) + "\n");
   else process.stdout.write(md(report));

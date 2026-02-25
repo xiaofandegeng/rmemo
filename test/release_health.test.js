@@ -156,6 +156,14 @@ test("release-health passes when expected unscoped tgz asset exists", async () =
   assert.equal(report.checks.githubRelease.ok, true);
   assert.equal(report.checks.releaseAssets.ok, true);
   assert.equal(report.checks.releaseAssets.foundExpected, true);
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.resultCode, "RELEASE_HEALTH_OK");
+  assert.deepEqual(report.standardized.checkStatuses, {
+    npm: "pass",
+    githubRelease: "pass",
+    releaseAssets: "pass"
+  });
+  assert.deepEqual(report.standardized.failureCodes, []);
 });
 
 test("release-health fails when expected release tgz asset is missing", async () => {
@@ -272,6 +280,8 @@ test("release-health strict mode rejects legacy scoped tgz asset name", async ()
   assert.equal(report.checks.releaseAssets.foundExpected, false);
   assert.equal(report.checks.releaseAssets.ok, false);
   assert.match(String(report.checks.releaseAssets.error || ""), /missing expected asset/);
+  assert.equal(report.standardized.status, "fail");
+  assert.ok(report.standardized.failureCodes.includes("RELEASE_ASSET_LEGACY_ONLY"));
 });
 
 test("release-health retries github api on 429 and then succeeds", async () => {
@@ -412,4 +422,11 @@ test("release-health fails after github retry budget is exhausted on 5xx", async
   assert.equal(report.checks.githubRelease.attempts, 3);
   assert.equal(report.checks.releaseAssets.ok, false);
   assert.match(String(report.checks.releaseAssets.error || ""), /github release unavailable/);
+  assert.equal(report.standardized.status, "fail");
+  assert.equal(report.standardized.resultCode, "RELEASE_HEALTH_FAIL");
+  assert.ok(report.standardized.failureCodes.includes("GITHUB_RELEASE_HTTP_5XX"));
+  assert.ok(report.standardized.failureCodes.includes("RELEASE_ASSET_CHECK_BLOCKED"));
+  assert.ok(Array.isArray(report.standardized.failures));
+  const ghFailure = report.standardized.failures.find((x) => x.check === "githubRelease");
+  assert.equal(ghFailure.httpStatus, 503);
 });

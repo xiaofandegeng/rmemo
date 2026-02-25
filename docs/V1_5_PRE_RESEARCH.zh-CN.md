@@ -16,12 +16,13 @@
 
 ## 3. 候选课题池（待评估）
 
-- [ ] 课题 1：`release-health` 结果结构标准化（便于告警/平台接入）。
+- [x] 课题 1：`release-health` 结果结构标准化（便于告警/平台接入）。
 - [ ] 课题 2：发布产物与运行报告统一归档约定（命名、留存期、检索方式）。
 - [x] 课题 3：`release-rehearsal` 增加一键“预发布演练摘要”输出（`--summary-out`）。
 
 ## 4. 当前入口任务（v1.5 M1）
 
+- [x] `release-health` JSON 输出新增标准化字段：`standardized.status/resultCode/checkStatuses/failureCodes/failures`。
 - [x] 在 `release-rehearsal` 中新增 `--summary-out <path>`，输出紧凑 JSON 摘要（含 `failedSteps`）。
 - [x] 补充自动化测试覆盖 `summary-out` 行为。
 
