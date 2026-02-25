@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2](https://github.com/xiaofandegeng/rmemo/compare/v1.3.1...v1.3.2) (2026-02-25)
+
+
+### 📚 Documentation
+
+* **plan:** calibrate baseline to v1.3.0 and target v1.4.0 ([90eb9fe](https://github.com/xiaofandegeng/rmemo/commit/90eb9fe6529d07bff6aea9dc278215e800c66316))
+
 ## [1.3.1](https://github.com/xiaofandegeng/rmemo/compare/v1.3.0...v1.3.1) (2026-02-25)
 
 
