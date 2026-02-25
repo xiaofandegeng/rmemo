@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3](https://github.com/xiaofandegeng/rmemo/compare/v1.2.2...v1.2.3) (2026-02-25)
+
+
+### 🐛 Bug Fixes
+
+* **release:** add per-check timeout control in release-ready ([be1fd1b](https://github.com/xiaofandegeng/rmemo/commit/be1fd1b2e7d9b76b6a304c8a7b9c7164b716eb12))
+
 ## [1.2.2](https://github.com/xiaofandegeng/rmemo/compare/v1.2.1...v1.2.2) (2026-02-25)
 
 
