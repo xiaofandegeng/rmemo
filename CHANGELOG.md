@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0](https://github.com/xiaofandegeng/rmemo/compare/v1.1.0...v1.2.0) (2026-02-25)
+
+
+### ✨ Features
+
+* **changelog:** add changelog lint gate and enforce release heading hygiene ([8ff9fbb](https://github.com/xiaofandegeng/rmemo/commit/8ff9fbbadaae716ec9bda406689e1071474fea11))
+* **mcp:** expose timeline and resume tools for antigravity ([a4b3603](https://github.com/xiaofandegeng/rmemo/commit/a4b36038135c0547652b2397c29b625f1286b538))
+* **release:** add aggregated release readiness gate script ([258ad6d](https://github.com/xiaofandegeng/rmemo/commit/258ad6db6c734d540187a936bee7e0047737ae53))
+* **release:** add one-command local release rehearsal ([2dce707](https://github.com/xiaofandegeng/rmemo/commit/2dce707d8c74826a3d27f9f628baccd3bffde807))
+* **release:** auto-sync github release notes from changelog ([a54d95e](https://github.com/xiaofandegeng/rmemo/commit/a54d95efd9db7d116514ee834e5292ff6f80779c))
+* **resume:** add digest command and mcp tool ([c7c3605](https://github.com/xiaofandegeng/rmemo/commit/c7c3605a9ea9aa0f48a39cbf00abae9631b10959))
+* **resume:** add history prune across cli/http/mcp and enforce contract drift gate ([5b75445](https://github.com/xiaofandegeng/rmemo/commit/5b7544521a58ba9baaa781515c467e7892fe7ed0))
+* **resume:** add next-day resume pack command ([a0198dd](https://github.com/xiaofandegeng/rmemo/commit/a0198dd29b79cc4d91423cbbe2d18523998b3f0f))
+* **resume:** add snapshot history across cli/http/mcp ([7bf2f4e](https://github.com/xiaofandegeng/rmemo/commit/7bf2f4eb268abd92b62d96b7155ead888225f8f2))
+* **serve:** add resume digest endpoint and watch digest events ([49f2467](https://github.com/xiaofandegeng/rmemo/commit/49f246781b50644d8ef6313a421aeeb993de5bbd))
+* **serve:** add timeline and resume http/ui endpoints ([864dfd5](https://github.com/xiaofandegeng/rmemo/commit/864dfd555b14f4cdf2caa0df1b6310bb183a903f))
+* **timeline:** add chronological project memory timeline command ([fd69483](https://github.com/xiaofandegeng/rmemo/commit/fd69483e645dd65ae23f12201cc4cb948e911352))
+* **ui:** add resume history panel and actions ([b7a43d2](https://github.com/xiaofandegeng/rmemo/commit/b7a43d2c626fe9c4ff90a170e8096f61fa321260))
+* **ui:** add resume history prune controls and live event handling ([a59ff7d](https://github.com/xiaofandegeng/rmemo/commit/a59ff7d67d07d781dfaf1414a87f06b47db2da05))
+
+
+### 🐛 Bug Fixes
+
+* **ci:** retry release-please on transient GitHub failures ([757a874](https://github.com/xiaofandegeng/rmemo/commit/757a874c6c268ea8ab81154f097e5817c4682bbe))
+* **resume:** validate prune params and return bad request on invalid input ([8eed842](https://github.com/xiaofandegeng/rmemo/commit/8eed8423f7aa68bec974809130c15e5ac474d71b))
+
+
+### 📚 Documentation
+
+* **mcp:** list resume history prune write tool in readmes ([49c4fd1](https://github.com/xiaofandegeng/rmemo/commit/49c4fd1cc4c0816f222b8a8523e81654abb2dd91))
+* **plan:** record v1.2 pre-dev progress and current focus snapshot ([3054693](https://github.com/xiaofandegeng/rmemo/commit/30546933d43f30f8d57558d6bc6c883a509ab2ef))
+* **release:** align runbook with release-please pipeline ([836d0a7](https://github.com/xiaofandegeng/rmemo/commit/836d0a7f55a888287ced52813fa2b9bcf943374a))
+* **ui:** clarify resume history prune constraints and update panel hint ([834cdc8](https://github.com/xiaofandegeng/rmemo/commit/834cdc8ef0ba845deebde32cdc89351cddf9b1b2))
+
+
+### 🎯 Testing
+
+* **resume:** cover invalid prune input in cli and mcp ([e83b704](https://github.com/xiaofandegeng/rmemo/commit/e83b704c93252dc1b61ec286ce4815ecd34ec571))
+* **serve:** assert resume history prune emits sse event ([dba1036](https://github.com/xiaofandegeng/rmemo/commit/dba10369db14376ac37a8c98188b2fba3a946858))
+
 ## [1.1.0](https://github.com/xiaofandegeng/rmemo/compare/v1.0.0...v1.1.0) (2026-02-22)
 
 
