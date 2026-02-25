@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0](https://github.com/xiaofandegeng/rmemo/compare/v1.2.3...v1.3.0) (2026-02-25)
+
+
+### ✨ Features
+
+* **release:** validate expected tgz asset in release-health ([64c0411](https://github.com/xiaofandegeng/rmemo/commit/64c041148f49bd7ba097f33e4744ef6d52cfc5e8))
+
+
+### 🐛 Bug Fixes
+
+* **release:** upload unscoped tgz asset name to GitHub release ([022cc7a](https://github.com/xiaofandegeng/rmemo/commit/022cc7a8738a03b287138249b8bcba1eb0112cb4))
+
+
+### 📚 Documentation
+
+* **release:** document step-timeout usage in readiness flow ([37fcdaf](https://github.com/xiaofandegeng/rmemo/commit/37fcdaf94d697bc6fffd175d2f1fe6fb7edecb34))
+
 ## [1.2.3](https://github.com/xiaofandegeng/rmemo/compare/v1.2.2...v1.2.3) (2026-02-25)
 
 
