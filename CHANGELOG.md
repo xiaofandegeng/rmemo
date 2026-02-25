@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0](https://github.com/xiaofandegeng/rmemo/compare/v1.4.0...v1.5.0) (2026-02-25)
+
+
+### ✨ Features
+
+* **release:** add summary-out report for release rehearsal ([24fcab2](https://github.com/xiaofandegeng/rmemo/commit/24fcab257bca9f965ab35bf75deb17396c05a314))
+* **release:** standardize release-health output for integrations ([647897b](https://github.com/xiaofandegeng/rmemo/commit/647897bfe78e16150ab80b4a8e0f56be94cca224))
+
+
+### 📚 Documentation
+
+* **plan:** track v1.4 release merge and pending verification ([690bb71](https://github.com/xiaofandegeng/rmemo/commit/690bb718ebbb74281af3a4adb40f6797567b3024))
+* **release:** close v1.4 cycle with dual-visibility verification ([91f1c67](https://github.com/xiaofandegeng/rmemo/commit/91f1c67f108d0aade936cd50cf04da224cc4664e))
+
 ## [1.4.0](https://github.com/xiaofandegeng/rmemo/compare/v1.3.2...v1.4.0) (2026-02-25)
 
 
