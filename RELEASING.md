@@ -1,42 +1,26 @@
-# Releasing (npm)
+# Releasing (npm + GitHub Release)
 
-This repo includes a GitHub Actions workflow to publish to npm.
+The canonical release pipeline is `.github/workflows/release-please.yml`.
 
-## One-time Setup
+## One-time setup
 
-1. Ensure the npm package name is available.
-   - Current name: `@xiaofandegeng/rmemo`
-   - If publishing fails due to name conflict, rename `package.json` -> `name`.
+1. Configure repository Actions permissions:
+   - `Settings -> Actions -> General -> Workflow permissions`
+   - Enable `Read and write permissions`
+   - Enable `Allow GitHub Actions to create and approve pull requests`
+2. Add `NPM_TOKEN` repository secret:
+   - Must be able to publish `@xiaofandegeng/rmemo`
+   - If npm account enforces 2FA, use an automation-compatible token
 
-2. Add an npm token as a GitHub Actions secret:
-   - Secret name: `NPM_TOKEN`
-   - Token should have permission to publish the package.
-   - If your npm account requires 2FA for publishing, the token must bypass 2FA (Automation token or granular token with bypass enabled).
+## Pre-release local rehearsal (recommended)
 
-## Release Workflow
-
-Use the GitHub Actions workflow: `Release`.
-
-Inputs:
-- `version`: exact version, e.g. `0.2.0`
-- `dist_tag`: npm dist-tag, e.g. `latest` or `next`
-
-What it does:
-1. Runs tests
-2. Updates `package.json` version (commit + git tag)
-3. Pushes commit + tags to `main`
-4. Publishes to npm
-5. Creates a GitHub Release for the tag (release notes auto-generated)
-
-## Local Release Rehearsal (Recommended)
-
-Before shipping, run one command locally to generate all audit artifacts:
+Run one command before releasing:
 
 ```bash
 npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 ```
 
-Generated files (default under `artifacts/`):
+Artifacts written under `artifacts/`:
 - `release-notes.md`
 - `release-ready.md`
 - `release-ready.json`
@@ -46,65 +30,35 @@ Generated files (default under `artifacts/`):
 - `release-rehearsal.json`
 
 Useful flags:
-- `--skip-health` when network/GitHub API is unavailable
+- `--skip-health` when GitHub API is unavailable
 - `--allow-dirty` for local dry runs with uncommitted changes
-- `--skip-tests` for quick smoke rehearsal
+- `--skip-tests` for quick smoke checks
 
-## Fully Automatic Release (Recommended)
+## Release flow (default)
 
-If you want "no GitHub clicking", you have 2 options:
-
-### Option A: Tag-based publishing (one local command)
-
-1. Update version locally (creates a git commit + tag):
-
-```bash
-npm version 0.2.0 -m "chore(release): %s"
-git push origin main --follow-tags
-```
-
-2. GitHub Actions will auto-run workflow `Publish (tag)` on tag push (`v*`) to:
-- run tests
-- publish to npm (requires `NPM_TOKEN`)
-- create a GitHub Release with notes + `.tgz` asset
-
-### Option B: Release Please (auto version PR on merge to main)
-
-If you want releases to be proposed automatically when you push commits to `main`, use `Release Please`.
-
-How it works:
-1. You push normal commits to `main`
-2. GitHub Actions creates/updates a "release PR" automatically
-3. Merge the release PR, then it will create the tag + GitHub Release
-4. The same `Release Please` workflow then auto-publishes the new version to npm
-   - if that exact version already exists on npm, it skips safely
-
-Note:
-- Release Please works best with Conventional Commits (e.g. `feat: ...`, `fix: ...`).
-- One-time repo setting required:
-  - Settings -> Actions -> General -> Workflow permissions:
-    - Read and write permissions
-    - Allow GitHub Actions to create and approve pull requests
-- `NPM_TOKEN` secret is still required for npm publishing.
-
-## GitHub Releases (Automation)
-
-This repo also includes a workflow `GitHub Release` that:
-- can be run manually to backfill releases for existing tags
-
-Backfill example:
-1. GitHub -> Actions -> GitHub Release -> Run workflow
-2. Input `tag`: `v0.1.0`
-
-## Backfill All Missing Releases (Automation)
-
-If you already have tags but your Releases page is empty, use:
-1. GitHub -> Actions -> Backfill GitHub Releases -> Run workflow
-
-This workflow:
-- scans tags with a prefix (default: `v`)
-- creates GitHub Releases only when missing (safe to re-run)
+1. Push conventional commits to `main`
+2. `Release Please` workflow runs and creates/updates the release PR
+3. Merge the release PR
+4. The workflow publishes npm, syncs release notes/body, uploads `.tgz` assets, and generates audit artifacts
 
 Notes:
-- If a release body is empty, re-run the workflow with `update_existing=true` to populate notes.
-- The workflow prefers `CHANGELOG.md` sections when present; otherwise it falls back to a commit list between tags.
+- `release-please` step is retried once in the same workflow run to absorb transient GitHub API failures.
+- If the target npm version already exists, publish step exits safely.
+
+## Failure handling
+
+If workflow fails:
+
+1. Check failed step in `Release Please` workflow
+2. Download diagnostics artifact:
+   - `rmemo-release-diagnostics-<version>`
+3. Run local diagnostics if needed:
+
+```bash
+node bin/rmemo.js diagnostics export --format json
+node scripts/release-health.js --repo xiaofandegeng/rmemo --version <version> --tag v<version> --format md
+```
+
+If `release-please` fails with a GitHub HTML error page (for example `Unicorn`), treat it as transient platform failure:
+- Re-run failed jobs/workflow
+- Do not edit version files manually before rerun
