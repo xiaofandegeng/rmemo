@@ -35,12 +35,12 @@
 - [x] `release-ready` 增加 `--step-timeout-ms`。
 - [x] `release-health` / `release-rehearsal` 增加网络超时控制与测试。
 - [x] workflow 对 `release-ready` / `release-health` 显式传递 timeout 参数（避免默认值漂移）。
-- [ ] `release-health` 增加 GitHub API 重试策略（429 / 5xx）。
+- [x] `release-health` 增加 GitHub API 重试策略（429 / 5xx）。
 
 验收标准：
 
 - [ ] 网络抖动时发布检查不长时间挂起，并在日志中给出可定位错误。
-- [ ] 健康检查对限流或平台瞬时失败有可复现、可回放的处理路径。
+- [x] 健康检查对限流或平台瞬时失败有可复现、可回放的处理路径。
 
 ### 里程碑 C（`v1.4.0`）：发布与文档闭环（待开始）
 

@@ -36,12 +36,12 @@ v1.4 聚焦“发布稳定性工程化”，确保发布链路在网络抖动、
 - [x] `release-ready` 增加 `--step-timeout-ms`。
 - [x] `release-health` / `release-rehearsal` 增加 timeout 控制。
 - [x] workflow 显式传递 timeout 参数（release-ready/release-health）。
-- [ ] `release-health` 增加 GitHub API 重试策略（429/5xx）。
+- [x] `release-health` 增加 GitHub API 重试策略（429/5xx）。
 
 验收：
 
 - [ ] 发布演练不会因单步阻塞而无限等待。
-- [ ] 平台瞬时故障可在日志中快速定位并重试恢复。
+- [x] 平台瞬时故障可在日志中快速定位并重试恢复。
 
 ## M3（v1.4.0）正式发布闭环
 

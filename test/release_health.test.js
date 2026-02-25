@@ -273,3 +273,143 @@ test("release-health strict mode rejects legacy scoped tgz asset name", async ()
   assert.equal(report.checks.releaseAssets.ok, false);
   assert.match(String(report.checks.releaseAssets.error || ""), /missing expected asset/);
 });
+
+test("release-health retries github api on 429 and then succeeds", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-health-retry-429-"));
+  const binDir = path.join(tmp, "bin");
+  await fs.mkdir(binDir, { recursive: true });
+  await writeExecutable(path.join(binDir, "npm"), "#!/usr/bin/env bash\necho 1.2.0\n");
+
+  const preload = path.join(tmp, "mock-https-retry-429.cjs");
+  await fs.writeFile(
+    preload,
+    [
+      "const https = require('node:https');",
+      "const { EventEmitter } = require('node:events');",
+      "let callCount = 0;",
+      "https.request = function mockRequest(url, options, callback) {",
+      "  const req = new EventEmitter();",
+      "  req.setTimeout = () => {};",
+      "  req.destroy = () => {};",
+      "  req.end = () => {",
+      "    callCount += 1;",
+      "    const res = new EventEmitter();",
+      "    res.setEncoding = () => {};",
+      "    const statusCode = callCount === 1 ? 429 : 200;",
+      "    const payload = statusCode === 200",
+      "      ? { name: 'v1.2.0', assets: [{ name: 'rmemo-1.2.0.tgz' }] }",
+      "      : { message: 'rate limited' };",
+      "    res.statusCode = statusCode;",
+      "    process.nextTick(() => {",
+      "      callback(res);",
+      "      res.emit('data', JSON.stringify(payload));",
+      "      res.emit('end');",
+      "    });",
+      "  };",
+      "  return req;",
+      "};"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const env = {
+    ...process.env,
+    PATH: `${binDir}:${process.env.PATH || ""}`,
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : ""}--require=${preload}`
+  };
+
+  const r = await runNode(
+    [
+      "scripts/release-health.js",
+      "--repo",
+      "owner/repo",
+      "--version",
+      "1.2.0",
+      "--tag",
+      "v1.2.0",
+      "--format",
+      "json",
+      "--timeout-ms",
+      "2000",
+      "--github-retries",
+      "2",
+      "--github-retry-delay-ms",
+      "0"
+    ],
+    { cwd: path.resolve("."), env }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.checks.githubRelease.ok, true);
+  assert.equal(report.checks.githubRelease.attempts, 2);
+  assert.equal(report.checks.releaseAssets.ok, true);
+});
+
+test("release-health fails after github retry budget is exhausted on 5xx", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-health-retry-5xx-"));
+  const binDir = path.join(tmp, "bin");
+  await fs.mkdir(binDir, { recursive: true });
+  await writeExecutable(path.join(binDir, "npm"), "#!/usr/bin/env bash\necho 1.2.0\n");
+
+  const preload = path.join(tmp, "mock-https-retry-5xx.cjs");
+  await fs.writeFile(
+    preload,
+    [
+      "const https = require('node:https');",
+      "const { EventEmitter } = require('node:events');",
+      "https.request = function mockRequest(url, options, callback) {",
+      "  const req = new EventEmitter();",
+      "  req.setTimeout = () => {};",
+      "  req.destroy = () => {};",
+      "  req.end = () => {",
+      "    const res = new EventEmitter();",
+      "    res.statusCode = 503;",
+      "    res.setEncoding = () => {};",
+      "    process.nextTick(() => {",
+      "      callback(res);",
+      "      res.emit('data', JSON.stringify({ message: 'service unavailable' }));",
+      "      res.emit('end');",
+      "    });",
+      "  };",
+      "  return req;",
+      "};"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const env = {
+    ...process.env,
+    PATH: `${binDir}:${process.env.PATH || ""}`,
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : ""}--require=${preload}`
+  };
+
+  const r = await runNode(
+    [
+      "scripts/release-health.js",
+      "--repo",
+      "owner/repo",
+      "--version",
+      "1.2.0",
+      "--tag",
+      "v1.2.0",
+      "--format",
+      "json",
+      "--timeout-ms",
+      "2000",
+      "--github-retries",
+      "2",
+      "--github-retry-delay-ms",
+      "0"
+    ],
+    { cwd: path.resolve("."), env }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.checks.githubRelease.ok, false);
+  assert.equal(report.checks.githubRelease.status, 503);
+  assert.equal(report.checks.githubRelease.attempts, 3);
+  assert.equal(report.checks.releaseAssets.ok, false);
+  assert.match(String(report.checks.releaseAssets.error || ""), /github release unavailable/);
+});

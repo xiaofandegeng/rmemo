@@ -114,6 +114,29 @@ async function getGithubReleaseByTag({ owner, repo, tag, token, timeoutMs }) {
   });
 }
 
+function isRetryableGithubStatus(status) {
+  return status === 429 || (status >= 500 && status <= 599);
+}
+
+async function getGithubReleaseByTagWithRetry({ owner, repo, tag, token, timeoutMs, retries, retryDelayMs }) {
+  const maxAttempts = Math.max(1, Number(retries || 0) + 1);
+  let last = { ok: false, status: 0, error: "unknown error" };
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await getGithubReleaseByTag({ owner, repo, tag, token, timeoutMs });
+      if (res.ok) return { ...res, attempts: attempt, retryable: false };
+      const retryable = isRetryableGithubStatus(Number(res.status || 0));
+      last = { ...res, attempts: attempt, retryable };
+      if (!retryable || attempt === maxAttempts) return last;
+    } catch (e) {
+      last = { ok: false, status: 0, error: String(e?.message || e), attempts: attempt, retryable: false };
+      return last;
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(retryDelayMs || 0))));
+  }
+  return last;
+}
+
 function md(report) {
   const lines = [];
   lines.push("# rmemo Release Health");
@@ -132,6 +155,7 @@ function md(report) {
   lines.push("## githubRelease");
   lines.push(`- status: ${report.checks.githubRelease.ok ? "OK" : "FAIL"}`);
   if (report.checks.githubRelease.status) lines.push(`- httpStatus: ${report.checks.githubRelease.status}`);
+  if (report.checks.githubRelease.attempts !== undefined) lines.push(`- attempts: ${report.checks.githubRelease.attempts}`);
   if (report.checks.githubRelease.releaseName) lines.push(`- releaseName: ${report.checks.githubRelease.releaseName}`);
   lines.push(`- assetsCount: ${report.checks.githubRelease.assetsCount}`);
   if (report.checks.githubRelease.error) lines.push(`- error: ${report.checks.githubRelease.error.trim()}`);
@@ -166,18 +190,24 @@ async function main() {
   const [owner, name] = repoArg.split("/");
   if (!owner || !name) throw new Error("repo is required (use --repo owner/name or set GITHUB_REPOSITORY)");
   const timeoutMs = Math.max(1000, Number(flags["timeout-ms"] || 15000));
+  const githubRetries = Math.max(0, Number(flags["github-retries"] || 2));
+  const githubRetryDelayMs = Math.max(0, Number(flags["github-retry-delay-ms"] || 1000));
 
   const npmCheck = await npmVersionExists(packageName, version, cwd, timeoutMs);
-  let gh;
-  try {
-    gh = await getGithubReleaseByTag({ owner, repo: name, tag, token: process.env.GITHUB_TOKEN || "", timeoutMs });
-  } catch (e) {
-    gh = { ok: false, status: 0, error: String(e?.message || e) };
-  }
+  const gh = await getGithubReleaseByTagWithRetry({
+    owner,
+    repo: name,
+    tag,
+    token: process.env.GITHUB_TOKEN || "",
+    timeoutMs,
+    retries: githubRetries,
+    retryDelayMs: githubRetryDelayMs
+  });
 
   const ghCheck = {
     ok: !!gh.ok,
     status: gh.status || 0,
+    attempts: gh.attempts || 1,
     releaseName: gh.ok ? String(gh.data?.name || "") : "",
     assetsCount: gh.ok ? (Array.isArray(gh.data?.assets) ? gh.data.assets.length : 0) : 0,
     error: gh.ok ? null : String(gh.error || "")
@@ -211,6 +241,7 @@ async function main() {
     version,
     tag,
     repo: { owner, name },
+    options: { timeoutMs, githubRetries, githubRetryDelayMs },
     checks: {
       npm: npmCheck,
       githubRelease: ghCheck,
