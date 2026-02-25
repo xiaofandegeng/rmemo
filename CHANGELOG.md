@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0](https://github.com/xiaofandegeng/rmemo/compare/v1.3.2...v1.4.0) (2026-02-25)
+
+
+### ✨ Features
+
+* **release:** add github api retry strategy to release-health ([0c7b68e](https://github.com/xiaofandegeng/rmemo/commit/0c7b68ecb3e74a03d9fe47519fa2e9142d30fd42))
+* **release:** add post-release convergence verify command ([600bd63](https://github.com/xiaofandegeng/rmemo/commit/600bd63a0c111bc62f0d0f4e251810e3197cc4f6))
+* **release:** propagate github retry flags in rehearsal and workflow ([828257b](https://github.com/xiaofandegeng/rmemo/commit/828257beb565bf6d16d9ea8ebb7ed1a5f6622fe4))
+
+
+### 📚 Documentation
+
+* **plan:** add v1.5 pre-research entry and align task portal ([e9951ba](https://github.com/xiaofandegeng/rmemo/commit/e9951ba3b963054244522be327eaed356c58ed31))
+* **plan:** bootstrap v1.4 cycle plan and switch task entry ([b4be2ba](https://github.com/xiaofandegeng/rmemo/commit/b4be2badda9d47412ab6689c50109f23faf3074b))
+* **release:** codify v1.4 guardrails in runbook and checklist ([a1cef6b](https://github.com/xiaofandegeng/rmemo/commit/a1cef6b464675c560f4036f8bd8fa0f231318c4c))
+
 ## [1.3.2](https://github.com/xiaofandegeng/rmemo/compare/v1.3.1...v1.3.2) (2026-02-25)
 
 
