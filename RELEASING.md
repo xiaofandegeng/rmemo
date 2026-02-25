@@ -33,6 +33,7 @@ Useful flags:
 - `--skip-health` when GitHub API is unavailable
 - `--allow-dirty` for local dry runs with uncommitted changes
 - `--skip-tests` for quick smoke checks
+- `--health-timeout-ms <ms>` to cap GitHub API checks during rehearsal (default `15000`)
 
 ## Release flow (default)
 

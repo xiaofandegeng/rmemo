@@ -26,31 +26,57 @@ function parseFlags(argv) {
   return flags;
 }
 
-async function run(cmd, args, cwd) {
+async function run(cmd, args, cwd, options = {}) {
+  const timeoutMs = Number(options.timeoutMs || 0);
   return new Promise((resolve, reject) => {
     const p = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
     let err = "";
+    let timeout = null;
+    let finished = false;
     p.stdout.on("data", (d) => (out += d.toString("utf8")));
     p.stderr.on("data", (d) => (err += d.toString("utf8")));
-    p.on("error", reject);
-    p.on("close", (code) => resolve({ code, out, err }));
+    p.on("error", (e) => {
+      if (timeout) clearTimeout(timeout);
+      reject(e);
+    });
+    p.on("close", (code, signal) => {
+      if (timeout) clearTimeout(timeout);
+      finished = true;
+      resolve({ code, signal: signal || "", out, err });
+    });
+
+    if (timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        if (finished) return;
+        p.kill("SIGTERM");
+        setTimeout(() => {
+          if (!finished) p.kill("SIGKILL");
+        }, 1000);
+      }, timeoutMs);
+    }
   });
 }
 
-async function npmVersionExists(pkgName, version, cwd) {
-  const r = await run("npm", ["view", `${pkgName}@${version}`, "version"], cwd);
-  if (r.code !== 0) return { ok: false, value: null, error: r.err || r.out };
+async function npmVersionExists(pkgName, version, cwd, timeoutMs) {
+  const r = await run("npm", ["view", `${pkgName}@${version}`, "version"], cwd, { timeoutMs });
+  const timedOut = timeoutMs > 0 && r.signal === "SIGTERM" && r.code !== 0;
+  if (r.code !== 0) {
+    return { ok: false, value: null, error: timedOut ? `npm view timed out after ${timeoutMs}ms` : r.err || r.out };
+  }
   const v = String(r.out || "").trim();
   return { ok: v === version, value: v, error: null };
 }
 
-async function getGithubReleaseByTag({ owner, repo, tag, token }) {
+async function getGithubReleaseByTag({ owner, repo, tag, token, timeoutMs }) {
   return new Promise((resolve, reject) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     const req = https.request(
       `https://api.github.com/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(tag)}`,
       {
         method: "GET",
+        signal: controller.signal,
         headers: {
           "User-Agent": "rmemo-release-health",
           Accept: "application/vnd.github+json",
@@ -62,6 +88,7 @@ async function getGithubReleaseByTag({ owner, repo, tag, token }) {
         res.setEncoding("utf8");
         res.on("data", (c) => (body += c));
         res.on("end", () => {
+          clearTimeout(timer);
           const status = res.statusCode || 0;
           if (status >= 200 && status < 300) {
             try {
@@ -75,7 +102,14 @@ async function getGithubReleaseByTag({ owner, repo, tag, token }) {
         });
       }
     );
-    req.on("error", reject);
+    req.on("error", (err) => {
+      clearTimeout(timer);
+      if (err?.name === "AbortError") {
+        reject(new Error(`request timeout after ${timeoutMs}ms`));
+        return;
+      }
+      reject(err);
+    });
     req.end();
   });
 }
@@ -118,9 +152,15 @@ async function main() {
   const repoArg = flags.repo || process.env.GITHUB_REPOSITORY || "";
   const [owner, name] = repoArg.split("/");
   if (!owner || !name) throw new Error("repo is required (use --repo owner/name or set GITHUB_REPOSITORY)");
+  const timeoutMs = Math.max(1000, Number(flags["timeout-ms"] || 15000));
 
-  const npmCheck = await npmVersionExists(packageName, version, cwd);
-  const gh = await getGithubReleaseByTag({ owner, repo: name, tag, token: process.env.GITHUB_TOKEN || "" });
+  const npmCheck = await npmVersionExists(packageName, version, cwd, timeoutMs);
+  let gh;
+  try {
+    gh = await getGithubReleaseByTag({ owner, repo: name, tag, token: process.env.GITHUB_TOKEN || "", timeoutMs });
+  } catch (e) {
+    gh = { ok: false, status: 0, error: String(e?.message || e) };
+  }
 
   const ghCheck = {
     ok: !!gh.ok,

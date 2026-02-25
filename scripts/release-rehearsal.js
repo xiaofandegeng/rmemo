@@ -25,19 +25,39 @@ function parseFlags(argv) {
   return flags;
 }
 
-function run(cmd, args, cwd) {
+function run(cmd, args, cwd, options = {}) {
+  const timeoutMs = Number(options.timeoutMs || 0);
   return new Promise((resolve, reject) => {
     const p = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
     let err = "";
+    let timeout = null;
+    let finished = false;
     p.stdout.on("data", (d) => (out += d.toString("utf8")));
     p.stderr.on("data", (d) => (err += d.toString("utf8")));
-    p.on("error", reject);
-    p.on("close", (code) => resolve({ code, out, err }));
+    p.on("error", (e) => {
+      if (timeout) clearTimeout(timeout);
+      reject(e);
+    });
+    p.on("close", (code, signal) => {
+      if (timeout) clearTimeout(timeout);
+      finished = true;
+      resolve({ code, signal: signal || "", out, err });
+    });
+
+    if (timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        if (finished) return;
+        p.kill("SIGTERM");
+        setTimeout(() => {
+          if (!finished) p.kill("SIGKILL");
+        }, 1000);
+      }, timeoutMs);
+    }
   });
 }
 
-async function execStep({ name, cmd, args, cwd, optional = false, skipReason = "" }) {
+async function execStep({ name, cmd, args, cwd, optional = false, skipReason = "", timeoutMs = 0 }) {
   if (skipReason) {
     return {
       name,
@@ -50,7 +70,8 @@ async function execStep({ name, cmd, args, cwd, optional = false, skipReason = "
 
   const t0 = Date.now();
   try {
-    const r = await run(cmd, args, cwd);
+    const r = await run(cmd, args, cwd, { timeoutMs });
+    const timedOut = timeoutMs > 0 && r.signal === "SIGTERM" && r.code !== 0;
     const ok = r.code === 0;
     return {
       name,
@@ -58,9 +79,10 @@ async function execStep({ name, cmd, args, cwd, optional = false, skipReason = "
       optional,
       durationMs: Date.now() - t0,
       code: r.code,
-      error: ok ? "" : String(r.err || r.out || "unknown error"),
+      error: ok ? "" : timedOut ? `timed out after ${timeoutMs}ms` : String(r.err || r.out || "unknown error"),
       out: String(r.out || ""),
-      err: String(r.err || "")
+      err: String(r.err || ""),
+      timedOut
     };
   } catch (e) {
     return {
@@ -112,6 +134,7 @@ async function main() {
   const skipHealth = flags["skip-health"] === "true";
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
+  const healthTimeoutMs = Math.max(1000, Number(flags["health-timeout-ms"] || 15000));
 
   if (![
     "md",
@@ -173,20 +196,46 @@ async function main() {
     await execStep({
       name: "release-health-md",
       cmd: "node",
-      args: ["scripts/release-health.js", "--repo", repo, "--version", version, "--tag", tag, "--format", "md"],
+      args: [
+        "scripts/release-health.js",
+        "--repo",
+        repo,
+        "--version",
+        version,
+        "--tag",
+        tag,
+        "--format",
+        "md",
+        "--timeout-ms",
+        String(healthTimeoutMs)
+      ],
       cwd: root,
       optional: true,
-      skipReason: healthSkipReason
+      skipReason: healthSkipReason,
+      timeoutMs: healthTimeoutMs + 2000
     })
   );
   steps.push(
     await execStep({
       name: "release-health-json",
       cmd: "node",
-      args: ["scripts/release-health.js", "--repo", repo, "--version", version, "--tag", tag, "--format", "json"],
+      args: [
+        "scripts/release-health.js",
+        "--repo",
+        repo,
+        "--version",
+        version,
+        "--tag",
+        tag,
+        "--format",
+        "json",
+        "--timeout-ms",
+        String(healthTimeoutMs)
+      ],
       cwd: root,
       optional: true,
-      skipReason: healthSkipReason
+      skipReason: healthSkipReason,
+      timeoutMs: healthTimeoutMs + 2000
     })
   );
 
@@ -232,7 +281,7 @@ async function main() {
     tag,
     repo,
     generatedAt: new Date().toISOString(),
-    options: { skipHealth, allowDirty, skipTests },
+    options: { skipHealth, allowDirty, skipTests, healthTimeoutMs },
     steps,
     files: Object.values(files),
     summary,
