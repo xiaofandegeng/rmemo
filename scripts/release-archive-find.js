@@ -41,6 +41,28 @@ async function listDirNames(dirPath) {
   }
 }
 
+function normalizeCopiedFiles(copiedFiles) {
+  if (!Array.isArray(copiedFiles)) return [];
+  return copiedFiles
+    .map((entry) => {
+      if (typeof entry === "string") return entry;
+      return String(entry?.file || "");
+    })
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function validateRequiredFiles(requiredFiles, copiedFiles) {
+  const required = Array.isArray(requiredFiles) ? requiredFiles : [];
+  const copied = Array.isArray(copiedFiles) ? copiedFiles : [];
+  const missingRequiredFiles = required.filter((f) => !copied.includes(f));
+  return {
+    requiredFiles: required,
+    missingRequiredFiles,
+    ok: missingRequiredFiles.length === 0
+  };
+}
+
 function md(report) {
   const lines = [];
   lines.push("# rmemo Release Archive Find");
@@ -63,6 +85,10 @@ function md(report) {
     lines.push(`- copiedFiles: ${report.snapshot.copiedFiles}`);
     lines.push(`- missingFiles: ${report.snapshot.missingFiles}`);
   }
+  if (Array.isArray(report.requiredFiles) && report.requiredFiles.length > 0) {
+    lines.push(`- requiredFiles: ${report.requiredFiles.join(",")}`);
+    lines.push(`- missingRequiredFiles: ${Array.isArray(report.missingRequiredFiles) ? report.missingRequiredFiles.join(",") : ""}`);
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -76,6 +102,10 @@ async function main() {
   const archiveRoot = path.join(artifactsDir, "release-archive");
   const version = String(flags.version || "").trim();
   const snapshotId = String(flags["snapshot-id"] || "").trim();
+  const requiredFiles = String(flags["require-files"] || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
   const limit = Math.max(1, Number(flags.limit || 20));
 
   let report = {
@@ -119,6 +149,16 @@ async function main() {
         },
         snapshots
       };
+      if (requiredFiles.length > 0) {
+        const manifest = await readJsonSafe(path.join(archiveRoot, version, latest.latestSnapshotId, "manifest.json"), null);
+        const check = validateRequiredFiles(requiredFiles, normalizeCopiedFiles(manifest?.copiedFiles));
+        report.requiredFiles = check.requiredFiles;
+        report.missingRequiredFiles = check.missingRequiredFiles;
+        if (!check.ok) {
+          report.ok = false;
+          report.error = `latest snapshot '${latest.latestSnapshotId}' missing required files: ${check.missingRequiredFiles.join(",")}`;
+        }
+      }
     }
   } else {
     const manifestPath = path.join(archiveRoot, version, snapshotId, "manifest.json");
@@ -145,6 +185,15 @@ async function main() {
           tag: manifest.tag || ""
         }
       };
+      if (requiredFiles.length > 0) {
+        const check = validateRequiredFiles(requiredFiles, normalizeCopiedFiles(manifest.copiedFiles));
+        report.requiredFiles = check.requiredFiles;
+        report.missingRequiredFiles = check.missingRequiredFiles;
+        if (!check.ok) {
+          report.ok = false;
+          report.error = `snapshot '${snapshotId}' missing required files: ${check.missingRequiredFiles.join(",")}`;
+        }
+      }
     }
   }
 

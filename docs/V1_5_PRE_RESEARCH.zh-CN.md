@@ -34,6 +34,7 @@
 - [x] `release-rehearsal` 支持归档参数透传（`archive-snapshot-id/archive-retention-days/archive-max-snapshots-per-version`）。
 - [x] 在 `--archive` 模式下自动输出 `artifacts/release-summary.json` 与 `artifacts/release-archive.json`，补充成功/失败测试。
 - [x] `release-summary.json` 增加失败分层与恢复提示（`category/code/retryable/nextAction` + `failureBreakdown/actionHints`）。
+- [x] `release-archive-find` 新增 `--require-files` 校验模式，可直接检查最新快照关键文件完整性。
 
 ## 6. 启动时固定动作
 

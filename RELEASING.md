@@ -61,6 +61,7 @@ Quick query examples:
 - list versions: `npm run verify:release-archive-find -- --format json`
 - locate latest snapshot: `npm run verify:release-archive-find -- --version <version> --format json`
 - inspect one snapshot: `npm run verify:release-archive-find -- --version <version> --snapshot-id <snapshot-id> --format json`
+- validate latest snapshot required files: `npm run verify:release-archive-find -- --version <version> --require-files release-ready.json,release-health.json,release-rehearsal.json --format json`
 
 Useful flags:
 - `--skip-health` when GitHub API is unavailable

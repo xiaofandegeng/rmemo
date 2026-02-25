@@ -133,3 +133,55 @@ test("release-archive-find fails when version has no snapshots", async () => {
   assert.equal(report.ok, false);
   assert.match(String(report.error || ""), /has no snapshots/i);
 });
+
+test("release-archive-find validates required files on latest snapshot", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-required-ok-"));
+  await setupArchive(tmp);
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-archive-find.js"),
+      "--root",
+      tmp,
+      "--format",
+      "json",
+      "--version",
+      "1.5.0",
+      "--require-files",
+      "release-health.json,release-ready.json"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.missingRequiredFiles, []);
+});
+
+test("release-archive-find fails when required files are missing", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-required-fail-"));
+  await setupArchive(tmp);
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-archive-find.js"),
+      "--root",
+      tmp,
+      "--format",
+      "json",
+      "--version",
+      "1.5.0",
+      "--require-files",
+      "release-health.json,release-notes.md"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.ok, false);
+  assert.equal(Array.isArray(report.missingRequiredFiles), true);
+  assert.equal(report.missingRequiredFiles.includes("release-notes.md"), true);
+  assert.match(String(report.error || ""), /missing required files/i);
+});
