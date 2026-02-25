@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2](https://github.com/xiaofandegeng/rmemo/compare/v1.2.1...v1.2.2) (2026-02-25)
+
+
+### 🎯 Testing
+
+* **release:** cover release-ready network failure reporting ([31e0b89](https://github.com/xiaofandegeng/rmemo/commit/31e0b89af5c4b49b63c8f8a5cc6ecc048fca2672))
+
 ## [1.2.1](https://github.com/xiaofandegeng/rmemo/compare/v1.2.0...v1.2.1) (2026-02-25)
 
 
