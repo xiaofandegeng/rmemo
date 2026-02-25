@@ -207,3 +207,69 @@ test("release-health fails when expected release tgz asset is missing", async ()
   assert.equal(report.checks.releaseAssets.ok, false);
   assert.match(String(report.checks.releaseAssets.error || ""), /missing expected asset/);
 });
+
+test("release-health strict mode rejects legacy scoped tgz asset name", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-health-asset-legacy-only-"));
+  const binDir = path.join(tmp, "bin");
+  await fs.mkdir(binDir, { recursive: true });
+  await writeExecutable(path.join(binDir, "npm"), "#!/usr/bin/env bash\necho 1.2.0\n");
+
+  const preload = path.join(tmp, "mock-https-asset-legacy.cjs");
+  await fs.writeFile(
+    preload,
+    [
+      "const https = require('node:https');",
+      "const { EventEmitter } = require('node:events');",
+      "https.request = function mockRequest(url, options, callback) {",
+      "  const req = new EventEmitter();",
+      "  req.setTimeout = () => {};",
+      "  req.destroy = () => {};",
+      "  req.end = () => {",
+      "    const res = new EventEmitter();",
+      "    res.statusCode = 200;",
+      "    res.setEncoding = () => {};",
+      "    process.nextTick(() => {",
+      "      callback(res);",
+      "      res.emit('data', JSON.stringify({ name: 'v1.2.0', assets: [{ name: 'xiaofandegeng-rmemo-1.2.0.tgz' }] }));",
+      "      res.emit('end');",
+      "    });",
+      "  };",
+      "  return req;",
+      "};"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const env = {
+    ...process.env,
+    PATH: `${binDir}:${process.env.PATH || ""}`,
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : ""}--require=${preload}`
+  };
+
+  const r = await runNode(
+    [
+      "scripts/release-health.js",
+      "--repo",
+      "owner/repo",
+      "--version",
+      "1.2.0",
+      "--tag",
+      "v1.2.0",
+      "--format",
+      "json",
+      "--timeout-ms",
+      "2000",
+      "--allow-legacy-scoped-asset",
+      "false"
+    ],
+    { cwd: path.resolve("."), env }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.checks.githubRelease.ok, true);
+  assert.equal(report.checks.releaseAssets.foundLegacy, true);
+  assert.equal(report.checks.releaseAssets.foundExpected, false);
+  assert.equal(report.checks.releaseAssets.ok, false);
+  assert.match(String(report.checks.releaseAssets.error || ""), /missing expected asset/);
+});
