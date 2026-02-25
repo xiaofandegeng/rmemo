@@ -16,6 +16,7 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("/resume/history/item?format=json&id="));
   assert.ok(html.includes("/resume/history/compare?from="));
   assert.ok(html.includes("/resume/history/save"));
+  assert.ok(html.includes("/resume/history/prune"));
   assert.ok(html.includes("loadTimeline"));
   assert.ok(html.includes("loadResume"));
   assert.ok(html.includes("loadResumeDigest"));
@@ -23,10 +24,13 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("saveResumeHistory"));
   assert.ok(html.includes("showResumeHistoryItem"));
   assert.ok(html.includes("compareResumeHistory"));
+  assert.ok(html.includes("pruneResumeHistory"));
   assert.ok(html.includes("resumeSnapshotId"));
   assert.ok(html.includes("resumeFromId"));
   assert.ok(html.includes("resumeToId"));
   assert.ok(html.includes("resumeTag"));
+  assert.ok(html.includes("resumePruneKeep"));
+  assert.ok(html.includes("resumePruneDays"));
   assert.ok(html.includes("/ws/list"));
   assert.ok(html.includes("/ws/focus?q="));
   assert.ok(html.includes("/ws/focus/snapshots"));
@@ -166,6 +170,7 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("resume:digest"));
   assert.ok(html.includes("resume:digest:error"));
   assert.ok(html.includes("resume:history:saved"));
+  assert.ok(html.includes("resume:history:pruned"));
   assert.ok(html.includes("embed:build:progress"));
   assert.ok(html.includes("/refresh"));
   assert.ok(html.includes("/watch"));

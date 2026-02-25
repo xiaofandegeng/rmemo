@@ -152,6 +152,12 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                   <input id="resumeToId" type="text" placeholder="to id" style="min-width: 240px; flex: 1;" />
                   <button class="btn secondary" id="compareResumeHistory">Compare</button>
                 </div>
+                <div style="height: 8px;"></div>
+                <div class="row">
+                  <input id="resumePruneKeep" type="number" min="0" placeholder="keep latest N (default 100)" style="width: 220px;" />
+                  <input id="resumePruneDays" type="number" min="0" placeholder="older than days (default 0)" style="width: 220px;" />
+                  <button class="btn danger" id="pruneResumeHistory">Prune</button>
+                </div>
               </div>
 
               <div class="row">
@@ -794,6 +800,35 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         }
         msg("OK");
         qs("#title").textContent = "Resume History Compare";
+      }
+      async function pruneResumeHistory() {
+        err(""); msg("Pruning resume history snapshots...");
+        const keepRaw = (qs("#resumePruneKeep").value || "").trim();
+        const daysRaw = (qs("#resumePruneDays").value || "").trim();
+
+        if (keepRaw) {
+          const keepNum = Number(keepRaw);
+          if (!Number.isFinite(keepNum) || keepNum < 0) return msg("Invalid keep: must be a non-negative number.");
+        }
+        if (daysRaw) {
+          const daysNum = Number(daysRaw);
+          if (!Number.isFinite(daysNum) || daysNum < 0) return msg("Invalid olderThanDays: must be a non-negative number.");
+        }
+
+        const payload = {};
+        if (keepRaw) payload.keep = Number(keepRaw);
+        if (daysRaw) payload.olderThanDays = Number(daysRaw);
+
+        const j = await apiPost("/resume/history/prune", payload);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        if (j && Number(j.after) === 0) {
+          qs("#resumeSnapshotId").value = "";
+          qs("#resumeFromId").value = "";
+          qs("#resumeToId").value = "";
+        }
+        msg("OK");
+        qs("#title").textContent = "Resume History Prune";
       }
 
       async function loadWatch() {
@@ -1969,6 +2004,9 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
             pushLive(ev.data || "resume:history:saved");
           }
         });
+        evt.addEventListener("resume:history:pruned", (ev) => {
+          try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "resume:history:pruned"); }
+        });
       }
 
       qs("#saveToken").addEventListener("click", saveToken);
@@ -1985,6 +2023,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#saveResumeHistory").addEventListener("click", () => saveResumeHistory().catch((e) => { err(String(e)); msg(""); }));
       qs("#showResumeHistoryItem").addEventListener("click", () => showResumeHistoryItem().catch((e) => { err(String(e)); msg(""); }));
       qs("#compareResumeHistory").addEventListener("click", () => compareResumeHistory().catch((e) => { err(String(e)); msg(""); }));
+      qs("#pruneResumeHistory").addEventListener("click", () => pruneResumeHistory().catch((e) => { err(String(e)); msg(""); }));
       qs("#doSearch").addEventListener("click", () => doSearch().catch((e) => { err(String(e)); msg(""); }));
       qs("#doFocus").addEventListener("click", () => doFocus().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsList").addEventListener("click", () => loadWsList().catch((e) => { err(String(e)); msg(""); }));
