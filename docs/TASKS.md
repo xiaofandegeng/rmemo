@@ -16,11 +16,11 @@
 ## Snapshot (2026-02-25)
 
 - Package: `@xiaofandegeng/rmemo`
-- Current version: `1.2.0`
-- Next release target: `1.3.0`（待下一轮计划确认）
+- Current version: `1.3.0`
+- Next release target: `1.4.0`（待下一轮计划确认）
 - Current focus:
-  - v1.1 发布收敛已完成（当前版本已到 `v1.2.0`）
-  - v1.2 稳定性收尾：release 网络容错 + runbook 对齐
+  - v1.1 发布收敛已完成（当前版本已到 `v1.3.0`）
+  - v1.3 稳定性收尾：release 资产命名一致性 + 健康校验强化
   - 契约门禁强化：`contract check --fail-on any`（CI / release workflow / release-ready）
 
 ## Execution Rule
