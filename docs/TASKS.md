@@ -4,6 +4,7 @@
 
 - `docs/NEXT_CYCLE_PLAN.md`（唯一执行计划 / 接力开发基线）
 - `docs/V1_4_CYCLE_PLAN.zh-CN.md`（v1.4 周期详细计划）
+- `docs/V1_5_PRE_RESEARCH.zh-CN.md`（v1.5 预研入口，仅在 v1.4 收尾后启用）
 - `docs/RELEASE_CHECKLIST.md`（发布前后执行清单）
 - `docs/RELEASE_NOTES_TEMPLATE.md`（Release 说明模板）
 
@@ -17,12 +18,12 @@
 ## Snapshot (2026-02-25)
 
 - Package: `@xiaofandegeng/rmemo`
-- Current version: `1.3.0`
-- Next release target: `1.4.0`（待下一轮计划确认）
+- Current version: `1.3.2`
+- Next release target: `1.4.0`（M3 收尾中）
 - Current focus:
-  - v1.4 计划已切换（入口与里程碑已建立）
-  - v1.4 稳定性迭代：workflow timeout 显式化 + release-health 重试策略
-  - 契约门禁强化：`contract check --fail-on any`（CI / release workflow / release-ready）
+  - v1.4 M1/M2 已完成，进入 M3 发布收尾阶段
+  - 发布 runbook/checklist 已与 strict 资产命名 + timeout/retry 基线对齐
+  - v1.5 预研入口已建立，待 v1.4 发布闭环后切换执行
 
 ## Execution Rule
 
@@ -30,3 +31,4 @@
 - 再读 `docs/V1_4_CYCLE_PLAN.zh-CN.md`
 - 严格按里程碑顺序推进（M1 -> M2 -> M3）
 - 不跨里程碑混做
+- 仅当 v1.4 发布与双端校验完成后，再切换到 `docs/V1_5_PRE_RESEARCH.zh-CN.md`
