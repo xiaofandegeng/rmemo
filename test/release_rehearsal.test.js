@@ -270,3 +270,144 @@ test("release-rehearsal writes compact summary report when summary-out is provid
   assert.equal(summary.summary.fail, 0);
   assert.equal(summary.failedSteps.length, 0);
 });
+
+test("release-rehearsal runs archive step and auto-writes default summary when archive is enabled", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-ok-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-ready.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') process.stdout.write(JSON.stringify({ ok: true }) + '\\n');",
+      "else process.stdout.write('# ready\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-health.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') process.stdout.write(JSON.stringify({ ok: true }) + '\\n');",
+      "else process.stdout.write('# health\\n- status: OK\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive.js"),
+    [
+      "import fs from 'node:fs/promises';",
+      "import path from 'node:path';",
+      "const args = process.argv.slice(2);",
+      "const snapshotIdx = args.indexOf('--snapshot-id');",
+      "const snapshotId = snapshotIdx >= 0 ? args[snapshotIdx + 1] : 'default_snapshot';",
+      "const artifactsIdx = args.indexOf('--artifacts-dir');",
+      "const artifactsDir = artifactsIdx >= 0 ? args[artifactsIdx + 1] : path.resolve('artifacts');",
+      "await fs.mkdir(artifactsDir, { recursive: true });",
+      "await fs.writeFile(path.join(artifactsDir, 'archive-args.log'), JSON.stringify(args) + '\\n', 'utf8');",
+      "const hasRehearsal = await fs.stat(path.join(artifactsDir, 'release-rehearsal.json')).then(() => true).catch(() => false);",
+      "const hasSummary = await fs.stat(path.join(artifactsDir, 'release-summary.json')).then(() => true).catch(() => false);",
+      "process.stdout.write(JSON.stringify({ ok: true, snapshotId, hasRehearsal, hasSummary }, null, 2) + '\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--archive",
+      "--archive-snapshot-id",
+      "20260225_130000",
+      "--archive-retention-days",
+      "45",
+      "--archive-max-snapshots-per-version",
+      "8",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  const archiveStep = report.steps.find((s) => s.name === "release-archive");
+  assert.ok(archiveStep);
+  assert.equal(archiveStep.status, "pass");
+  assert.equal(report.options.archive, true);
+  assert.match(String(report.options.summaryOut || ""), /artifacts\/release-summary\.json$/);
+
+  const archiveReport = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-archive.json"), "utf8"));
+  assert.equal(archiveReport.ok, true);
+  assert.equal(archiveReport.snapshotId, "20260225_130000");
+  assert.equal(archiveReport.hasRehearsal, true);
+  assert.equal(archiveReport.hasSummary, true);
+
+  const archiveArgs = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "archive-args.log"), "utf8"));
+  assert.ok(archiveArgs.includes("--retention-days"));
+  assert.ok(archiveArgs.includes("--max-snapshots-per-version"));
+  assert.ok(archiveArgs.includes("--snapshot-id"));
+});
+
+test("release-rehearsal fails when archive step fails", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-fail-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), "process.stdout.write('# ready\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-health.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive.js"),
+    [
+      "process.stdout.write(JSON.stringify({ ok: false, error: 'archive failed' }) + '\\n');",
+      "process.exit(1);"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--archive",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  const archiveStep = report.steps.find((s) => s.name === "release-archive");
+  assert.ok(archiveStep);
+  assert.equal(archiveStep.status, "fail");
+  assert.ok(report.summary.fail >= 1);
+});

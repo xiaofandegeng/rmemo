@@ -7,7 +7,7 @@ This checklist is the single source of truth for shipping `rmemo` releases.
 - [ ] `git pull --ff-only origin main`
 - [ ] `git status --short` is clean
 - [ ] Preferred one-command rehearsal:
-  - [ ] `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000`
+  - [ ] `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000 --archive-snapshot-id <yyyymmdd_hhmmss> --archive-retention-days 30 --archive-max-snapshots-per-version 20`
 - [ ] `node --test`
 - [ ] `npm run pack:dry`
 - [ ] `npm run verify:changelog`
@@ -17,7 +17,7 @@ This checklist is the single source of truth for shipping `rmemo` releases.
   - [ ] Optional timeout guard: `node scripts/release-ready.js --format md --step-timeout-ms 120000`
 - [ ] Run strict health check with workflow-equivalent guardrails:
   - [ ] `node scripts/release-health.js --repo xiaofandegeng/rmemo --version <version> --tag v<version> --format md --allow-legacy-scoped-asset false --timeout-ms 15000 --github-retries 2 --github-retry-delay-ms 1000`
-- [ ] Archive readiness report:
+- [ ] Archive readiness report (fallback if rehearsal was executed without `--archive`):
   - [ ] `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
   - [ ] `node scripts/release-ready.js --format md --out artifacts/release-ready.md`
   - [ ] `node scripts/release-ready.js --format json --out artifacts/release-ready.json`
@@ -26,6 +26,8 @@ This checklist is the single source of truth for shipping `rmemo` releases.
   - [ ] `artifacts/release-health.json`
   - [ ] `artifacts/release-rehearsal.md`
   - [ ] `artifacts/release-rehearsal.json`
+  - [ ] `artifacts/release-summary.json`
+  - [ ] `artifacts/release-archive.json`
   - [ ] `artifacts/release-archive/<version>/<snapshot-id>/manifest.json`
   - [ ] `artifacts/release-archive/<version>/latest.json`
   - [ ] `artifacts/release-archive/catalog.json`

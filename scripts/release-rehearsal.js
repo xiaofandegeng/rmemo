@@ -151,15 +151,62 @@ function toSummary(report) {
   };
 }
 
+function buildReport({ root, outDir, version, tag, repo, options, steps, files }) {
+  const summary = {
+    pass: steps.filter((s) => s.status === "pass").length,
+    fail: steps.filter((s) => s.status === "fail").length,
+    skipped: steps.filter((s) => s.status === "skipped").length
+  };
+
+  return {
+    schema: 1,
+    root,
+    outDir,
+    version,
+    tag,
+    repo,
+    generatedAt: new Date().toISOString(),
+    options,
+    steps,
+    files: Object.values(files),
+    summary,
+    ok: summary.fail === 0
+  };
+}
+
+async function writeRehearsalOutputs({ files, report, summaryOut }) {
+  const md = toMd(report);
+  const json = JSON.stringify(report, null, 2) + "\n";
+  await fs.writeFile(files.rehearsalMd, md, "utf8");
+  await fs.writeFile(files.rehearsalJson, json, "utf8");
+  if (summaryOut) {
+    const summary = toSummary(report);
+    await fs.mkdir(path.dirname(summaryOut), { recursive: true });
+    await fs.writeFile(summaryOut, JSON.stringify(summary, null, 2) + "\n", "utf8");
+  }
+  return { md, json };
+}
+
 async function main() {
   const flags = parseFlags(process.argv.slice(2));
   const root = flags.root ? path.resolve(flags.root) : process.cwd();
   const outDir = flags["out-dir"] ? path.resolve(root, String(flags["out-dir"])) : path.join(root, "artifacts");
-  const summaryOut = flags["summary-out"] ? path.resolve(root, String(flags["summary-out"])) : "";
   const format = String(flags.format || "md").toLowerCase();
   const skipHealth = flags["skip-health"] === "true";
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
+  const archive = flags.archive === "true";
+  const archiveSnapshotId = String(flags["archive-snapshot-id"] || flags["snapshot-id"] || "").trim();
+  const archiveRetentionDays = Math.max(1, Number(flags["archive-retention-days"] || flags["retention-days"] || 30));
+  const archiveMaxSnapshotsPerVersion = Math.max(
+    1,
+    Number(flags["archive-max-snapshots-per-version"] || flags["max-snapshots-per-version"] || 20)
+  );
+  const summaryOut = flags["summary-out"]
+    ? path.resolve(root, String(flags["summary-out"]))
+    : archive
+      ? path.join(outDir, "release-summary.json")
+      : "";
   const healthTimeoutMs = Math.max(1000, Number(flags["health-timeout-ms"] || 15000));
   const healthGithubRetries = Math.max(0, Number(flags["health-github-retries"] || 2));
   const healthGithubRetryDelayMs = Math.max(0, Number(flags["health-github-retry-delay-ms"] || 1000));
@@ -182,7 +229,8 @@ async function main() {
     healthMd: path.join(outDir, "release-health.md"),
     healthJson: path.join(outDir, "release-health.json"),
     rehearsalMd: path.join(outDir, "release-rehearsal.md"),
-    rehearsalJson: path.join(outDir, "release-rehearsal.json")
+    rehearsalJson: path.join(outDir, "release-rehearsal.json"),
+    ...(archive ? { archiveJson: path.join(outDir, "release-archive.json") } : {})
   };
 
   const steps = [];
@@ -303,38 +351,82 @@ async function main() {
     );
   }
 
-  const summary = {
-    pass: steps.filter((s) => s.status === "pass").length,
-    fail: steps.filter((s) => s.status === "fail").length,
-    skipped: steps.filter((s) => s.status === "skipped").length
+  const options = {
+    skipHealth,
+    allowDirty,
+    skipTests,
+    archive,
+    summaryOut,
+    healthTimeoutMs,
+    healthGithubRetries,
+    healthGithubRetryDelayMs,
+    ...(archive
+      ? {
+          archiveSnapshotId,
+          archiveRetentionDays,
+          archiveMaxSnapshotsPerVersion
+        }
+      : {})
   };
 
-  const report = {
-    schema: 1,
-    root,
-    outDir,
-    version,
-    tag,
-    repo,
-    generatedAt: new Date().toISOString(),
-    options: { skipHealth, allowDirty, skipTests, healthTimeoutMs, healthGithubRetries, healthGithubRetryDelayMs },
-    steps,
-    files: Object.values(files),
-    summary,
-    ok: summary.fail === 0
-  };
+  let report = buildReport({ root, outDir, version, tag, repo, options, steps, files });
+  await writeRehearsalOutputs({ files, report, summaryOut });
 
-  const md = toMd(report);
-  const json = JSON.stringify(report, null, 2) + "\n";
-  await fs.writeFile(files.rehearsalMd, md, "utf8");
-  await fs.writeFile(files.rehearsalJson, json, "utf8");
-  if (summaryOut) {
-    const summary = toSummary(report);
-    await fs.mkdir(path.dirname(summaryOut), { recursive: true });
-    await fs.writeFile(summaryOut, JSON.stringify(summary, null, 2) + "\n", "utf8");
+  if (archive) {
+    const archiveArgs = [
+      "scripts/release-archive.js",
+      "--root",
+      root,
+      "--format",
+      "json",
+      "--version",
+      version,
+      "--tag",
+      tag,
+      "--artifacts-dir",
+      outDir,
+      "--retention-days",
+      String(archiveRetentionDays),
+      "--max-snapshots-per-version",
+      String(archiveMaxSnapshotsPerVersion)
+    ];
+    if (archiveSnapshotId) archiveArgs.push("--snapshot-id", archiveSnapshotId);
+
+    const archiveStep = await execStep({
+      name: "release-archive",
+      cmd: "node",
+      args: archiveArgs,
+      cwd: root
+    });
+    steps.push(archiveStep);
+
+    if (files.archiveJson) {
+      let archiveJson = "";
+      if (archiveStep.status === "pass" && String(archiveStep.out || "").trim()) {
+        archiveJson = `${String(archiveStep.out || "").trim()}\n`;
+      } else if (String(archiveStep.out || "").trim()) {
+        archiveJson = `${String(archiveStep.out || "").trim()}\n`;
+      } else {
+        archiveJson =
+          JSON.stringify(
+            {
+              schema: 1,
+              ok: false,
+              reason: "release-archive failed",
+              error: String(archiveStep.error || "").trim()
+            },
+            null,
+            2
+          ) + "\n";
+      }
+      await fs.writeFile(files.archiveJson, archiveJson, "utf8");
+    }
+
+    report = buildReport({ root, outDir, version, tag, repo, options, steps, files });
+    await writeRehearsalOutputs({ files, report, summaryOut });
   }
 
-  process.stdout.write(format === "json" ? json : md);
+  process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : toMd(report));
   if (!report.ok) process.exitCode = 1;
 }
 

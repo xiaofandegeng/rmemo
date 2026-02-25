@@ -1,7 +1,7 @@
 # rmemo v1.5 预研入口（草案）
 
 更新时间：2026-02-25  
-状态：预研待启用（仅在 `v1.4.0` 发布闭环后切换）
+状态：v1.5 M1 已完成，M2 进行中
 
 ## 1. 进入条件
 
@@ -28,8 +28,14 @@
 - [x] 在 `release-rehearsal` 中新增 `--summary-out <path>`，输出紧凑 JSON 摘要（含 `failedSteps`）。
 - [x] 补充自动化测试覆盖 `summary-out` 行为。
 
-## 5. 启动时固定动作
+## 5. 当前执行任务（v1.5 M2）
+
+- [x] `release-rehearsal` 新增 `--archive` 一键归档模式，串联演练与 `release-archive`。
+- [x] `release-rehearsal` 支持归档参数透传（`archive-snapshot-id/archive-retention-days/archive-max-snapshots-per-version`）。
+- [x] 在 `--archive` 模式下自动输出 `artifacts/release-summary.json` 与 `artifacts/release-archive.json`，补充成功/失败测试。
+
+## 6. 启动时固定动作
 
 1. 从 `main` 拉取最新代码并确认工作区干净。
 2. 复核 `docs/RELEASE_CHECKLIST.md` 的 v1.4 实际执行记录。
-3. 在本文件中选定一个课题作为 v1.5 M1 的唯一入口任务。
+3. 在本文件中选定一个课题作为当前里程碑（M1/M2）的唯一入口任务。

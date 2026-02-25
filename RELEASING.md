@@ -20,6 +20,12 @@ Run one command before releasing:
 npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000
 ```
 
+Or run rehearsal + archive in one command:
+
+```bash
+npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000 --archive-snapshot-id <yyyymmdd_hhmmss>
+```
+
 Artifacts written under `artifacts/`:
 - `release-notes.md`
 - `release-ready.md`
@@ -28,6 +34,8 @@ Artifacts written under `artifacts/`:
 - `release-health.json`
 - `release-rehearsal.md`
 - `release-rehearsal.json`
+- `release-summary.json` (auto-generated when `--archive` is enabled, or configurable via `--summary-out`)
+- `release-archive.json` (written when `--archive` is enabled)
 
 Archive reports in a versioned snapshot (recommended):
 
@@ -52,6 +60,9 @@ Useful flags:
 - `--skip-health` when GitHub API is unavailable
 - `--allow-dirty` for local dry runs with uncommitted changes
 - `--skip-tests` for quick smoke checks
+- `--archive` to run `release-archive` immediately after rehearsal output is generated
+- `--archive-snapshot-id <id>` to pin archive snapshot id in rehearsal-driven archive mode
+- `--archive-retention-days <days>` and `--archive-max-snapshots-per-version <n>` to control archive pruning in rehearsal-driven archive mode
 - `--health-timeout-ms <ms>` to cap GitHub API checks during rehearsal (default `15000`)
 - `--health-github-retries <n>` to retry release-health on `429/5xx` during rehearsal (default `2`)
 - `--health-github-retry-delay-ms <ms>` delay between retry attempts during rehearsal (default `1000`)

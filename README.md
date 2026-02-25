@@ -650,11 +650,13 @@ This writes release audit files to `artifacts/`:
 Timeout tuning (avoid hanging checks on unstable networks):
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
+- `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
 
 Archive release reports with a versioned snapshot:
 - `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
 - `npm run verify:release-archive-find -- --version <version> --format json` (resolve latest snapshot / query archive index)
+- when using `--archive` in rehearsal mode, `artifacts/release-summary.json` and `artifacts/release-archive.json` are generated automatically
 
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
