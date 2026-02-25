@@ -97,3 +97,112 @@ test("release-rehearsal marks health steps as timeout failures", async () => {
   assert.match(String(healthMd.error || ""), /timed out after/);
   assert.match(String(healthJson.error || ""), /timed out after/);
 });
+
+test("release-rehearsal passes github retry flags to release-health steps", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-retry-flags-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-notes.js"),
+    [
+      "import fs from 'node:fs/promises';",
+      "const outIdx = process.argv.indexOf('--out');",
+      "const out = outIdx >= 0 ? process.argv[outIdx + 1] : null;",
+      "if (out) await fs.writeFile(out, '# notes\\n', 'utf8');",
+      "process.stdout.write('# notes\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-ready.js"),
+    [
+      "import fs from 'node:fs/promises';",
+      "const outIdx = process.argv.indexOf('--out');",
+      "const out = outIdx >= 0 ? process.argv[outIdx + 1] : null;",
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "const body = fmt === 'json' ? JSON.stringify({ ok: true }, null, 2) + '\\n' : '# ready\\n';",
+      "if (out) await fs.writeFile(out, body, 'utf8');",
+      "process.stdout.write(body);"
+    ].join("\n"),
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-health.js"),
+    [
+      "import fs from 'node:fs/promises';",
+      "import path from 'node:path';",
+      "const args = process.argv.slice(2);",
+      "const logFile = path.resolve('artifacts', 'health-args.log');",
+      "await fs.mkdir(path.dirname(logFile), { recursive: true });",
+      "await fs.appendFile(logFile, JSON.stringify(args) + '\\n', 'utf8');",
+      "const fmtIdx = args.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? args[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') {",
+      "  process.stdout.write(JSON.stringify({ ok: true, assets: [{ name: 'rmemo-9.9.9.tgz' }] }, null, 2) + '\\n');",
+      "} else {",
+      "  process.stdout.write('# health\\n- status: OK\\n');",
+      "}"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--health-timeout-ms",
+      "2000",
+      "--health-github-retries",
+      "5",
+      "--health-github-retry-delay-ms",
+      "123",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+
+  const argsLogPath = path.join(tmp, "artifacts", "health-args.log");
+  const lines = String(await fs.readFile(argsLogPath, "utf8"))
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+
+  assert.equal(lines.length, 2);
+  for (const args of lines) {
+    const timeoutIdx = args.indexOf("--timeout-ms");
+    const retryIdx = args.indexOf("--github-retries");
+    const delayIdx = args.indexOf("--github-retry-delay-ms");
+    assert.notEqual(timeoutIdx, -1);
+    assert.notEqual(retryIdx, -1);
+    assert.notEqual(delayIdx, -1);
+    assert.equal(args[timeoutIdx + 1], "2000");
+    assert.equal(args[retryIdx + 1], "5");
+    assert.equal(args[delayIdx + 1], "123");
+  }
+
+  const formats = lines
+    .map((args) => {
+      const formatIdx = args.indexOf("--format");
+      return formatIdx >= 0 ? args[formatIdx + 1] : "";
+    })
+    .sort();
+  assert.deepEqual(formats, ["json", "md"]);
+});

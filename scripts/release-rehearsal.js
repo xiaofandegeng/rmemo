@@ -135,6 +135,8 @@ async function main() {
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
   const healthTimeoutMs = Math.max(1000, Number(flags["health-timeout-ms"] || 15000));
+  const healthGithubRetries = Math.max(0, Number(flags["health-github-retries"] || 2));
+  const healthGithubRetryDelayMs = Math.max(0, Number(flags["health-github-retry-delay-ms"] || 1000));
 
   if (![
     "md",
@@ -207,7 +209,11 @@ async function main() {
         "--format",
         "md",
         "--timeout-ms",
-        String(healthTimeoutMs)
+        String(healthTimeoutMs),
+        "--github-retries",
+        String(healthGithubRetries),
+        "--github-retry-delay-ms",
+        String(healthGithubRetryDelayMs)
       ],
       cwd: root,
       optional: true,
@@ -230,7 +236,11 @@ async function main() {
         "--format",
         "json",
         "--timeout-ms",
-        String(healthTimeoutMs)
+        String(healthTimeoutMs),
+        "--github-retries",
+        String(healthGithubRetries),
+        "--github-retry-delay-ms",
+        String(healthGithubRetryDelayMs)
       ],
       cwd: root,
       optional: true,
@@ -281,7 +291,7 @@ async function main() {
     tag,
     repo,
     generatedAt: new Date().toISOString(),
-    options: { skipHealth, allowDirty, skipTests, healthTimeoutMs },
+    options: { skipHealth, allowDirty, skipTests, healthTimeoutMs, healthGithubRetries, healthGithubRetryDelayMs },
     steps,
     files: Object.values(files),
     summary,

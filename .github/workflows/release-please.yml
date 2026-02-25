@@ -61,6 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_HEALTH_TIMEOUT_MS: "15000"
+      RELEASE_HEALTH_GITHUB_RETRIES: "2"
+      RELEASE_HEALTH_GITHUB_RETRY_DELAY_MS: "1000"
       RELEASE_READY_STEP_TIMEOUT_MS: "120000"
     steps:
       - uses: actions/checkout@v4
@@ -240,7 +242,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          node scripts/release-health.js --format md --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}"
+          node scripts/release-health.js --format md --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}" --github-retries "${RELEASE_HEALTH_GITHUB_RETRIES}" --github-retry-delay-ms "${RELEASE_HEALTH_GITHUB_RETRY_DELAY_MS}"
 
       - name: Generate release audit reports
         env:
@@ -248,7 +250,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p artifacts
-          node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --repo "${{ github.repository }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}" > artifacts/release-health.json
+          node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --repo "${{ github.repository }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}" --github-retries "${RELEASE_HEALTH_GITHUB_RETRIES}" --github-retry-delay-ms "${RELEASE_HEALTH_GITHUB_RETRY_DELAY_MS}" > artifacts/release-health.json
           node scripts/release-ready.js --format md --skip-tests --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.md
           node scripts/release-ready.js --format json --skip-tests --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.json
 
@@ -273,7 +275,7 @@ jobs:
           node ./bin/rmemo.js diagnostics export --format json > artifacts/diagnostics.json || echo '{"error":"Failed to run diagnostics export"}' > artifacts/diagnostics.json
           node ./bin/rmemo.js contract check --format json --fail-on any > artifacts/contract-check.json || echo '{"error":"Failed to run contract check"}' > artifacts/contract-check.json
           npm run verify:matrix -- --format json > artifacts/regression-matrix.json || echo '{"error":"Failed to run regression matrix"}' > artifacts/regression-matrix.json
-          node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}" > artifacts/release-health.json || echo '{"error":"Failed to run release health"}' > artifacts/release-health.json
+          node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}" --github-retries "${RELEASE_HEALTH_GITHUB_RETRIES}" --github-retry-delay-ms "${RELEASE_HEALTH_GITHUB_RETRY_DELAY_MS}" > artifacts/release-health.json || echo '{"error":"Failed to run release health"}' > artifacts/release-health.json
 
       - name: Upload failure diagnostics artifact
         if: failure()
