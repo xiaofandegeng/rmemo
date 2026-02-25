@@ -59,6 +59,7 @@ Release is driven by `release-please` on `main` push.
   - [ ] `rmemo-release-audit-<version>`
 - [ ] Run:
   - [ ] `node scripts/release-health.js --repo xiaofandegeng/rmemo --version <version> --tag v<version> --format md --allow-legacy-scoped-asset false --timeout-ms 15000 --github-retries 2 --github-retry-delay-ms 1000`
+  - [ ] `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version> --max-wait-ms 1800000 --poll-interval-ms 10000 --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000`
 - [ ] Confirm release assets contain expected `.tgz` file: `rmemo-<version>.tgz`
 - [ ] Confirm legacy scoped asset name does not remain on Release page
 

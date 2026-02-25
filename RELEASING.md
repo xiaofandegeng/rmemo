@@ -58,6 +58,16 @@ Notes:
 - `release-please` step is retried once in the same workflow run to absorb transient GitHub API failures.
 - If the target npm version already exists, publish step exits safely.
 
+## Post-release convergence verify (recommended)
+
+After release PR is merged, you can wait for npm + GitHub Release convergence with one command:
+
+```bash
+npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version> --max-wait-ms 1800000 --poll-interval-ms 10000 --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000
+```
+
+This command reuses `release-health` in strict mode and exits non-zero if convergence is not reached in the wait window.
+
 ## Failure handling
 
 If workflow fails:
