@@ -339,6 +339,7 @@ Write tools:
 - `rmemo_todo_done`
 - `rmemo_log`
 - `rmemo_resume_history_save`
+- `rmemo_resume_history_prune`
 - `rmemo_sync`
 - `rmemo_embed_auto`
 - `rmemo_embed_build`
