@@ -7,7 +7,7 @@ This checklist is the single source of truth for shipping `rmemo` releases.
 - [ ] `git pull --ff-only origin main`
 - [ ] `git status --short` is clean
 - [ ] Preferred one-command rehearsal:
-  - [ ] `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000 --archive-snapshot-id <yyyymmdd_hhmmss> --archive-retention-days 30 --archive-max-snapshots-per-version 20`
+  - [ ] `npm run verify:release-rehearsal-archive-verify -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000 --archive-snapshot-id <yyyymmdd_hhmmss> --archive-retention-days 30 --archive-max-snapshots-per-version 20`
 - [ ] `node --test`
 - [ ] `npm run pack:dry`
 - [ ] `npm run verify:changelog`
@@ -28,6 +28,7 @@ This checklist is the single source of truth for shipping `rmemo` releases.
   - [ ] `artifacts/release-rehearsal.json`
   - [ ] `artifacts/release-summary.json`
   - [ ] `artifacts/release-archive.json`
+  - [ ] `artifacts/release-archive-verify.json`
   - [ ] `artifacts/release-archive/<version>/<snapshot-id>/manifest.json`
   - [ ] `artifacts/release-archive/<version>/latest.json`
   - [ ] `artifacts/release-archive/catalog.json`

@@ -36,6 +36,7 @@
 - [x] `release-summary.json` 增加失败分层与恢复提示（`category/code/retryable/nextAction` + `failureBreakdown/actionHints`）。
 - [x] `release-archive-find` 新增 `--require-files` 校验模式，可直接检查最新快照关键文件完整性。
 - [x] `release-summary.json` 聚合 `release-health.standardized` 失败码（`health.*` + `summaryFailureCodes`）。
+- [x] `release-rehearsal` 新增 `--archive-verify` 串联归档完整性校验，输出 `release-archive-verify.json`。
 
 ## 6. 启动时固定动作
 

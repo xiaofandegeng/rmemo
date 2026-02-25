@@ -651,6 +651,7 @@ Timeout tuning (avoid hanging checks on unstable networks):
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
 - `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
+- `npm run verify:release-rehearsal-archive-verify -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
 
 Archive release reports with a versioned snapshot:
@@ -658,6 +659,7 @@ Archive release reports with a versioned snapshot:
 - `npm run verify:release-archive-find -- --version <version> --format json` (resolve latest snapshot / query archive index)
 - `npm run verify:release-archive-find -- --version <version> --require-files release-ready.json,release-health.json,release-rehearsal.json --format json` (validate latest snapshot completeness)
 - when using `--archive` in rehearsal mode, `artifacts/release-summary.json` and `artifacts/release-archive.json` are generated automatically
+- when using `--archive-verify`, `artifacts/release-archive-verify.json` is generated and missing required files fail the rehearsal
 - `release-summary.json` now includes failure categories + recovery hints (`failureBreakdown`, `retryableFailures`, `actionHints`)
 - `release-summary.json` also aggregates `release-health` standardized failure signals (`health.*`, `summaryFailureCodes`)
 

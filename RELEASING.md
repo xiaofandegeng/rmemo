@@ -26,6 +26,12 @@ Or run rehearsal + archive in one command:
 npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000 --archive-snapshot-id <yyyymmdd_hhmmss>
 ```
 
+Or enable archive completeness verification in the same rehearsal:
+
+```bash
+npm run verify:release-rehearsal-archive-verify -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000 --archive-snapshot-id <yyyymmdd_hhmmss>
+```
+
 Artifacts written under `artifacts/`:
 - `release-notes.md`
 - `release-ready.md`
@@ -36,6 +42,7 @@ Artifacts written under `artifacts/`:
 - `release-rehearsal.json`
 - `release-summary.json` (auto-generated when `--archive` is enabled, or configurable via `--summary-out`)
 - `release-archive.json` (written when `--archive` is enabled)
+- `release-archive-verify.json` (written when `--archive-verify` is enabled)
 
 `release-summary.json` includes failure categorization for fast triage:
 - `failedSteps[].category/code/retryable/nextAction`
@@ -70,6 +77,8 @@ Useful flags:
 - `--allow-dirty` for local dry runs with uncommitted changes
 - `--skip-tests` for quick smoke checks
 - `--archive` to run `release-archive` immediately after rehearsal output is generated
+- `--archive-verify` to run `release-archive-find` after archive step (fails rehearsal if required files are missing)
+- `--archive-require-files <a,b,c>` to define required files for `--archive-verify` (default: `release-ready.json,release-health.json,release-rehearsal.json`)
 - `--archive-snapshot-id <id>` to pin archive snapshot id in rehearsal-driven archive mode
 - `--archive-retention-days <days>` and `--archive-max-snapshots-per-version <n>` to control archive pruning in rehearsal-driven archive mode
 - `--health-timeout-ms <ms>` to cap GitHub API checks during rehearsal (default `15000`)

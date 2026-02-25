@@ -32,6 +32,7 @@
   - v1.5 M2 已落地：`release-summary.json` 失败分层与恢复提示（快速定位 timeout/network/archive/config）
   - v1.5 M2 已落地：`release-archive-find --require-files` 快照完整性校验
   - v1.5 M2 已落地：`release-summary.json` 聚合 `release-health.standardized` failure codes（跨步骤统一失败码视图）
+  - v1.5 M2 已落地：`release-rehearsal --archive-verify` 归档后完整性校验（输出 `release-archive-verify.json`）
 
 ## Execution Rule
 

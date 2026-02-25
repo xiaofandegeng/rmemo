@@ -402,6 +402,20 @@ test("release-rehearsal runs archive step and auto-writes default summary when a
     "utf8"
   );
 
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive-find.js"),
+    [
+      "import fs from 'node:fs/promises';",
+      "import path from 'node:path';",
+      "const args = process.argv.slice(2);",
+      "await fs.writeFile(path.resolve('artifacts', 'archive-find-args.log'), JSON.stringify(args) + '\\n', 'utf8');",
+      "const requireIdx = args.indexOf('--require-files');",
+      "const required = requireIdx >= 0 ? String(args[requireIdx + 1] || '').split(',').filter(Boolean) : [];",
+      "process.stdout.write(JSON.stringify({ ok: true, requiredFiles: required, missingRequiredFiles: [] }, null, 2) + '\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
   const r = await runNode(
     [
       path.resolve("scripts/release-rehearsal.js"),
@@ -418,6 +432,9 @@ test("release-rehearsal runs archive step and auto-writes default summary when a
       "45",
       "--archive-max-snapshots-per-version",
       "8",
+      "--archive-verify",
+      "--archive-require-files",
+      "release-ready.json,release-health.json,release-rehearsal.json",
       "--skip-tests",
       "--allow-dirty"
     ],
@@ -427,9 +444,13 @@ test("release-rehearsal runs archive step and auto-writes default summary when a
   assert.equal(r.code, 0, r.err || r.out);
   const report = JSON.parse(r.out);
   const archiveStep = report.steps.find((s) => s.name === "release-archive");
+  const archiveVerifyStep = report.steps.find((s) => s.name === "release-archive-verify");
   assert.ok(archiveStep);
+  assert.ok(archiveVerifyStep);
   assert.equal(archiveStep.status, "pass");
+  assert.equal(archiveVerifyStep.status, "pass");
   assert.equal(report.options.archive, true);
+  assert.equal(report.options.archiveVerify, true);
   assert.match(String(report.options.summaryOut || ""), /artifacts\/release-summary\.json$/);
 
   const archiveReport = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-archive.json"), "utf8"));
@@ -442,6 +463,13 @@ test("release-rehearsal runs archive step and auto-writes default summary when a
   assert.ok(archiveArgs.includes("--retention-days"));
   assert.ok(archiveArgs.includes("--max-snapshots-per-version"));
   assert.ok(archiveArgs.includes("--snapshot-id"));
+
+  const archiveVerifyReport = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-archive-verify.json"), "utf8"));
+  assert.equal(archiveVerifyReport.ok, true);
+  assert.deepEqual(archiveVerifyReport.missingRequiredFiles, []);
+  const archiveFindArgs = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "archive-find-args.log"), "utf8"));
+  assert.ok(archiveFindArgs.includes("--snapshot-id"));
+  assert.ok(archiveFindArgs.includes("--require-files"));
 });
 
 test("release-rehearsal fails when archive step fails", async () => {
@@ -493,4 +521,64 @@ test("release-rehearsal fails when archive step fails", async () => {
   assert.equal(summary.failedSteps.some((x) => x.category === "archive"), true);
   assert.ok(Number(summary.failureBreakdown.archive || 0) >= 1);
   assert.equal(Number(summary.retryableFailures || 0) >= 1, false);
+});
+
+test("release-rehearsal fails when archive verify step fails", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-verify-fail-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), "process.stdout.write('# ready\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-health.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive.js"),
+    [
+      "process.stdout.write(JSON.stringify({ ok: true, snapshotId: '20260225_131000' }) + '\\n');",
+      "process.exit(0);"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive-find.js"),
+    [
+      "process.stdout.write(JSON.stringify({ ok: false, missingRequiredFiles: ['release-health.json'] }) + '\\n');",
+      "process.exit(1);"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--archive",
+      "--archive-verify",
+      "--archive-require-files",
+      "release-ready.json,release-health.json,release-rehearsal.json",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  const archiveVerifyStep = report.steps.find((s) => s.name === "release-archive-verify");
+  assert.ok(archiveVerifyStep);
+  assert.equal(archiveVerifyStep.status, "fail");
+
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
+  assert.equal(summary.failedSteps.some((x) => x.name === "release-archive-verify"), true);
+  assert.ok(Number(summary.failureBreakdown.archive || 0) >= 1);
 });

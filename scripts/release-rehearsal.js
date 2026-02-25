@@ -161,7 +161,7 @@ function toSummary(report) {
     if (step.timedOut || /timed out|timeout/.test(msg)) {
       return { category: "timeout", code: "STEP_TIMEOUT", retryable: true };
     }
-    if (step.name === "release-archive") {
+    if (step.name === "release-archive" || step.name === "release-archive-verify") {
       return { category: "archive", code: "RELEASE_ARCHIVE_FAILED", retryable: false };
     }
     if (/econn|enotfound|eai_again|429|5\d\d|network|socket|request timeout|github release unavailable/.test(msg)) {
@@ -274,6 +274,16 @@ async function writeRehearsalOutputs({ files, report, summaryOut }) {
 }
 
 async function main() {
+  function parseJsonSafe(input) {
+    const raw = String(input || "").trim();
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
   const flags = parseFlags(process.argv.slice(2));
   const root = flags.root ? path.resolve(flags.root) : process.cwd();
   const outDir = flags["out-dir"] ? path.resolve(root, String(flags["out-dir"])) : path.join(root, "artifacts");
@@ -282,7 +292,17 @@ async function main() {
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
   const archive = flags.archive === "true";
+  const archiveVerify = archive && flags["archive-verify"] === "true";
   const archiveSnapshotId = String(flags["archive-snapshot-id"] || flags["snapshot-id"] || "").trim();
+  const archiveRequireFiles = String(flags["archive-require-files"] || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const effectiveArchiveRequireFiles = archiveVerify
+    ? archiveRequireFiles.length > 0
+      ? archiveRequireFiles
+      : ["release-ready.json", "release-health.json", "release-rehearsal.json"]
+    : [];
   const archiveRetentionDays = Math.max(1, Number(flags["archive-retention-days"] || flags["retention-days"] || 30));
   const archiveMaxSnapshotsPerVersion = Math.max(
     1,
@@ -316,7 +336,8 @@ async function main() {
     healthJson: path.join(outDir, "release-health.json"),
     rehearsalMd: path.join(outDir, "release-rehearsal.md"),
     rehearsalJson: path.join(outDir, "release-rehearsal.json"),
-    ...(archive ? { archiveJson: path.join(outDir, "release-archive.json") } : {})
+    ...(archive ? { archiveJson: path.join(outDir, "release-archive.json") } : {}),
+    ...(archiveVerify ? { archiveVerifyJson: path.join(outDir, "release-archive-verify.json") } : {})
   };
 
   const steps = [];
@@ -449,6 +470,8 @@ async function main() {
     ...(archive
       ? {
           archiveSnapshotId,
+          archiveVerify,
+          archiveRequireFiles: effectiveArchiveRequireFiles,
           archiveRetentionDays,
           archiveMaxSnapshotsPerVersion
         }
@@ -506,6 +529,56 @@ async function main() {
           ) + "\n";
       }
       await fs.writeFile(files.archiveJson, archiveJson, "utf8");
+    }
+
+    if (archiveVerify) {
+      const archiveOut = parseJsonSafe(archiveStep.out);
+      const verifySnapshotId = String(archiveOut?.snapshotId || archiveSnapshotId || "").trim();
+      const archiveVerifyStep = await execStep({
+        name: "release-archive-verify",
+        cmd: "node",
+        args: [
+          "scripts/release-archive-find.js",
+          "--root",
+          root,
+          "--artifacts-dir",
+          outDir,
+          "--version",
+          version,
+          "--format",
+          "json",
+          "--require-files",
+          effectiveArchiveRequireFiles.join(","),
+          ...(verifySnapshotId ? ["--snapshot-id", verifySnapshotId] : [])
+        ],
+        cwd: root,
+        skipReason: archiveStep.status === "pass" ? "" : "release-archive failed"
+      });
+      steps.push(archiveVerifyStep);
+
+      if (files.archiveVerifyJson) {
+        let verifyJson = "";
+        if (archiveVerifyStep.status === "pass" && String(archiveVerifyStep.out || "").trim()) {
+          verifyJson = `${String(archiveVerifyStep.out || "").trim()}\n`;
+        } else if (archiveVerifyStep.status === "skipped") {
+          verifyJson = JSON.stringify({ schema: 1, ok: false, skipped: true, reason: archiveVerifyStep.reason }, null, 2) + "\n";
+        } else if (String(archiveVerifyStep.out || "").trim()) {
+          verifyJson = `${String(archiveVerifyStep.out || "").trim()}\n`;
+        } else {
+          verifyJson =
+            JSON.stringify(
+              {
+                schema: 1,
+                ok: false,
+                reason: "release-archive-verify failed",
+                error: String(archiveVerifyStep.error || "").trim()
+              },
+              null,
+              2
+            ) + "\n";
+        }
+        await fs.writeFile(files.archiveVerifyJson, verifyJson, "utf8");
+      }
     }
 
     report = buildReport({ root, outDir, version, tag, repo, options, steps, files });
