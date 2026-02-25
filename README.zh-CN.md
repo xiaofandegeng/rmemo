@@ -629,7 +629,11 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 
 超时参数（网络不稳定时建议设置，避免命令长时间挂起）：
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
+- `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
+
+发布后收敛校验：
+- `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
 
 ## Roadmap（简版）
 

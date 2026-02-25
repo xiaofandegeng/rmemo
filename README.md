@@ -649,7 +649,11 @@ This writes release audit files to `artifacts/`:
 
 Timeout tuning (avoid hanging checks on unstable networks):
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
+- `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
+
+Post-release convergence check:
+- `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
 
 **Manual Fallback Publishing (Emergency Only)**
 If GitHub Actions is down or npm tokens are expired, a manual release requires administrator privileges:

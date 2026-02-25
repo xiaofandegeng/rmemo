@@ -126,10 +126,36 @@ function toMd(report) {
   return lines.join("\n") + "\n";
 }
 
+function toSummary(report) {
+  const failedSteps = report.steps
+    .filter((s) => s.status === "fail")
+    .map((s) => ({
+      name: s.name,
+      optional: !!s.optional,
+      code: s.code,
+      timedOut: !!s.timedOut,
+      error: String(s.error || "").trim()
+    }));
+
+  return {
+    schema: 1,
+    generatedAt: report.generatedAt,
+    root: report.root,
+    outDir: report.outDir,
+    version: report.version,
+    tag: report.tag,
+    repo: report.repo,
+    ok: report.ok,
+    summary: report.summary,
+    failedSteps
+  };
+}
+
 async function main() {
   const flags = parseFlags(process.argv.slice(2));
   const root = flags.root ? path.resolve(flags.root) : process.cwd();
   const outDir = flags["out-dir"] ? path.resolve(root, String(flags["out-dir"])) : path.join(root, "artifacts");
+  const summaryOut = flags["summary-out"] ? path.resolve(root, String(flags["summary-out"])) : "";
   const format = String(flags.format || "md").toLowerCase();
   const skipHealth = flags["skip-health"] === "true";
   const allowDirty = flags["allow-dirty"] === "true";
@@ -302,6 +328,11 @@ async function main() {
   const json = JSON.stringify(report, null, 2) + "\n";
   await fs.writeFile(files.rehearsalMd, md, "utf8");
   await fs.writeFile(files.rehearsalJson, json, "utf8");
+  if (summaryOut) {
+    const summary = toSummary(report);
+    await fs.mkdir(path.dirname(summaryOut), { recursive: true });
+    await fs.writeFile(summaryOut, JSON.stringify(summary, null, 2) + "\n", "utf8");
+  }
 
   process.stdout.write(format === "json" ? json : md);
   if (!report.ok) process.exitCode = 1;
