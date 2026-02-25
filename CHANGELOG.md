@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1](https://github.com/xiaofandegeng/rmemo/compare/v1.2.0...v1.2.1) (2026-02-25)
+
+
+### 🐛 Bug Fixes
+
+* **release:** add network timeouts to rehearsal health checks ([208f0dc](https://github.com/xiaofandegeng/rmemo/commit/208f0dc8c99944ebaf2fba1ca7eca3b83b97814c))
+
+
+### 📚 Documentation
+
+* **plan:** sync cycle status after v1.2.0 release ([3415691](https://github.com/xiaofandegeng/rmemo/commit/34156917635db47cec602d2f00ca69a4e9134a81))
+
+
+### 🎯 Testing
+
+* **release:** cover timeout branches in health and rehearsal scripts ([6bdf4e7](https://github.com/xiaofandegeng/rmemo/commit/6bdf4e719823757fa8613ffa2de3059ee2b7137d))
+
 ## [1.2.0](https://github.com/xiaofandegeng/rmemo/compare/v1.1.0...v1.2.0) (2026-02-25)
 
 
