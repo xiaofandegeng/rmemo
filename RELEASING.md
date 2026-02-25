@@ -52,6 +52,7 @@ Artifacts written under `artifacts/`:
 - `archive.snapshotId/archiveStep/verify` (when archive mode is enabled)
 - `health.status/resultCode/failureCodes/failures` (aggregated from `release-health` standardized output when available)
 - `summaryFailureCodes` (merged step-level and health-level failure codes)
+- `standardized.status/resultCode/checkStatuses/failureCodes/failures` (one-block summary for integrations)
 
 Archive reports in a versioned snapshot (recommended):
 

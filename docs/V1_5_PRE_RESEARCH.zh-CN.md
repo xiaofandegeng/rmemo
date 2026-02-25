@@ -38,6 +38,7 @@
 - [x] `release-summary.json` 聚合 `release-health.standardized` 失败码（`health.*` + `summaryFailureCodes`）。
 - [x] `release-rehearsal` 新增 `--archive-verify` 串联归档完整性校验，输出 `release-archive-verify.json`。
 - [x] `release-summary.json` 输出归档可观测字段（`archive.snapshotId/archiveStep/verify`）。
+- [x] `release-summary.json` 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 
 ## 6. 启动时固定动作
 

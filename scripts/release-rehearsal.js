@@ -250,6 +250,27 @@ function toSummary(report) {
       }))
     : [];
   const summaryFailureCodes = Array.from(new Set([...failedSteps.map((x) => x.code), ...healthFailureCodes]));
+  const checkStatuses = Object.fromEntries(report.steps.map((s) => [s.name, s.status]));
+  const standardizedFailures = failedSteps.map((x) => ({
+    step: x.name,
+    code: x.code,
+    category: x.category,
+    retryable: !!x.retryable
+  }));
+  const standardized = {
+    schema: 1,
+    status: report.ok ? "pass" : "fail",
+    resultCode: report.ok ? "RELEASE_REHEARSAL_SUMMARY_OK" : "RELEASE_REHEARSAL_SUMMARY_FAIL",
+    summary: {
+      totalSteps: report.steps.length,
+      passCount: report.summary.pass,
+      failCount: report.summary.fail,
+      skippedCount: report.summary.skipped
+    },
+    checkStatuses,
+    failureCodes: summaryFailureCodes,
+    failures: standardizedFailures
+  };
 
   return {
     schema: 1,
@@ -289,7 +310,8 @@ function toSummary(report) {
           failures: healthFailures
         }
       : null,
-    summaryFailureCodes
+    summaryFailureCodes,
+    standardized
   };
 }
 

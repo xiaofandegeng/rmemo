@@ -107,6 +107,9 @@ test("release-rehearsal marks health steps as timeout failures", async () => {
   assert.ok(Number(summary.retryableFailures || 0) >= 1);
   assert.ok(Array.isArray(summary.actionHints));
   assert.ok(summary.actionHints.length >= 1);
+  assert.equal(summary.standardized.status, "fail");
+  assert.equal(summary.standardized.resultCode, "RELEASE_REHEARSAL_SUMMARY_FAIL");
+  assert.equal(summary.standardized.failureCodes.includes("STEP_TIMEOUT"), true);
 });
 
 test("release-rehearsal passes github retry flags to release-health steps", async () => {
@@ -348,6 +351,9 @@ test("release-rehearsal writes compact summary report when summary-out is provid
   assert.equal(summary.version, "9.9.9");
   assert.equal(summary.summary.fail, 0);
   assert.equal(summary.failedSteps.length, 0);
+  assert.equal(summary.standardized.status, "pass");
+  assert.equal(summary.standardized.resultCode, "RELEASE_REHEARSAL_SUMMARY_OK");
+  assert.deepEqual(summary.standardized.failureCodes, []);
 });
 
 test("release-rehearsal runs archive step and auto-writes default summary when archive is enabled", async () => {
@@ -592,4 +598,7 @@ test("release-rehearsal fails when archive verify step fails", async () => {
   assert.equal(summary.archive.archiveStep.ok, true);
   assert.equal(summary.archive.verify.ok, false);
   assert.equal(summary.archive.verify.missingRequiredFiles.includes("release-health.json"), true);
+  assert.equal(summary.standardized.status, "fail");
+  assert.equal(summary.standardized.checkStatuses["release-archive-verify"], "fail");
+  assert.equal(summary.standardized.failureCodes.includes("RELEASE_ARCHIVE_VERIFY_FAILED"), true);
 });

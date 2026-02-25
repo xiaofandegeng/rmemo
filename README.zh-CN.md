@@ -643,6 +643,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `release-summary.json` 现已包含失败分层与恢复提示（`failureBreakdown`、`retryableFailures`、`actionHints`）
 - `release-summary.json` 会包含归档状态详情（`archive.snapshotId`、`archive.archiveStep`、`archive.verify`）
 - `release-summary.json` 还会汇总 `release-health` 标准化失败信号（`health.*`、`summaryFailureCodes`）
+- `release-summary.json` 新增适合集成消费的标准化块（`standardized.status/resultCode/checkStatuses/failureCodes/failures`）
 
 发布后收敛校验：
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`

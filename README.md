@@ -663,6 +663,7 @@ Archive release reports with a versioned snapshot:
 - `release-summary.json` now includes failure categories + recovery hints (`failureBreakdown`, `retryableFailures`, `actionHints`)
 - `release-summary.json` includes archive status details (`archive.snapshotId`, `archive.archiveStep`, `archive.verify`)
 - `release-summary.json` also aggregates `release-health` standardized failure signals (`health.*`, `summaryFailureCodes`)
+- `release-summary.json` includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`

@@ -34,6 +34,7 @@
   - v1.5 M2 已落地：`release-summary.json` 聚合 `release-health.standardized` failure codes（跨步骤统一失败码视图）
   - v1.5 M2 已落地：`release-rehearsal --archive-verify` 归档后完整性校验（输出 `release-archive-verify.json`）
   - v1.5 M2 已落地：`release-summary.json` 归档可观测字段（snapshot/verify 缺失项）统一输出
+  - v1.5 M2 已落地：`release-summary.json.standardized` 统一状态块（便于告警/平台接入）
 
 ## Execution Rule
 
