@@ -218,6 +218,73 @@ test("release-rehearsal passes github retry flags to release-health steps", asyn
   assert.deepEqual(formats, ["json", "md"]);
 });
 
+test("release-rehearsal summary aggregates standardized failure codes from release-health", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-health-codes-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), "process.stdout.write('# ready\\n');\n", "utf8");
+
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-health.js"),
+    [
+      "const args = process.argv.slice(2);",
+      "const fmtIdx = args.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? args[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') {",
+      "  process.stdout.write(JSON.stringify({",
+      "    ok: false,",
+      "    standardized: {",
+      "      status: 'fail',",
+      "      resultCode: 'RELEASE_HEALTH_FAIL',",
+      "      failureCodes: ['GITHUB_RELEASE_HTTP_5XX', 'RELEASE_ASSET_CHECK_BLOCKED'],",
+      "      failures: [",
+      "        { check: 'githubRelease', code: 'GITHUB_RELEASE_HTTP_5XX', message: 'service unavailable', retryable: true }",
+      "      ]",
+      "    }",
+      "  }, null, 2) + '\\n');",
+      "  process.exit(1);",
+      "}",
+      "process.stdout.write('# health\\n- status: FAIL\\n');",
+      "process.exit(1);"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const summaryPath = "artifacts/release-summary.json";
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--summary-out",
+      summaryPath,
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, summaryPath), "utf8"));
+  assert.equal(summary.health.resultCode, "RELEASE_HEALTH_FAIL");
+  assert.equal(summary.health.failureCodes.includes("GITHUB_RELEASE_HTTP_5XX"), true);
+  assert.equal(summary.health.failureCodes.includes("RELEASE_ASSET_CHECK_BLOCKED"), true);
+  assert.equal(summary.summaryFailureCodes.includes("GITHUB_RELEASE_HTTP_5XX"), true);
+  assert.equal(summary.summaryFailureCodes.includes("RELEASE_ASSET_CHECK_BLOCKED"), true);
+  assert.equal(summary.failedSteps.some((x) => typeof x.code === "string"), true);
+});
+
 test("release-rehearsal writes compact summary report when summary-out is provided", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-summary-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });

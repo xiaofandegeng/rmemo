@@ -659,6 +659,7 @@ Archive release reports with a versioned snapshot:
 - `npm run verify:release-archive-find -- --version <version> --require-files release-ready.json,release-health.json,release-rehearsal.json --format json` (validate latest snapshot completeness)
 - when using `--archive` in rehearsal mode, `artifacts/release-summary.json` and `artifacts/release-archive.json` are generated automatically
 - `release-summary.json` now includes failure categories + recovery hints (`failureBreakdown`, `retryableFailures`, `actionHints`)
+- `release-summary.json` also aggregates `release-health` standardized failure signals (`health.*`, `summaryFailureCodes`)
 
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`

@@ -127,6 +127,26 @@ function toMd(report) {
 }
 
 function toSummary(report) {
+  function parseJsonSafe(input) {
+    const raw = String(input || "").trim();
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  function extractHealthStandardized() {
+    const step = report.steps.find((s) => s.name === "release-health-json" && (s.status === "pass" || s.status === "fail"));
+    if (!step) return null;
+    const parsedOut = parseJsonSafe(step.out);
+    if (parsedOut?.standardized && typeof parsedOut.standardized === "object") return parsedOut.standardized;
+    const parsedErr = parseJsonSafe(step.err);
+    if (parsedErr?.standardized && typeof parsedErr.standardized === "object") return parsedErr.standardized;
+    return null;
+  }
+
   const hints = {
     timeout: "Increase timeout or inspect upstream command latency before rerun.",
     network: "Retry after network/platform recovers; keep github retries enabled.",
@@ -164,7 +184,7 @@ function toSummary(report) {
         ...classified,
         name: s.name,
         optional: !!s.optional,
-        code: s.code,
+        stepExitCode: s.code,
         timedOut: !!s.timedOut,
         error: String(s.error || "").trim(),
         nextAction: hints[classified.category] || hints.unknown
@@ -177,6 +197,19 @@ function toSummary(report) {
   }, {});
   const actionHints = Array.from(new Set(failedSteps.map((x) => x.nextAction).filter(Boolean)));
   const retryableFailures = failedSteps.filter((x) => x.retryable).length;
+  const healthStandardized = extractHealthStandardized();
+  const healthFailureCodes = Array.isArray(healthStandardized?.failureCodes)
+    ? healthStandardized.failureCodes.map((x) => String(x)).filter(Boolean)
+    : [];
+  const healthFailures = Array.isArray(healthStandardized?.failures)
+    ? healthStandardized.failures.map((x) => ({
+        check: String(x?.check || ""),
+        code: String(x?.code || ""),
+        message: String(x?.message || ""),
+        retryable: !!x?.retryable
+      }))
+    : [];
+  const summaryFailureCodes = Array.from(new Set([...failedSteps.map((x) => x.code), ...healthFailureCodes]));
 
   return {
     schema: 1,
@@ -191,7 +224,16 @@ function toSummary(report) {
     failedSteps,
     failureBreakdown,
     retryableFailures,
-    actionHints
+    actionHints,
+    health: healthStandardized
+      ? {
+          status: String(healthStandardized.status || ""),
+          resultCode: String(healthStandardized.resultCode || ""),
+          failureCodes: healthFailureCodes,
+          failures: healthFailures
+        }
+      : null,
+    summaryFailureCodes
   };
 }
 

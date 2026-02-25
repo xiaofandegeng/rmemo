@@ -42,6 +42,8 @@ Artifacts written under `artifacts/`:
 - `failureBreakdown`
 - `retryableFailures`
 - `actionHints`
+- `health.status/resultCode/failureCodes/failures` (aggregated from `release-health` standardized output when available)
+- `summaryFailureCodes` (merged step-level and health-level failure codes)
 
 Archive reports in a versioned snapshot (recommended):
 
