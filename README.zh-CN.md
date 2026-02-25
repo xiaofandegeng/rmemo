@@ -634,6 +634,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 
 按版本快照归档发布报告：
 - `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
+- `npm run verify:release-archive-find -- --version <version> --format json`（定位最新快照/查询归档索引）
 
 发布后收敛校验：
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`

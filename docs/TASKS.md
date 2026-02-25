@@ -27,6 +27,7 @@
   - v1.5 M1 已落地：`release-rehearsal --summary-out` 紧凑摘要输出
   - v1.5 M1 已落地：`release-health` 标准化结果字段（便于告警/平台接入）
   - v1.5 M1 已落地：`release-archive` 版本化归档与留存清理（含 `latest/catalog` 索引）
+  - v1.5 M1 已落地：`release-archive-find` 归档检索命令（版本/快照查询）
 
 ## Execution Rule
 

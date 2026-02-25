@@ -29,6 +29,7 @@ This checklist is the single source of truth for shipping `rmemo` releases.
   - [ ] `artifacts/release-archive/<version>/<snapshot-id>/manifest.json`
   - [ ] `artifacts/release-archive/<version>/latest.json`
   - [ ] `artifacts/release-archive/catalog.json`
+  - [ ] `npm run verify:release-archive-find -- --version <version> --format json` 可返回最新快照定位信息
 
 ## 2. Version + notes preparation
 

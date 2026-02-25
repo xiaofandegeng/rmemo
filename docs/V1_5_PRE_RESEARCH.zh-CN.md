@@ -24,6 +24,7 @@
 
 - [x] `release-health` JSON 输出新增标准化字段：`standardized.status/resultCode/checkStatuses/failureCodes/failures`。
 - [x] 新增 `release-archive` 统一归档：`artifacts/release-archive/<version>/<snapshot-id>/`，并生成 `latest/catalog` 索引与留存清理。
+- [x] 新增 `release-archive-find` 归档检索命令：支持版本列表、最新快照定位、指定快照摘要查询。
 - [x] 在 `release-rehearsal` 中新增 `--summary-out <path>`，输出紧凑 JSON 摘要（含 `failedSteps`）。
 - [x] 补充自动化测试覆盖 `summary-out` 行为。
 

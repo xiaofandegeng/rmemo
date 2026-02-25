@@ -43,6 +43,11 @@ Archive conventions:
   - `artifacts/release-archive/catalog.json`
 - each snapshot contains `manifest.json` with copied files, sizes, and sha256.
 
+Quick query examples:
+- list versions: `npm run verify:release-archive-find -- --format json`
+- locate latest snapshot: `npm run verify:release-archive-find -- --version <version> --format json`
+- inspect one snapshot: `npm run verify:release-archive-find -- --version <version> --snapshot-id <snapshot-id> --format json`
+
 Useful flags:
 - `--skip-health` when GitHub API is unavailable
 - `--allow-dirty` for local dry runs with uncommitted changes

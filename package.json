@@ -27,6 +27,7 @@
     "verify:release-ready": "node scripts/release-ready.js --format md",
     "verify:release-rehearsal": "node scripts/release-rehearsal.js --format md",
     "verify:release-archive": "node scripts/release-archive.js --format md",
+    "verify:release-archive-find": "node scripts/release-archive-find.js --format md",
     "verify:release-verify": "node scripts/release-verify.js --format md",
     "release:notes": "node scripts/release-notes.js"
   },

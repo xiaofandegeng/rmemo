@@ -654,6 +654,7 @@ Timeout tuning (avoid hanging checks on unstable networks):
 
 Archive release reports with a versioned snapshot:
 - `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
+- `npm run verify:release-archive-find -- --version <version> --format json` (resolve latest snapshot / query archive index)
 
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`

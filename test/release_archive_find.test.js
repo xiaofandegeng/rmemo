@@ -1,0 +1,135 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { spawn } from "node:child_process";
+
+function runNode(args, { cwd, env } = {}) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(process.execPath, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    let err = "";
+    p.stdout.on("data", (d) => (out += d.toString("utf8")));
+    p.stderr.on("data", (d) => (err += d.toString("utf8")));
+    p.on("error", reject);
+    p.on("close", (code) => resolve({ code, out, err }));
+  });
+}
+
+async function setupArchive(root) {
+  const archiveRoot = path.join(root, "artifacts", "release-archive");
+  await fs.mkdir(path.join(archiveRoot, "1.5.0", "20260225_100000"), { recursive: true });
+  await fs.mkdir(path.join(archiveRoot, "1.5.0", "20260225_090000"), { recursive: true });
+  await fs.mkdir(path.join(archiveRoot, "1.4.0", "20260224_220000"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(archiveRoot, "catalog.json"),
+    JSON.stringify({
+      schema: 1,
+      versions: [
+        { version: "1.5.0", latestSnapshotId: "20260225_100000", snapshotCount: 2, snapshots: ["20260225_100000", "20260225_090000"] },
+        { version: "1.4.0", latestSnapshotId: "20260224_220000", snapshotCount: 1, snapshots: ["20260224_220000"] }
+      ]
+    }) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(archiveRoot, "1.5.0", "latest.json"),
+    JSON.stringify({
+      schema: 1,
+      version: "1.5.0",
+      latestSnapshotId: "20260225_100000",
+      latestSnapshotDir: path.join(archiveRoot, "1.5.0", "20260225_100000")
+    }) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(archiveRoot, "1.5.0", "20260225_100000", "manifest.json"),
+    JSON.stringify({
+      schema: 1,
+      version: "1.5.0",
+      tag: "v1.5.0",
+      snapshotDir: path.join(archiveRoot, "1.5.0", "20260225_100000"),
+      copiedFiles: [{ file: "release-health.json" }, { file: "release-ready.json" }],
+      missingFiles: ["release-verify.json"]
+    }) + "\n",
+    "utf8"
+  );
+}
+
+test("release-archive-find lists versions from catalog", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-versions-"));
+  await setupArchive(tmp);
+
+  const r = await runNode([path.resolve("scripts/release-archive-find.js"), "--root", tmp, "--format", "json"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.mode, "versions");
+  assert.equal(report.ok, true);
+  assert.equal(report.versions[0].version, "1.5.0");
+});
+
+test("release-archive-find resolves latest snapshot for a version", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-latest-"));
+  await setupArchive(tmp);
+
+  const r = await runNode(
+    [path.resolve("scripts/release-archive-find.js"), "--root", tmp, "--format", "json", "--version", "1.5.0"],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.mode, "version-latest");
+  assert.equal(report.latestSnapshot.snapshotId, "20260225_100000");
+  assert.equal(report.snapshots.includes("20260225_100000"), true);
+});
+
+test("release-archive-find resolves a specific snapshot manifest summary", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-snapshot-"));
+  await setupArchive(tmp);
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-archive-find.js"),
+      "--root",
+      tmp,
+      "--format",
+      "json",
+      "--version",
+      "1.5.0",
+      "--snapshot-id",
+      "20260225_100000"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.mode, "snapshot");
+  assert.equal(report.snapshot.copiedFiles, 2);
+  assert.equal(report.snapshot.missingFiles, 1);
+  assert.equal(report.snapshot.tag, "v1.5.0");
+});
+
+test("release-archive-find fails when version has no snapshots", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-miss-"));
+  await setupArchive(tmp);
+
+  const r = await runNode(
+    [path.resolve("scripts/release-archive-find.js"), "--root", tmp, "--format", "json", "--version", "9.9.9"],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.ok, false);
+  assert.match(String(report.error || ""), /has no snapshots/i);
+});
