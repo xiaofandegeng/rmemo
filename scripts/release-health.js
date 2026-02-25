@@ -135,6 +135,15 @@ function md(report) {
   if (report.checks.githubRelease.releaseName) lines.push(`- releaseName: ${report.checks.githubRelease.releaseName}`);
   lines.push(`- assetsCount: ${report.checks.githubRelease.assetsCount}`);
   if (report.checks.githubRelease.error) lines.push(`- error: ${report.checks.githubRelease.error.trim()}`);
+  lines.push("");
+  lines.push("## releaseAssets");
+  lines.push(`- status: ${report.checks.releaseAssets.ok ? "OK" : "FAIL"}`);
+  lines.push(`- expected: ${report.checks.releaseAssets.expectedAsset}`);
+  if (report.checks.releaseAssets.legacyAsset) lines.push(`- legacyAsset: ${report.checks.releaseAssets.legacyAsset}`);
+  lines.push(`- foundExpected: ${report.checks.releaseAssets.foundExpected ? "yes" : "no"}`);
+  lines.push(`- foundLegacy: ${report.checks.releaseAssets.foundLegacy ? "yes" : "no"}`);
+  lines.push(`- foundAnyTgz: ${report.checks.releaseAssets.foundAnyTgz ? "yes" : "no"}`);
+  if (report.checks.releaseAssets.error) lines.push(`- error: ${report.checks.releaseAssets.error.trim()}`);
   return lines.join("\n") + "\n";
 }
 
@@ -148,6 +157,10 @@ async function main() {
   const packageName = pkg.name;
   const version = flags.version || pkg.version;
   const tag = flags.tag || `v${version}`;
+  const packageBaseName = String(packageName || "").includes("/") ? String(packageName).split("/").pop() : String(packageName || "");
+  const expectedAsset = String(flags["expected-asset"] || `${packageBaseName}-${version}.tgz`);
+  const allowLegacyScopedAsset = String(flags["allow-legacy-scoped-asset"] || "true") !== "false";
+  const legacyScopedAsset = `${String(packageName || "").replace(/^@/, "").replace("/", "-")}-${version}.tgz`;
 
   const repoArg = flags.repo || process.env.GITHUB_REPOSITORY || "";
   const [owner, name] = repoArg.split("/");
@@ -170,6 +183,27 @@ async function main() {
     error: gh.ok ? null : String(gh.error || "")
   };
 
+  const assetNames = gh.ok && Array.isArray(gh.data?.assets) ? gh.data.assets.map((a) => String(a?.name || "")) : [];
+  const foundExpected = assetNames.includes(expectedAsset);
+  const foundLegacy = assetNames.includes(legacyScopedAsset);
+  const foundAnyTgz = assetNames.some((x) => x.endsWith(".tgz"));
+  const assetCheckOk = ghCheck.ok && (foundExpected || (allowLegacyScopedAsset && foundLegacy));
+  const assetCheckError = !ghCheck.ok
+    ? "github release unavailable"
+    : assetCheckOk
+      ? null
+      : `missing expected asset '${expectedAsset}'${allowLegacyScopedAsset ? ` (legacy accepted: '${legacyScopedAsset}')` : ""}`;
+
+  const releaseAssetsCheck = {
+    ok: assetCheckOk,
+    expectedAsset,
+    legacyAsset: allowLegacyScopedAsset ? legacyScopedAsset : "",
+    foundExpected,
+    foundLegacy,
+    foundAnyTgz,
+    error: assetCheckError
+  };
+
   const report = {
     schema: 1,
     generatedAt: new Date().toISOString(),
@@ -179,9 +213,10 @@ async function main() {
     repo: { owner, name },
     checks: {
       npm: npmCheck,
-      githubRelease: ghCheck
+      githubRelease: ghCheck,
+      releaseAssets: releaseAssetsCheck
     },
-    ok: npmCheck.ok && ghCheck.ok
+    ok: npmCheck.ok && ghCheck.ok && releaseAssetsCheck.ok
   };
 
   if (format === "json") process.stdout.write(JSON.stringify(report, null, 2) + "\n");
