@@ -37,6 +37,7 @@
 - [x] `release-archive-find` 新增 `--require-files` 校验模式，可直接检查最新快照关键文件完整性。
 - [x] `release-summary.json` 聚合 `release-health.standardized` 失败码（`health.*` + `summaryFailureCodes`）。
 - [x] `release-rehearsal` 新增 `--archive-verify` 串联归档完整性校验，输出 `release-archive-verify.json`。
+- [x] `release-summary.json` 输出归档可观测字段（`archive.snapshotId/archiveStep/verify`）。
 
 ## 6. 启动时固定动作
 

@@ -147,6 +147,41 @@ function toSummary(report) {
     return null;
   }
 
+  function extractArchiveResult() {
+    const step = report.steps.find((s) => s.name === "release-archive");
+    if (!step) return null;
+    const parsedOut = parseJsonSafe(step.out);
+    const parsedErr = parseJsonSafe(step.err);
+    const payload = parsedOut || parsedErr || null;
+    return {
+      status: step.status,
+      stepExitCode: step.code,
+      snapshotId: String(payload?.snapshotId || "").trim(),
+      ok: step.status === "pass" && payload?.ok !== false
+    };
+  }
+
+  function extractArchiveVerifyResult() {
+    const step = report.steps.find((s) => s.name === "release-archive-verify");
+    if (!step) return null;
+    const parsedOut = parseJsonSafe(step.out);
+    const parsedErr = parseJsonSafe(step.err);
+    const payload = parsedOut || parsedErr || null;
+    const requiredFiles = Array.isArray(payload?.requiredFiles)
+      ? payload.requiredFiles.map((x) => String(x)).filter(Boolean)
+      : [];
+    const missingRequiredFiles = Array.isArray(payload?.missingRequiredFiles)
+      ? payload.missingRequiredFiles.map((x) => String(x)).filter(Boolean)
+      : [];
+    return {
+      status: step.status,
+      stepExitCode: step.code,
+      ok: step.status === "pass" && payload?.ok !== false,
+      requiredFiles,
+      missingRequiredFiles
+    };
+  }
+
   const hints = {
     timeout: "Increase timeout or inspect upstream command latency before rerun.",
     network: "Retry after network/platform recovers; keep github retries enabled.",
@@ -161,8 +196,11 @@ function toSummary(report) {
     if (step.timedOut || /timed out|timeout/.test(msg)) {
       return { category: "timeout", code: "STEP_TIMEOUT", retryable: true };
     }
-    if (step.name === "release-archive" || step.name === "release-archive-verify") {
+    if (step.name === "release-archive") {
       return { category: "archive", code: "RELEASE_ARCHIVE_FAILED", retryable: false };
+    }
+    if (step.name === "release-archive-verify") {
+      return { category: "archive", code: "RELEASE_ARCHIVE_VERIFY_FAILED", retryable: false };
     }
     if (/econn|enotfound|eai_again|429|5\d\d|network|socket|request timeout|github release unavailable/.test(msg)) {
       return { category: "network", code: "NETWORK_UNAVAILABLE", retryable: true };
@@ -198,6 +236,8 @@ function toSummary(report) {
   const actionHints = Array.from(new Set(failedSteps.map((x) => x.nextAction).filter(Boolean)));
   const retryableFailures = failedSteps.filter((x) => x.retryable).length;
   const healthStandardized = extractHealthStandardized();
+  const archive = extractArchiveResult();
+  const archiveVerify = extractArchiveVerifyResult();
   const healthFailureCodes = Array.isArray(healthStandardized?.failureCodes)
     ? healthStandardized.failureCodes.map((x) => String(x)).filter(Boolean)
     : [];
@@ -225,6 +265,22 @@ function toSummary(report) {
     failureBreakdown,
     retryableFailures,
     actionHints,
+    archive: archive || archiveVerify
+      ? {
+          ...(archive ? { snapshotId: archive.snapshotId, archiveStep: { status: archive.status, ok: archive.ok, stepExitCode: archive.stepExitCode } } : {}),
+          ...(archiveVerify
+            ? {
+                verify: {
+                  status: archiveVerify.status,
+                  ok: archiveVerify.ok,
+                  stepExitCode: archiveVerify.stepExitCode,
+                  requiredFiles: archiveVerify.requiredFiles,
+                  missingRequiredFiles: archiveVerify.missingRequiredFiles
+                }
+              }
+            : {})
+        }
+      : null,
     health: healthStandardized
       ? {
           status: String(healthStandardized.status || ""),

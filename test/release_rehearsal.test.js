@@ -283,6 +283,7 @@ test("release-rehearsal summary aggregates standardized failure codes from relea
   assert.equal(summary.summaryFailureCodes.includes("GITHUB_RELEASE_HTTP_5XX"), true);
   assert.equal(summary.summaryFailureCodes.includes("RELEASE_ASSET_CHECK_BLOCKED"), true);
   assert.equal(summary.failedSteps.some((x) => typeof x.code === "string"), true);
+  assert.equal(summary.archive, null);
 });
 
 test("release-rehearsal writes compact summary report when summary-out is provided", async () => {
@@ -470,6 +471,12 @@ test("release-rehearsal runs archive step and auto-writes default summary when a
   const archiveFindArgs = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "archive-find-args.log"), "utf8"));
   assert.ok(archiveFindArgs.includes("--snapshot-id"));
   assert.ok(archiveFindArgs.includes("--require-files"));
+
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
+  assert.equal(summary.archive.archiveStep.ok, true);
+  assert.equal(summary.archive.verify.ok, true);
+  assert.equal(summary.archive.snapshotId, "20260225_130000");
+  assert.deepEqual(summary.archive.verify.missingRequiredFiles, []);
 });
 
 test("release-rehearsal fails when archive step fails", async () => {
@@ -547,7 +554,7 @@ test("release-rehearsal fails when archive verify step fails", async () => {
   await fs.writeFile(
     path.join(tmp, "scripts", "release-archive-find.js"),
     [
-      "process.stdout.write(JSON.stringify({ ok: false, missingRequiredFiles: ['release-health.json'] }) + '\\n');",
+      "process.stdout.write(JSON.stringify({ ok: false, requiredFiles: ['release-ready.json','release-health.json','release-rehearsal.json'], missingRequiredFiles: ['release-health.json'] }) + '\\n');",
       "process.exit(1);"
     ].join("\n"),
     "utf8"
@@ -581,4 +588,8 @@ test("release-rehearsal fails when archive verify step fails", async () => {
   const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
   assert.equal(summary.failedSteps.some((x) => x.name === "release-archive-verify"), true);
   assert.ok(Number(summary.failureBreakdown.archive || 0) >= 1);
+  assert.equal(summary.summaryFailureCodes.includes("RELEASE_ARCHIVE_VERIFY_FAILED"), true);
+  assert.equal(summary.archive.archiveStep.ok, true);
+  assert.equal(summary.archive.verify.ok, false);
+  assert.equal(summary.archive.verify.missingRequiredFiles.includes("release-health.json"), true);
 });

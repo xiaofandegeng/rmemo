@@ -641,6 +641,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - 在演练命令中启用 `--archive` 时，会自动生成 `artifacts/release-summary.json` 与 `artifacts/release-archive.json`
 - 启用 `--archive-verify` 时，会生成 `artifacts/release-archive-verify.json`，并在关键文件缺失时使演练失败
 - `release-summary.json` 现已包含失败分层与恢复提示（`failureBreakdown`、`retryableFailures`、`actionHints`）
+- `release-summary.json` 会包含归档状态详情（`archive.snapshotId`、`archive.archiveStep`、`archive.verify`）
 - `release-summary.json` 还会汇总 `release-health` 标准化失败信号（`health.*`、`summaryFailureCodes`）
 
 发布后收敛校验：
