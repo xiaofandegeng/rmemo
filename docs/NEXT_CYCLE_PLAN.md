@@ -2,11 +2,11 @@
 
 更新时间：2026-02-25  
 适用分支：`main`  
-当前基线：`@xiaofandegeng/rmemo@1.3.0`
+当前基线：`@xiaofandegeng/rmemo@1.4.0`
 
 ## 1. 当前进度快照（事实）
 
-- 发布状态：`v1.3.0` 已发布。
+- 发布状态：`v1.4.0` release PR 已合并（`2026-02-25`），待完成双端可见性复核。
 - 质量基线：`node --test` 与 `npm run pack:dry` 作为发布门禁。
 - 已落地的发布稳定性能力：
   - release-please 失败自动重试（瞬时 GitHub 故障兜底）
@@ -44,7 +44,7 @@
 
 ### 里程碑 C（`v1.4.0`）：发布与文档闭环（待开始）
 
-- [ ] 发布 `v1.4.0`，完成 npm 与 GitHub Release 双端可见性验证。
+- [ ] 完成 `v1.4.0` 的 npm 与 GitHub Release 双端可见性验证（release PR 已合并，待可达网络复核）。
 - [x] 更新 runbook（异常排障路径、严格模式说明、资产命名约束）。
 - [x] 校准 `docs/TASKS.md` 与下一周期入口（切换到 v1.5 预研）。
 

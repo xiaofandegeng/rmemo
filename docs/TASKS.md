@@ -18,10 +18,10 @@
 ## Snapshot (2026-02-25)
 
 - Package: `@xiaofandegeng/rmemo`
-- Current version: `1.3.2`
-- Next release target: `1.4.0`（M3 收尾中）
+- Current version: `1.4.0`（release PR 已合并）
+- Next release target: `1.5.0`（预研入口已建立）
 - Current focus:
-  - v1.4 M1/M2 已完成，进入 M3 发布收尾阶段
+  - v1.4 已进入发布后复核阶段（待双端可见性最终确认）
   - 发布 runbook/checklist 已与 strict 资产命名 + timeout/retry 基线对齐
   - v1.5 预研入口已建立，待 v1.4 发布闭环后切换执行
 

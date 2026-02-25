@@ -1,7 +1,7 @@
 # rmemo v1.4 周期计划（1.3 发布后）
 
 更新时间：2026-02-25  
-当前基线：`v1.3.0`
+当前基线：`v1.4.0`（release PR 已合并，待双端可见性复核）
 
 ## 1. 周期目标
 
@@ -47,8 +47,8 @@ v1.4 聚焦“发布稳定性工程化”，确保发布链路在网络抖动、
 
 任务：
 
-- [ ] 发布 `v1.4.0`。
-- [ ] 完成 npm 与 GitHub Release 双端校验。
+- [x] 发布 `v1.4.0`（release PR 已合并）。
+- [ ] 完成 npm 与 GitHub Release 双端校验（本地网络不可达，待复核）。
 - [x] 更新 `RELEASING.md` / `RELEASE_CHECKLIST.md` 的 v1.4 运行规范。
 - [x] 校准 `docs/TASKS.md` 与 v1.5 预研入口。
 
