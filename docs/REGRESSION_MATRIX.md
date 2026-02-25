@@ -49,7 +49,10 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 npm run verify:release-ready
 node scripts/release-ready.js --format json
 node scripts/release-ready.js --format md --out artifacts/release-ready.md
+node scripts/release-ready.js --format md --step-timeout-ms 120000 --out artifacts/release-ready.md
 ```
+
+`--step-timeout-ms` can prevent hangs when one check command blocks due to network/tooling issues.
 
 `verify:release-rehearsal` also writes:
 - `artifacts/release-notes.md`

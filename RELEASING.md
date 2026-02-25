@@ -34,6 +34,7 @@ Useful flags:
 - `--allow-dirty` for local dry runs with uncommitted changes
 - `--skip-tests` for quick smoke checks
 - `--health-timeout-ms <ms>` to cap GitHub API checks during rehearsal (default `15000`)
+- `--step-timeout-ms <ms>` on `scripts/release-ready.js` to cap each readiness check (default `600000`)
 
 ## Release flow (default)
 

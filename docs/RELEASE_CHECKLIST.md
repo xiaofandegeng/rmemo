@@ -14,6 +14,7 @@ This checklist is the single source of truth for shipping `rmemo` releases.
 - [ ] `node bin/rmemo.js contract check --format json --fail-on any`
 - [ ] `npm run verify:matrix`
 - [ ] `npm run verify:release-ready`
+  - [ ] Optional timeout guard: `node scripts/release-ready.js --format md --step-timeout-ms 120000`
 - [ ] Archive readiness report:
   - [ ] `node scripts/release-ready.js --format md --out artifacts/release-ready.md`
   - [ ] `node scripts/release-ready.js --format json --out artifacts/release-ready.json`

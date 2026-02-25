@@ -647,6 +647,10 @@ This writes release audit files to `artifacts/`:
 - `release-health.md` / `release-health.json`
 - `release-rehearsal.md` / `release-rehearsal.json`
 
+Timeout tuning (avoid hanging checks on unstable networks):
+- `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
+- `node scripts/release-ready.js --format md --step-timeout-ms 120000`
+
 **Manual Fallback Publishing (Emergency Only)**
 If GitHub Actions is down or npm tokens are expired, a manual release requires administrator privileges:
 1. Generate diagnostics to ensure your local environment is sound: `rmemo diagnostics export` Check that `npm identity` matches the org owner.

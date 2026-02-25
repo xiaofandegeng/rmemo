@@ -627,6 +627,10 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `release-health.md` / `release-health.json`
 - `release-rehearsal.md` / `release-rehearsal.json`
 
+超时参数（网络不稳定时建议设置，避免命令长时间挂起）：
+- `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
+- `node scripts/release-ready.js --format md --step-timeout-ms 120000`
+
 ## Roadmap（简版）
 
 - v0.2：增强通用扫描（monorepo/子项目/API 契约/文档根目录）
