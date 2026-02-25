@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1](https://github.com/xiaofandegeng/rmemo/compare/v1.3.0...v1.3.1) (2026-02-25)
+
+
+### 🎯 Testing
+
+* **release:** enforce strict unscoped asset naming in workflow ([070120c](https://github.com/xiaofandegeng/rmemo/commit/070120cbf3c74d6fa68865fb85e9339b9627cf09))
+
 ## [1.3.0](https://github.com/xiaofandegeng/rmemo/compare/v1.2.3...v1.3.0) (2026-02-25)
 
 
