@@ -114,8 +114,8 @@ export async function cmdResume({ flags, rest = [] }) {
 
     if (op === "prune" || op === "clean") {
       const out = await pruneResumeDigestSnapshots(root, {
-        keep: Number(flags.keep || 100),
-        olderThanDays: Number(flags["older-than-days"] || 0)
+        keep: flags.keep,
+        olderThanDays: flags["older-than-days"]
       });
       if (outFormat === "json") {
         process.stdout.write(JSON.stringify(out, null, 2) + "\n");

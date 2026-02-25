@@ -7,6 +7,15 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function parseNonNegativeInt(value, fallback, name) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
+  }
+  return n;
+}
+
 function makeId() {
   return `resume_${Date.now()}`;
 }
@@ -172,8 +181,8 @@ export async function compareResumeDigestSnapshots(root, { fromId, toId } = {}) 
 }
 
 export async function pruneResumeDigestSnapshots(root, { keep = 100, olderThanDays = 0 } = {}) {
-  const keepN = Math.max(0, Number(keep || 0));
-  const days = Math.max(0, Number(olderThanDays || 0));
+  const keepN = parseNonNegativeInt(keep, 100, "keep");
+  const days = parseNonNegativeInt(olderThanDays, 0, "olderThanDays");
   const cutoff = days > 0 ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
 
   const idx = await readIndex(root);

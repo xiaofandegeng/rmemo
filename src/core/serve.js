@@ -1465,10 +1465,15 @@ export function createServeHandler(root, opts = {}) {
         if (!allowWrite) return badRequest(res, "Write not allowed. Start with: rmemo serve --allow-write");
         const body = await readBodyJsonOr400(req, res);
         if (!body) return;
-        const out = await pruneResumeDigestSnapshots(root, {
-          keep: body.keep !== undefined ? Number(body.keep) : 100,
-          olderThanDays: body.olderThanDays !== undefined ? Number(body.olderThanDays) : 0
-        });
+        let out;
+        try {
+          out = await pruneResumeDigestSnapshots(root, {
+            keep: body.keep,
+            olderThanDays: body.olderThanDays
+          });
+        } catch (e) {
+          return badRequest(res, e?.message || String(e));
+        }
         events?.emit?.({ type: "resume:history:pruned", pruned: out.pruned, keep: out.keep, olderThanDays: out.olderThanDays });
         return json(res, 200, out);
       }

@@ -1638,8 +1638,8 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
   if (name === "rmemo_resume_history_prune") {
     requireWrite();
     const out = await pruneResumeDigestSnapshots(root, {
-      keep: args?.keep !== undefined ? Number(args.keep) : 100,
-      olderThanDays: args?.olderThanDays !== undefined ? Number(args.olderThanDays) : 0
+      keep: args?.keep,
+      olderThanDays: args?.olderThanDays
     });
     return JSON.stringify(out, null, 2);
   }

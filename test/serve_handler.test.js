@@ -336,6 +336,9 @@ test("serve handler: /timeline and /resume support json and md", async () => {
 
   const denyPrune = await run(handler, { method: "POST", url: "/resume/history/prune?token=t", bodyObj: { keep: 1 } });
   assert.equal(denyPrune.status, 400);
+  const badPrune = await run(rw, { method: "POST", url: "/resume/history/prune?token=t", bodyObj: { keep: "bad" } });
+  assert.equal(badPrune.status, 400);
+  assert.ok(badPrune.body.includes("non-negative integer"));
 
   const history1 = await run(handler, { method: "GET", url: "/resume/history?token=t&format=json&limit=5" });
   assert.equal(history1.status, 200);

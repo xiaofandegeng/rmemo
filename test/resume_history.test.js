@@ -69,3 +69,21 @@ test("pruneResumeDigestSnapshots prunes snapshots older than N days", async () =
   assert.equal(after.total, 1);
   assert.ok(after.snapshots.every((x) => x.id !== oldId));
 });
+
+test("pruneResumeDigestSnapshots validates keep and olderThanDays", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-resume-history-validate-"));
+  await saveResumeDigestSnapshot(tmp, makeDigest("one"), { source: "test" });
+
+  await assert.rejects(
+    pruneResumeDigestSnapshots(tmp, { keep: -1 }),
+    /keep must be a non-negative integer/
+  );
+  await assert.rejects(
+    pruneResumeDigestSnapshots(tmp, { keep: "1.5" }),
+    /keep must be a non-negative integer/
+  );
+  await assert.rejects(
+    pruneResumeDigestSnapshots(tmp, { olderThanDays: "abc" }),
+    /olderThanDays must be a non-negative integer/
+  );
+});
