@@ -25,6 +25,7 @@ test("renderUiHtml returns a single-file UI html", () => {
   assert.ok(html.includes("showResumeHistoryItem"));
   assert.ok(html.includes("compareResumeHistory"));
   assert.ok(html.includes("pruneResumeHistory"));
+  assert.ok(html.includes("save/list/show/compare/prune snapshots"));
   assert.ok(html.includes("resumeSnapshotId"));
   assert.ok(html.includes("resumeFromId"));
   assert.ok(html.includes("resumeToId"));

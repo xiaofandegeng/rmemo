@@ -590,6 +590,7 @@ rmemo resume history list --format md --limit 20
 rmemo resume history save --tag daily-check
 rmemo resume history compare <fromId> <toId> --format json
 rmemo resume history prune --keep 100 --older-than-days 30 --format json
+# keep / older-than-days must be non-negative integers
 ```
 
 ## Scan Output (Optional)

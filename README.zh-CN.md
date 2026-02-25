@@ -579,6 +579,7 @@ rmemo resume history list --format md --limit 20
 rmemo resume history save --tag daily-check
 rmemo resume history compare <fromId> <toId> --format json
 rmemo resume history prune --keep 100 --older-than-days 30 --format json
+# keep / older-than-days 必须是非负整数
 ```
 
 ## 扫描结果输出（可选）

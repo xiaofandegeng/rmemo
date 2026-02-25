@@ -137,7 +137,7 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
               <div class="subpanel">
                 <div class="row" style="justify-content: space-between;">
                   <label style="margin: 0;">Resume History</label>
-                  <span class="hint" style="margin: 0;">save/list/show/compare snapshots</span>
+                  <span class="hint" style="margin: 0;">save/list/show/compare/prune snapshots</span>
                 </div>
                 <div style="height: 8px;"></div>
                 <div class="row">
