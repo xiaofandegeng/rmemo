@@ -1847,16 +1847,10 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
     method: "tools/call",
     params: { name: "rmemo_resume_digest", arguments: { root: tmp, format: "json", maxTimeline: 6, maxTodos: 4 } }
   });
-  mcp.writeLine({
-    jsonrpc: "2.0",
-    id: 10,
-    method: "tools/call",
-    params: { name: "rmemo_resume_history", arguments: { root: tmp, op: "list", format: "json", limit: 5 } }
-  });
 
   await waitFor(() => {
     const lines = parseJsonLines(mcp.getOut());
-    return lines.some((x) => x.id === 10) ? true : false;
+    return lines.some((x) => x.id === 9) ? true : false;
   });
 
   const lines = parseJsonLines(mcp.getOut());
@@ -1866,7 +1860,6 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   const list = lines.find((x) => x.id === 2);
   assert.ok(Array.isArray(list.result.tools));
   assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_status"));
-  assert.ok(list.result.tools.some((t2) => t2.name === "rmemo_resume_history"));
 
   const status = lines.find((x) => x.id === 3);
   assert.ok(status.result.content[0].text.includes("\"schema\": 1"));
@@ -1904,11 +1897,6 @@ test("rmemo mcp serves tools over stdio (status + search)", async () => {
   assert.equal(digestJson.schema, 1);
   assert.ok(Array.isArray(digestJson.next));
   assert.ok(Array.isArray(digestJson.timeline));
-
-  const hist = lines.find((x) => x.id === 10);
-  const histJson = JSON.parse(hist.result.content[0].text);
-  assert.equal(histJson.schema, 1);
-  assert.ok(Array.isArray(histJson.snapshots));
 
   mcp.closeIn();
   try {

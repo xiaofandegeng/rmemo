@@ -131,6 +131,27 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
                 <button class="btn secondary" id="loadTimeline">Timeline</button>
                 <button class="btn secondary" id="loadResume">Resume</button>
                 <button class="btn secondary" id="loadResumeDigest">Digest</button>
+                <button class="btn secondary" id="loadResumeHistory">History</button>
+              </div>
+
+              <div class="subpanel">
+                <div class="row" style="justify-content: space-between;">
+                  <label style="margin: 0;">Resume History</label>
+                  <span class="hint" style="margin: 0;">save/list/show/compare snapshots</span>
+                </div>
+                <div style="height: 8px;"></div>
+                <div class="row">
+                  <input id="resumeTag" type="text" placeholder="save tag (optional)" style="width: 200px;" />
+                  <button class="btn secondary" id="saveResumeHistory">Save Snapshot</button>
+                  <input id="resumeSnapshotId" type="text" placeholder="snapshot id" style="min-width: 260px; flex: 1;" />
+                  <button class="btn secondary" id="showResumeHistoryItem">Show Item</button>
+                </div>
+                <div style="height: 8px;"></div>
+                <div class="row">
+                  <input id="resumeFromId" type="text" placeholder="from id" style="min-width: 240px; flex: 1;" />
+                  <input id="resumeToId" type="text" placeholder="to id" style="min-width: 240px; flex: 1;" />
+                  <button class="btn secondary" id="compareResumeHistory">Compare</button>
+                </div>
               </div>
 
               <div class="row">
@@ -696,6 +717,83 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         }
         msg("OK");
         qs("#title").textContent = "Resume Digest";
+      }
+      async function loadResumeHistory() {
+        err(""); msg("Loading resume history...");
+        const tab = qs("#out").dataset.tab || "md";
+        if (tab === "json") {
+          const j = await apiFetch("/resume/history?format=json&limit=20", { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+          const first = Array.isArray(j.snapshots) && j.snapshots.length ? j.snapshots[0] : null;
+          if (first && first.id) {
+            qs("#resumeSnapshotId").value = String(first.id);
+            qs("#resumeFromId").value = String(first.id);
+            qs("#resumeToId").value = String(first.id);
+          }
+        } else {
+          const t = await apiFetch("/resume/history?format=md&limit=20", { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        }
+        msg("OK");
+        qs("#title").textContent = "Resume History";
+      }
+      async function saveResumeHistory() {
+        err(""); msg("Saving resume history snapshot...");
+        const payload = {
+          timelineDays: 7,
+          timelineLimit: 20,
+          maxTimeline: 8,
+          maxTodos: 5,
+          tag: (qs("#resumeTag").value || "").trim()
+        };
+        const j = await apiPost("/resume/history/save", payload);
+        out(JSON.stringify(j, null, 2));
+        setTab("json");
+        if (j && j.saved && j.saved.id) {
+          qs("#resumeSnapshotId").value = String(j.saved.id);
+          qs("#resumeFromId").value = String(j.saved.id);
+          qs("#resumeToId").value = String(j.saved.id);
+        }
+        msg("OK");
+        qs("#title").textContent = "Resume History Saved";
+      }
+      async function showResumeHistoryItem() {
+        err(""); msg("Loading resume history item...");
+        const id = (qs("#resumeSnapshotId").value || "").trim();
+        if (!id) return msg("Missing snapshot id.");
+        const tab = qs("#out").dataset.tab || "md";
+        if (tab === "json") {
+          const j = await apiFetch("/resume/history/item?format=json&id=" + encodeURIComponent(id), { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        } else {
+          const t = await apiFetch("/resume/history/item?format=md&id=" + encodeURIComponent(id), { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        }
+        msg("OK");
+        qs("#title").textContent = "Resume History Item";
+      }
+      async function compareResumeHistory() {
+        err(""); msg("Comparing resume history snapshots...");
+        const fromId = (qs("#resumeFromId").value || "").trim();
+        const toId = (qs("#resumeToId").value || "").trim();
+        if (!fromId || !toId) return msg("Missing from/to snapshot ids.");
+        const tab = qs("#out").dataset.tab || "md";
+        const p = "/resume/history/compare?from=" + encodeURIComponent(fromId) + "&to=" + encodeURIComponent(toId);
+        if (tab === "json") {
+          const j = await apiFetch(p + "&format=json", { accept: "application/json", json: true });
+          out(JSON.stringify(j, null, 2));
+          setTab("json");
+        } else {
+          const t = await apiFetch(p + "&format=md", { accept: "text/markdown" });
+          out(t);
+          setTab("md");
+        }
+        msg("OK");
+        qs("#title").textContent = "Resume History Compare";
       }
 
       async function loadWatch() {
@@ -1858,6 +1956,19 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
         evt.addEventListener("resume:digest:error", (ev) => {
           try { pushLive(JSON.parse(ev.data)); } catch { pushLive(ev.data || "resume:digest:error"); }
         });
+        evt.addEventListener("resume:history:saved", (ev) => {
+          try {
+            const j = JSON.parse(ev.data);
+            pushLive(j);
+            if (j && j.id) {
+              qs("#resumeSnapshotId").value = String(j.id);
+              qs("#resumeFromId").value = String(j.id);
+              qs("#resumeToId").value = String(j.id);
+            }
+          } catch {
+            pushLive(ev.data || "resume:history:saved");
+          }
+        });
       }
 
       qs("#saveToken").addEventListener("click", saveToken);
@@ -1870,6 +1981,10 @@ export function renderUiHtml({ title = "rmemo", apiBasePath = "" } = {}) {
       qs("#loadTimeline").addEventListener("click", loadTimeline);
       qs("#loadResume").addEventListener("click", loadResume);
       qs("#loadResumeDigest").addEventListener("click", loadResumeDigest);
+      qs("#loadResumeHistory").addEventListener("click", loadResumeHistory);
+      qs("#saveResumeHistory").addEventListener("click", () => saveResumeHistory().catch((e) => { err(String(e)); msg(""); }));
+      qs("#showResumeHistoryItem").addEventListener("click", () => showResumeHistoryItem().catch((e) => { err(String(e)); msg(""); }));
+      qs("#compareResumeHistory").addEventListener("click", () => compareResumeHistory().catch((e) => { err(String(e)); msg(""); }));
       qs("#doSearch").addEventListener("click", () => doSearch().catch((e) => { err(String(e)); msg(""); }));
       qs("#doFocus").addEventListener("click", () => doFocus().catch((e) => { err(String(e)); msg(""); }));
       qs("#loadWsList").addEventListener("click", () => loadWsList().catch((e) => { err(String(e)); msg(""); }));
