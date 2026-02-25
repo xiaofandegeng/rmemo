@@ -34,7 +34,7 @@
 
 - [x] `release-ready` 增加 `--step-timeout-ms`。
 - [x] `release-health` / `release-rehearsal` 增加网络超时控制与测试。
-- [ ] workflow 对 `release-ready` / `release-health` 显式传递 timeout 参数（避免默认值漂移）。
+- [x] workflow 对 `release-ready` / `release-health` 显式传递 timeout 参数（避免默认值漂移）。
 - [ ] `release-health` 增加 GitHub API 重试策略（429 / 5xx）。
 
 验收标准：

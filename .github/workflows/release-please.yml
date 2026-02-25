@@ -59,6 +59,9 @@ jobs:
     needs: release-please
     if: needs.release-please.outputs.releases_created == 'true'
     runs-on: ubuntu-latest
+    env:
+      RELEASE_HEALTH_TIMEOUT_MS: "15000"
+      RELEASE_READY_STEP_TIMEOUT_MS: "120000"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -237,7 +240,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          node scripts/release-health.js --format md --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --allow-legacy-scoped-asset false
+          node scripts/release-health.js --format md --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}"
 
       - name: Generate release audit reports
         env:
@@ -245,9 +248,9 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p artifacts
-          node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --repo "${{ github.repository }}" --allow-legacy-scoped-asset false > artifacts/release-health.json
-          node scripts/release-ready.js --format md --skip-tests --out artifacts/release-ready.md
-          node scripts/release-ready.js --format json --skip-tests --out artifacts/release-ready.json
+          node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --repo "${{ github.repository }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}" > artifacts/release-health.json
+          node scripts/release-ready.js --format md --skip-tests --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.md
+          node scripts/release-ready.js --format json --skip-tests --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.json
 
       - name: Upload release audit artifact
         if: always()
@@ -270,7 +273,7 @@ jobs:
           node ./bin/rmemo.js diagnostics export --format json > artifacts/diagnostics.json || echo '{"error":"Failed to run diagnostics export"}' > artifacts/diagnostics.json
           node ./bin/rmemo.js contract check --format json --fail-on any > artifacts/contract-check.json || echo '{"error":"Failed to run contract check"}' > artifacts/contract-check.json
           npm run verify:matrix -- --format json > artifacts/regression-matrix.json || echo '{"error":"Failed to run regression matrix"}' > artifacts/regression-matrix.json
-          node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --allow-legacy-scoped-asset false > artifacts/release-health.json || echo '{"error":"Failed to run release health"}' > artifacts/release-health.json
+          node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}" > artifacts/release-health.json || echo '{"error":"Failed to run release health"}' > artifacts/release-health.json
 
       - name: Upload failure diagnostics artifact
         if: failure()

@@ -35,7 +35,7 @@ v1.4 聚焦“发布稳定性工程化”，确保发布链路在网络抖动、
 
 - [x] `release-ready` 增加 `--step-timeout-ms`。
 - [x] `release-health` / `release-rehearsal` 增加 timeout 控制。
-- [ ] workflow 显式传递 timeout 参数（release-ready/release-health）。
+- [x] workflow 显式传递 timeout 参数（release-ready/release-health）。
 - [ ] `release-health` 增加 GitHub API 重试策略（429/5xx）。
 
 验收：
