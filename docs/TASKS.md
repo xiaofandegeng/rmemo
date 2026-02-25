@@ -13,15 +13,15 @@
 - `docs/ITERATION_MASTER_PLAN.zh-CN.md`
 - `docs/V1_0_CHAPTER.zh-CN.md`
 
-## Snapshot (2026-02-22)
+## Snapshot (2026-02-25)
 
 - Package: `@xiaofandegeng/rmemo`
 - Current version: `1.0.0`
 - Next release target: `1.1.0`
 - Current focus:
-  - 契约检查自动化（CLI/API/MCP contract check + CI 门禁）
-  - 回归矩阵与发布后健康检查（release health report）
-  - 文档与发布流程收敛（v1.1.0 发布就绪）
+  - v1.1.0 发布收敛（release-please + npm/GitHub 双端可见性校验）
+  - v1.2 预开发：Resume History prune（CLI/API/MCP/UI + 参数校验 + 回归测试）
+  - 契约门禁强化：`contract check --fail-on any`（CI / release workflow / release-ready）
 
 ## Execution Rule
 

@@ -118,3 +118,11 @@ Week 3：
 - [x] 里程碑 A 完成（契约检查自动化）
 - [x] 里程碑 B 完成（回归矩阵与健康检查）
 - [ ] 里程碑 C 完成（文档与发布收敛）
+
+## 7. v1.2 预开发快照（待 v1.1 发布后切版本）
+
+- [x] `resume history prune` 已在 CLI / HTTP / MCP 打通
+- [x] UI 面板已增加 Resume History prune 操作入口
+- [x] prune 参数已增加非负整数校验（非法输入返回明确错误）
+- [x] 覆盖测试已补齐（core / serve / mcp / cli / ui）
+- [x] 契约门禁已切换到 `--fail-on any`（CI / release workflow / release-ready）
