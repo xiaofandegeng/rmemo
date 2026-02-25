@@ -110,3 +110,34 @@ test("release-ready markdown includes condensed network failure line", async () 
   assert.match(r.out, /## regression-matrix/);
   assert.match(r.out, /- error: npm ERR! code ENOTFOUND/);
 });
+
+test("release-ready reports timeout when a check command hangs", async () => {
+  const { tmp, binDir } = await setupReleaseReadyFixture({ matrixFails: false });
+  const slowNpm = [
+    "#!/usr/bin/env bash",
+    "if [[ \"$1\" == \"run\" && \"$2\" == \"verify:matrix\" ]]; then",
+    "  sleep 5",
+    "  exit 0",
+    "fi",
+    "exit 0"
+  ].join("\n");
+  await writeExecutable(path.join(binDir, "npm"), slowNpm);
+
+  const env = {
+    ...process.env,
+    PATH: `${binDir}:${process.env.PATH || ""}`
+  };
+
+  const r = await runNode(
+    [path.resolve("scripts/release-ready.js"), "--root", tmp, "--format", "json", "--skip-tests", "--allow-dirty", "--step-timeout-ms", "1000"],
+    { cwd: path.resolve("."), env }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  const matrix = report.checks.find((c) => c.name === "regression-matrix");
+  assert.ok(matrix, "regression-matrix check should exist");
+  assert.equal(matrix.status, "fail");
+  assert.equal(matrix.timedOut, true);
+  assert.match(String(matrix.error || ""), /timed out after 1000ms/);
+});

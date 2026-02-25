@@ -25,29 +25,53 @@ function parseFlags(argv) {
   return flags;
 }
 
-function run(cmd, args, cwd) {
+function run(cmd, args, cwd, options = {}) {
+  const timeoutMs = Number(options.timeoutMs || 0);
   return new Promise((resolve, reject) => {
     const p = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
     let err = "";
+    let timeout = null;
+    let finished = false;
     p.stdout.on("data", (d) => (out += d.toString("utf8")));
     p.stderr.on("data", (d) => (err += d.toString("utf8")));
-    p.on("error", reject);
-    p.on("close", (code) => resolve({ code, out, err }));
+    p.on("error", (e) => {
+      if (timeout) clearTimeout(timeout);
+      reject(e);
+    });
+    p.on("close", (code, signal) => {
+      if (timeout) clearTimeout(timeout);
+      finished = true;
+      resolve({ code, signal: signal || "", out, err });
+    });
+
+    if (timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        if (finished) return;
+        p.kill("SIGTERM");
+        setTimeout(() => {
+          if (!finished) p.kill("SIGKILL");
+        }, 1000);
+      }, timeoutMs);
+    }
   });
 }
 
-async function check(name, cmd, args, cwd, validate) {
+async function check(name, cmd, args, cwd, validate, timeoutMs = 0) {
   const t0 = Date.now();
   try {
-    const r = await run(cmd, args, cwd);
+    const r = await run(cmd, args, cwd, { timeoutMs });
+    const timedOut = timeoutMs > 0 && r.signal === "SIGTERM" && r.code !== 0;
     const customErr = validate ? validate(r) : null;
-    if (r.code !== 0 || customErr) {
-      return { name, ok: false, durationMs: Date.now() - t0, code: r.code, error: customErr || r.err || r.out };
+    if (timedOut) {
+      return { name, ok: false, durationMs: Date.now() - t0, code: r.code, error: `timed out after ${timeoutMs}ms`, timedOut: true };
     }
-    return { name, ok: true, durationMs: Date.now() - t0, code: r.code };
+    if (r.code !== 0 || customErr) {
+      return { name, ok: false, durationMs: Date.now() - t0, code: r.code, error: customErr || r.err || r.out, timedOut: false };
+    }
+    return { name, ok: true, durationMs: Date.now() - t0, code: r.code, timedOut: false };
   } catch (e) {
-    return { name, ok: false, durationMs: Date.now() - t0, code: -1, error: String(e?.message || e) };
+    return { name, ok: false, durationMs: Date.now() - t0, code: -1, error: String(e?.message || e), timedOut: false };
   }
 }
 
@@ -78,6 +102,7 @@ async function main() {
   const format = String(flags.format || "md").toLowerCase();
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
+  const stepTimeoutMs = Math.max(1000, Number(flags["step-timeout-ms"] || 600000));
   const outPath = flags.out ? path.resolve(root, String(flags.out)) : "";
   if (!["md", "json"].includes(format)) throw new Error("format must be md|json");
 
@@ -86,18 +111,20 @@ async function main() {
     await check("git-clean", "git", ["status", "--short"], root, (r) => {
       if (allowDirty) return null;
       return String(r.out || "").trim() ? "working tree is not clean" : null;
-    })
+    }, stepTimeoutMs)
   );
   if (skipTests) {
     checks.push({ name: "node-test", status: "skipped", durationMs: 0, reason: "skip-tests=true" });
   } else {
-    const t = await check("node-test", "node", ["--test"], root);
+    const t = await check("node-test", "node", ["--test"], root, null, stepTimeoutMs);
     checks.push(t);
   }
-  checks.push(await check("pack-dry", "npm", ["run", "pack:dry"], root));
-  checks.push(await check("changelog-lint", "npm", ["run", "verify:changelog"], root));
-  checks.push(await check("contract-check", "node", ["bin/rmemo.js", "contract", "check", "--format", "json", "--fail-on", "any"], root));
-  checks.push(await check("regression-matrix", "npm", ["run", "verify:matrix"], root));
+  checks.push(await check("pack-dry", "npm", ["run", "pack:dry"], root, null, stepTimeoutMs));
+  checks.push(await check("changelog-lint", "npm", ["run", "verify:changelog"], root, null, stepTimeoutMs));
+  checks.push(
+    await check("contract-check", "node", ["bin/rmemo.js", "contract", "check", "--format", "json", "--fail-on", "any"], root, null, stepTimeoutMs)
+  );
+  checks.push(await check("regression-matrix", "npm", ["run", "verify:matrix"], root, null, stepTimeoutMs));
 
   const normalized = checks.map((c) => {
     if (c.status === "skipped") return c;
@@ -112,7 +139,7 @@ async function main() {
     schema: 1,
     root,
     generatedAt: new Date().toISOString(),
-    options: { allowDirty, skipTests },
+    options: { allowDirty, skipTests, stepTimeoutMs },
     checks: normalized,
     summary,
     ok: summary.fail === 0
