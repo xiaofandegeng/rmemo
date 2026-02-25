@@ -1686,6 +1686,11 @@ test("rmemo resume generates next-day pack", async () => {
     assert.ok(j.pruned >= 1);
   }
   {
+    const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "--keep", "bad", "resume", "history", "prune"]);
+    assert.equal(r.code, 1);
+    assert.ok(r.err.includes("non-negative integer"));
+  }
+  {
     const r = await runNode([rmemoBin, "--root", tmp, "--format", "json", "resume", "history", "list"]);
     assert.equal(r.code, 0, r.err || r.out);
     const j = JSON.parse(r.out);
@@ -2378,7 +2383,19 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
         arguments: { root: tmp, keep: 0 }
       }
     });
-    await waitFor(() => parseJsonLines(mcp.getOut()).some((x) => x.id === 22));
+    mcp.writeLine({
+      jsonrpc: "2.0",
+      id: 23,
+      method: "tools/call",
+      params: {
+        name: "rmemo_resume_history_prune",
+        arguments: { root: tmp, keep: "bad" }
+      }
+    });
+    await waitFor(() => {
+      const lines2 = parseJsonLines(mcp.getOut());
+      return lines2.some((x) => x.id === 22) && lines2.some((x) => x.id === 23);
+    });
 
     const lines = parseJsonLines(mcp.getOut());
     const list = lines.find((x) => x.id === 2);
@@ -2438,6 +2455,10 @@ test("rmemo mcp --allow-write exposes write tools and can update repo memory", a
     const resumePruneJson = JSON.parse(resumePrune.result.content[0].text);
     assert.equal(resumePruneJson.schema, 1);
     assert.ok(resumePruneJson.pruned >= 1);
+
+    const badResumePrune = lines.find((x) => x.id === 23);
+    assert.ok(badResumePrune.error);
+    assert.ok(String(badResumePrune.error.message || "").includes("non-negative integer"));
     assert.ok(
       (jobsJson.active && jobsJson.active.id) ||
       (Array.isArray(jobsJson.queued) && jobsJson.queued.length >= 0) ||
