@@ -18,6 +18,7 @@ This checklist is the single source of truth for shipping `rmemo` releases.
 - [ ] Run strict health check with workflow-equivalent guardrails:
   - [ ] `node scripts/release-health.js --repo xiaofandegeng/rmemo --version <version> --tag v<version> --format md --allow-legacy-scoped-asset false --timeout-ms 15000 --github-retries 2 --github-retry-delay-ms 1000`
 - [ ] Archive readiness report:
+  - [ ] `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
   - [ ] `node scripts/release-ready.js --format md --out artifacts/release-ready.md`
   - [ ] `node scripts/release-ready.js --format json --out artifacts/release-ready.json`
   - [ ] `artifacts/release-notes.md`
@@ -25,6 +26,9 @@ This checklist is the single source of truth for shipping `rmemo` releases.
   - [ ] `artifacts/release-health.json`
   - [ ] `artifacts/release-rehearsal.md`
   - [ ] `artifacts/release-rehearsal.json`
+  - [ ] `artifacts/release-archive/<version>/<snapshot-id>/manifest.json`
+  - [ ] `artifacts/release-archive/<version>/latest.json`
+  - [ ] `artifacts/release-archive/catalog.json`
 
 ## 2. Version + notes preparation
 

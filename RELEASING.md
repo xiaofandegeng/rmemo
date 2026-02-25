@@ -29,6 +29,20 @@ Artifacts written under `artifacts/`:
 - `release-rehearsal.md`
 - `release-rehearsal.json`
 
+Archive reports in a versioned snapshot (recommended):
+
+```bash
+npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20
+```
+
+Archive conventions:
+- root: `artifacts/release-archive/`
+- snapshot path: `artifacts/release-archive/<version>/<snapshot-id>/`
+- searchable indexes:
+  - `artifacts/release-archive/<version>/latest.json`
+  - `artifacts/release-archive/catalog.json`
+- each snapshot contains `manifest.json` with copied files, sizes, and sha256.
+
 Useful flags:
 - `--skip-health` when GitHub API is unavailable
 - `--allow-dirty` for local dry runs with uncommitted changes

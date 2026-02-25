@@ -632,6 +632,9 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
 
+按版本快照归档发布报告：
+- `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
+
 发布后收敛校验：
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
 

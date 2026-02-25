@@ -26,6 +26,7 @@
   - 已切换到 v1.5 预研入口：`docs/V1_5_PRE_RESEARCH.zh-CN.md`
   - v1.5 M1 已落地：`release-rehearsal --summary-out` 紧凑摘要输出
   - v1.5 M1 已落地：`release-health` 标准化结果字段（便于告警/平台接入）
+  - v1.5 M1 已落地：`release-archive` 版本化归档与留存清理（含 `latest/catalog` 索引）
 
 ## Execution Rule
 

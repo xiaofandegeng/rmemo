@@ -652,6 +652,9 @@ Timeout tuning (avoid hanging checks on unstable networks):
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
 
+Archive release reports with a versioned snapshot:
+- `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
+
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
 
