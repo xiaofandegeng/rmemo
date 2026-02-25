@@ -16,11 +16,11 @@
 ## Snapshot (2026-02-25)
 
 - Package: `@xiaofandegeng/rmemo`
-- Current version: `1.0.0`
-- Next release target: `1.1.0`
+- Current version: `1.2.0`
+- Next release target: `1.3.0`（待下一轮计划确认）
 - Current focus:
-  - v1.1.0 发布收敛（release-please + npm/GitHub 双端可见性校验）
-  - v1.2 预开发：Resume History prune（CLI/API/MCP/UI + 参数校验 + 回归测试）
+  - v1.1 发布收敛已完成（当前版本已到 `v1.2.0`）
+  - v1.2 稳定性收尾：release 网络容错 + runbook 对齐
   - 契约门禁强化：`contract check --fail-on any`（CI / release workflow / release-ready）
 
 ## Execution Rule
