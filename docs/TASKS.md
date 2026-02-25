@@ -18,12 +18,12 @@
 ## Snapshot (2026-02-25)
 
 - Package: `@xiaofandegeng/rmemo`
-- Current version: `1.4.0`（release PR 已合并）
+- Current version: `1.4.0`（已完成双端可见性核验）
 - Next release target: `1.5.0`（预研入口已建立）
 - Current focus:
-  - v1.4 已进入发布后复核阶段（待双端可见性最终确认）
+  - v1.4 发布与核验已闭环（见 `docs/RELEASE_VERIFICATION_v1.4.0.md`）
   - 发布 runbook/checklist 已与 strict 资产命名 + timeout/retry 基线对齐
-  - v1.5 预研入口已建立，待 v1.4 发布闭环后切换执行
+  - 已切换到 v1.5 预研入口：`docs/V1_5_PRE_RESEARCH.zh-CN.md`
 
 ## Execution Rule
 
@@ -31,4 +31,4 @@
 - 再读 `docs/V1_4_CYCLE_PLAN.zh-CN.md`
 - 严格按里程碑顺序推进（M1 -> M2 -> M3）
 - 不跨里程碑混做
-- 仅当 v1.4 发布与双端校验完成后，再切换到 `docs/V1_5_PRE_RESEARCH.zh-CN.md`
+- v1.4 已闭环，默认从 `docs/V1_5_PRE_RESEARCH.zh-CN.md` 开始下一阶段
