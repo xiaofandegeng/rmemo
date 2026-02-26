@@ -57,6 +57,7 @@ Artifacts written under `artifacts/`:
 You can also emit markdown summary output via:
 - `--summary-format md` (or set `--summary-out` to a `.md` path to auto-infer markdown)
 - default remains `json`
+- markdown summary includes high-signal sections for triage: `Failure Breakdown`, `Failed Steps`, `Health Signals`, `Archive`, `Action Hints`
 
 `release-rehearsal.json` now also exposes integration-friendly summary fields:
 - `standardized.status/resultCode/checkStatuses/failureCodes/failures`

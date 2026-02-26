@@ -560,6 +560,110 @@ test("release-rehearsal writes markdown summary when summary-format is md", asyn
   assert.match(summaryMd, /- summary: pass=5 fail=0 skipped=0/);
 });
 
+test("release-rehearsal markdown summary includes breakdown, health, and archive sections", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-summary-md-observability-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-ready.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') process.stdout.write(JSON.stringify({ ok: true }) + '\\n');",
+      "else process.stdout.write('# ready\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-health.js"),
+    [
+      "const args = process.argv.slice(2);",
+      "const fmtIdx = args.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? args[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') {",
+      "  process.stdout.write(JSON.stringify({",
+      "    ok: false,",
+      "    standardized: {",
+      "      status: 'fail',",
+      "      resultCode: 'RELEASE_HEALTH_FAIL',",
+      "      failureCodes: ['GITHUB_RELEASE_HTTP_5XX'],",
+      "      failures: [",
+      "        { check: 'githubRelease', code: 'GITHUB_RELEASE_HTTP_5XX', retryable: true }",
+      "      ]",
+      "    }",
+      "  }, null, 2) + '\\n');",
+      "  process.exit(1);",
+      "}",
+      "process.stdout.write('# health\\n- status: FAIL\\n');",
+      "process.exit(1);"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive.js"),
+    [
+      "process.stdout.write(JSON.stringify({ ok: true, snapshotId: '20260225_133000' }, null, 2) + '\\n');",
+      "process.exit(0);"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive-find.js"),
+    [
+      "process.stdout.write(JSON.stringify({",
+      "  ok: false,",
+      "  requiredFiles: ['release-ready.json','release-health.json','release-rehearsal.json'],",
+      "  missingRequiredFiles: ['release-health.json']",
+      "}, null, 2) + '\\n');",
+      "process.exit(1);"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const summaryPath = "artifacts/release-summary.md";
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--archive",
+      "--archive-verify",
+      "--archive-require-files",
+      "release-ready.json,release-health.json,release-rehearsal.json",
+      "--summary-out",
+      summaryPath,
+      "--summary-format",
+      "md",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const summaryMd = await fs.readFile(path.join(tmp, summaryPath), "utf8");
+  assert.match(summaryMd, /## Failure Breakdown/);
+  assert.match(summaryMd, /- archive: 1/);
+  assert.match(summaryMd, /## Health Signals/);
+  assert.match(summaryMd, /- status: fail/);
+  assert.match(summaryMd, /- resultCode: RELEASE_HEALTH_FAIL/);
+  assert.match(summaryMd, /- failureCodes: GITHUB_RELEASE_HTTP_5XX/);
+  assert.match(summaryMd, /## Archive/);
+  assert.match(summaryMd, /- snapshotId: 20260225_133000/);
+  assert.match(summaryMd, /- verify: status=fail ok=false/);
+  assert.match(summaryMd, /- missingRequiredFiles: release-health\.json/);
+});
+
 test("release-rehearsal rejects invalid summary-format", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-invalid-summary-format-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });

@@ -436,6 +436,8 @@ function buildReport({ root, outDir, version, tag, repo, options, steps, files }
 
 function toSummaryMd(summary) {
   const lines = [];
+  const failureBreakdown = summary.failureBreakdown && typeof summary.failureBreakdown === "object" ? summary.failureBreakdown : {};
+  const failureBreakdownEntries = Object.entries(failureBreakdown).filter(([, count]) => Number(count) > 0);
   lines.push("# rmemo Release Rehearsal Summary");
   lines.push("");
   lines.push(`- generatedAt: ${summary.generatedAt}`);
@@ -448,6 +450,16 @@ function toSummaryMd(summary) {
   lines.push(
     `- summary: pass=${Number(summary.summary?.pass || 0)} fail=${Number(summary.summary?.fail || 0)} skipped=${Number(summary.summary?.skipped || 0)}`
   );
+  lines.push(`- retryableFailures: ${Number(summary.retryableFailures || 0)}`);
+
+  if (failureBreakdownEntries.length > 0) {
+    lines.push("");
+    lines.push("## Failure Breakdown");
+    lines.push("");
+    for (const [category, count] of failureBreakdownEntries) {
+      lines.push(`- ${category}: ${Number(count)}`);
+    }
+  }
 
   if (Array.isArray(summary.failedSteps) && summary.failedSteps.length > 0) {
     lines.push("");
@@ -462,6 +474,33 @@ function toSummaryMd(summary) {
       if (step?.downstreamResultCode) lines.push(`  - downstreamResultCode: ${String(step.downstreamResultCode)}`);
       if (Array.isArray(step?.downstreamFailureCodes) && step.downstreamFailureCodes.length > 0) {
         lines.push(`  - downstreamFailureCodes: ${step.downstreamFailureCodes.join(",")}`);
+      }
+    }
+  }
+
+  if (summary.health && typeof summary.health === "object") {
+    lines.push("");
+    lines.push("## Health Signals");
+    lines.push("");
+    lines.push(`- status: ${String(summary.health.status || "unknown")}`);
+    if (summary.health.resultCode) lines.push(`- resultCode: ${String(summary.health.resultCode)}`);
+    if (Array.isArray(summary.health.failureCodes) && summary.health.failureCodes.length > 0) {
+      lines.push(`- failureCodes: ${summary.health.failureCodes.join(",")}`);
+    }
+  }
+
+  if (summary.archive && typeof summary.archive === "object") {
+    lines.push("");
+    lines.push("## Archive");
+    lines.push("");
+    if (summary.archive.snapshotId) lines.push(`- snapshotId: ${String(summary.archive.snapshotId)}`);
+    if (summary.archive.archiveStep && typeof summary.archive.archiveStep === "object") {
+      lines.push(`- archiveStep: status=${String(summary.archive.archiveStep.status || "")} ok=${String(!!summary.archive.archiveStep.ok)}`);
+    }
+    if (summary.archive.verify && typeof summary.archive.verify === "object") {
+      lines.push(`- verify: status=${String(summary.archive.verify.status || "")} ok=${String(!!summary.archive.verify.ok)}`);
+      if (Array.isArray(summary.archive.verify.missingRequiredFiles) && summary.archive.verify.missingRequiredFiles.length > 0) {
+        lines.push(`- missingRequiredFiles: ${summary.archive.verify.missingRequiredFiles.join(",")}`);
       }
     }
   }
