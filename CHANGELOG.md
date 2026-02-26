@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.2](https://github.com/xiaofandegeng/rmemo/compare/v1.15.1...v1.15.2) (2026-02-26)
+
+
+### 📚 Documentation
+
+* **readme:** trim non-essential sections ([733ca62](https://github.com/xiaofandegeng/rmemo/commit/733ca62718665af4fb73446184a2c4323511661b))
+
 ## [1.15.1](https://github.com/xiaofandegeng/rmemo/compare/v1.15.0...v1.15.1) (2026-02-26)
 
 
