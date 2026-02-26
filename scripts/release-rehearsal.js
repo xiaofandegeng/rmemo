@@ -561,15 +561,18 @@ async function main() {
   const archiveVerify = archive && flags["archive-verify"] === "true";
   const summaryFormatFlag = String(flags["summary-format"] || "").trim().toLowerCase();
   const archiveSnapshotId = String(flags["archive-snapshot-id"] || flags["snapshot-id"] || "").trim();
+  const archiveRequirePreset = String(flags["archive-require-preset"] || "").trim();
   const archiveRequireFiles = String(flags["archive-require-files"] || "")
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
-  const effectiveArchiveRequireFiles = archiveVerify
-    ? archiveRequireFiles.length > 0
-      ? archiveRequireFiles
-      : ["release-ready.json", "release-health.json", "release-rehearsal.json", "release-summary.json"]
-    : [];
+  if (archiveVerify && archiveRequirePreset && archiveRequireFiles.length > 0) {
+    throw new Error("cannot combine --archive-require-files with --archive-require-preset");
+  }
+  const effectiveArchiveRequirePreset = archiveVerify
+    ? archiveRequirePreset || (archiveRequireFiles.length === 0 ? "rehearsal-archive-verify" : "")
+    : "";
+  const effectiveArchiveRequireFiles = archiveVerify && !effectiveArchiveRequirePreset ? archiveRequireFiles : [];
   const archiveRetentionDays = Math.max(1, Number(flags["archive-retention-days"] || flags["retention-days"] || 30));
   const archiveMaxSnapshotsPerVersion = Math.max(
     1,
@@ -758,6 +761,7 @@ async function main() {
       ? {
           archiveSnapshotId,
           archiveVerify,
+          archiveRequirePreset: effectiveArchiveRequirePreset,
           archiveRequireFiles: effectiveArchiveRequireFiles,
           archiveRetentionDays,
           archiveMaxSnapshotsPerVersion
@@ -834,8 +838,9 @@ async function main() {
           version,
           "--format",
           "json",
-          "--require-files",
-          effectiveArchiveRequireFiles.join(","),
+          ...(effectiveArchiveRequirePreset
+            ? ["--require-preset", effectiveArchiveRequirePreset]
+            : ["--require-files", effectiveArchiveRequireFiles.join(",")]),
           ...(verifySnapshotId ? ["--snapshot-id", verifySnapshotId] : [])
         ],
         cwd: root,

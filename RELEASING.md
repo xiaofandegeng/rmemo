@@ -97,7 +97,8 @@ Useful flags:
   - when both are provided, `.md/.json` suffix and `--summary-format` must match (conflicts fail fast)
 
 `release-archive` now also collects `release-summary.md` (when present) into each snapshot, alongside `release-summary.json`.
-- `--archive-require-files <a,b,c>` to define required files for `--archive-verify` (default: `release-ready.json,release-health.json,release-rehearsal.json,release-summary.json`)
+- `--archive-require-preset <name>` to choose built-in required file preset for `--archive-verify` (default: `rehearsal-archive-verify`)
+- `--archive-require-files <a,b,c>` to override required files for `--archive-verify` (cannot be combined with `--archive-require-preset`)
 - `--require-preset <name>` on `scripts/release-archive-find.js` to reuse built-in required file sets (for rehearsal chain use `rehearsal-archive-verify`)
 - `--archive-snapshot-id <id>` to pin archive snapshot id in rehearsal-driven archive mode
 - `--archive-retention-days <days>` and `--archive-max-snapshots-per-version <n>` to control archive pruning in rehearsal-driven archive mode

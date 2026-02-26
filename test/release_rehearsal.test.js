@@ -929,7 +929,7 @@ test("release-rehearsal archive mode writes markdown summary by default when sum
   assert.equal(summaryJsonCompat.version, "9.9.9");
 });
 
-test("release-rehearsal archive verify uses default required files including release-summary.json", async () => {
+test("release-rehearsal archive verify uses default require preset", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-default-require-files-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
 
@@ -998,13 +998,107 @@ test("release-rehearsal archive verify uses default required files including rel
 
   assert.equal(r.code, 0, r.err || r.out);
   const archiveFindArgs = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "archive-find-default-args.log"), "utf8"));
-  const requireIdx = archiveFindArgs.indexOf("--require-files");
-  assert.notEqual(requireIdx, -1);
-  const requireValue = String(archiveFindArgs[requireIdx + 1] || "");
-  assert.equal(
-    requireValue,
-    "release-ready.json,release-health.json,release-rehearsal.json,release-summary.json"
+  const presetIdx = archiveFindArgs.indexOf("--require-preset");
+  assert.notEqual(presetIdx, -1);
+  assert.equal(String(archiveFindArgs[presetIdx + 1] || ""), "rehearsal-archive-verify");
+  assert.equal(archiveFindArgs.includes("--require-files"), false);
+});
+
+test("release-rehearsal forwards archive-require-preset to archive verify step", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-require-preset-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
   );
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), "process.stdout.write('# ready\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-health.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive.js"),
+    [
+      "process.stdout.write(JSON.stringify({ ok: true, snapshotId: '20260225_141500' }, null, 2) + '\\n');",
+      "process.exit(0);"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive-find.js"),
+    [
+      "import fs from 'node:fs/promises';",
+      "import path from 'node:path';",
+      "const args = process.argv.slice(2);",
+      "await fs.writeFile(path.resolve('artifacts', 'archive-find-preset-args.log'), JSON.stringify(args) + '\\n', 'utf8');",
+      "process.stdout.write(JSON.stringify({ ok: true, requiredFiles: [], missingRequiredFiles: [] }, null, 2) + '\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--archive",
+      "--archive-verify",
+      "--archive-require-preset",
+      "custom-preset",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const archiveFindArgs = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "archive-find-preset-args.log"), "utf8"));
+  const presetIdx = archiveFindArgs.indexOf("--require-preset");
+  assert.notEqual(presetIdx, -1);
+  assert.equal(String(archiveFindArgs[presetIdx + 1] || ""), "custom-preset");
+  assert.equal(archiveFindArgs.includes("--require-files"), false);
+});
+
+test("release-rehearsal rejects mixing archive-require-files and archive-require-preset", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-require-conflict-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), "process.stdout.write('# ready\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-health.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-archive.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-archive-find.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--archive",
+      "--archive-verify",
+      "--archive-require-files",
+      "release-ready.json",
+      "--archive-require-preset",
+      "rehearsal-archive-verify",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /cannot combine --archive-require-files with --archive-require-preset/);
 });
 
 test("release-rehearsal fails when archive step fails", async () => {
