@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.1](https://github.com/xiaofandegeng/rmemo/compare/v1.15.0...v1.15.1) (2026-02-26)
+
+
+### 🐛 Bug Fixes
+
+* **ci:** allow dirty tree when exporting release audit reports ([040c44b](https://github.com/xiaofandegeng/rmemo/commit/040c44b74f71465ff33a79e6522d18262b7c5e8f))
+
 ## [1.15.0](https://github.com/xiaofandegeng/rmemo/compare/v1.14.0...v1.15.0) (2026-02-26)
 
 
