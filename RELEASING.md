@@ -50,6 +50,12 @@ Or use bundle mode (one entry for rehearsal + archive + archive-verify):
 npm run verify:release-rehearsal-bundle -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000
 ```
 
+Fallback (manual equivalent flags if you need to bypass bundle preset):
+
+```bash
+npm run verify:release-rehearsal-archive-verify -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000 --archive-require-preset rehearsal-archive-verify
+```
+
 List built-in rehearsal bundles:
 
 ```bash

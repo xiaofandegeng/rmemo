@@ -75,6 +75,7 @@
   - v1.5 M4 已启动：进入“组合入口可发现性与收敛”阶段
   - v1.5 M4 已落地：`release-rehearsal --list-bundles` + `verify:release-rehearsal-bundles`（内置 bundle 清单可发现）
   - v1.5 M4 已落地：`--list-bundles` 边界测试收敛（多参数冲突校验 + Markdown/JSON 输出覆盖）
+  - v1.5 M4 已落地：release checklist/runbook 切换为 bundle 优先路径，并提供长参数回退命令
 
 ## Execution Rule
 
