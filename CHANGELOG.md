@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0](https://github.com/xiaofandegeng/rmemo/compare/v1.9.0...v1.10.0) (2026-02-26)
+
+
+### ✨ Features
+
+* **release:** enrich markdown summary observability sections ([2b6d5a3](https://github.com/xiaofandegeng/rmemo/commit/2b6d5a3067022e60c5fca58bf6dd34bcd28e1452))
+
 ## [1.9.0](https://github.com/xiaofandegeng/rmemo/compare/v1.8.0...v1.9.0) (2026-02-26)
 
 
