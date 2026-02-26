@@ -82,7 +82,7 @@
 ## 7. 当前执行任务（v1.5 M4）
 
 - [x] `release-rehearsal` 支持 `--list-bundles`，输出内置组合入口清单（JSON/Markdown）。
-- [ ] 新增 `release-rehearsal --bundle` 与 `--list-bundles` 互斥与边界测试收敛（覆盖更多参数组合）。
+- [x] 新增 `release-rehearsal --bundle` 与 `--list-bundles` 互斥与边界测试收敛（覆盖更多参数组合，含 Markdown/JSON 列表输出与多参数冲突校验）。
 - [ ] 发布 checklist/runbook 增加“优先使用 bundle 入口”的推荐路径与故障回退路径。
 
 ## 8. 启动时固定动作

@@ -842,6 +842,53 @@ test("release-rehearsal rejects conflicting flags in list-bundles mode", async (
   assert.match(String(r.err || ""), /--bundle/);
 });
 
+test("release-rehearsal list-bundles outputs markdown summary", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-list-bundles-md-"));
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "x", version: "1.0.0", type: "module" }) + "\n", "utf8");
+
+  const r = await runNode([path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--format", "md", "--list-bundles"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+
+  assert.equal(r.code, 0, r.err || r.out);
+  assert.match(r.out, /^# rmemo Release Rehearsal Bundles/m);
+  assert.match(r.out, /## Bundles/);
+  assert.match(r.out, /- rehearsal-archive-verify/);
+  assert.match(r.out, /archiveRequirePreset=rehearsal-archive-verify/);
+});
+
+test("release-rehearsal list-bundles rejects multiple execution flags", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-list-bundles-multi-conflict-"));
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "x", version: "1.0.0", type: "module" }) + "\n", "utf8");
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--format",
+      "json",
+      "--list-bundles",
+      "--archive",
+      "--version",
+      "current",
+      "--repo",
+      "owner/repo"
+    ],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /--list-bundles cannot be combined with/);
+  assert.match(String(r.err || ""), /--archive/);
+  assert.match(String(r.err || ""), /--version/);
+  assert.match(String(r.err || ""), /--repo/);
+});
+
 test("release-rehearsal preflight validates dependencies without executing release steps", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-preflight-ok-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
