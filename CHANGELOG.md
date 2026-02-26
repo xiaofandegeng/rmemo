@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.0](https://github.com/xiaofandegeng/rmemo/compare/v1.10.0...v1.11.0) (2026-02-26)
+
+
+### ✨ Features
+
+* **release:** add require preset for archive completeness checks ([c4a7380](https://github.com/xiaofandegeng/rmemo/commit/c4a7380056ac09ba1aa412098a0875a976032bbf))
+* **release:** archive markdown summary artifacts ([ff09036](https://github.com/xiaofandegeng/rmemo/commit/ff0903638a30cb5084edda41da2c91c64017c67c))
+* **release:** expose archive verify preset in summary outputs ([2e99c00](https://github.com/xiaofandegeng/rmemo/commit/2e99c005c229aa9614f6bf39f94d709a89d9438c))
+* **release:** include summary artifact in archive verify defaults ([47da0a6](https://github.com/xiaofandegeng/rmemo/commit/47da0a6ec6770dd1b876da858c3ed08f94c78dc0))
+* **release:** support require presets in rehearsal archive verify ([ad830bc](https://github.com/xiaofandegeng/rmemo/commit/ad830bc23b58eb68c8f99474ee33ae9a96541f9d))
+* **release:** validate summary format/output suffix consistency ([210fc1f](https://github.com/xiaofandegeng/rmemo/commit/210fc1f8cebf64ffd4039970e993b071ba115757))
+
+
+### 🐛 Bug Fixes
+
+* **release:** align archive-verify npm script with defaults ([b104f01](https://github.com/xiaofandegeng/rmemo/commit/b104f01b5bee3017301aeb569b5ef38d38670e63))
+* **release:** keep json summary compatibility in archive markdown mode ([b2b8595](https://github.com/xiaofandegeng/rmemo/commit/b2b859509e5ce4779348f1caf57d050dcc0403f9))
+
 ## [1.10.0](https://github.com/xiaofandegeng/rmemo/compare/v1.9.0...v1.10.0) (2026-02-26)
 
 
