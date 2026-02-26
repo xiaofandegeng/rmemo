@@ -57,6 +57,17 @@ async function listDirNames(dirPath) {
   }
 }
 
+async function resolveVersion(versionRaw, root) {
+  const raw = String(versionRaw || "").trim();
+  if (raw.toLowerCase() !== "current") return raw;
+  const pkg = await readJsonSafe(path.join(root, "package.json"), null);
+  const pkgVersion = String(pkg?.version || "").trim();
+  if (!pkgVersion) {
+    throw new Error("--version current requires package.json with a valid version field");
+  }
+  return pkgVersion;
+}
+
 function normalizeCopiedFiles(copiedFiles) {
   if (!Array.isArray(copiedFiles)) return [];
   return copiedFiles
@@ -242,7 +253,7 @@ async function main() {
   const format = String(flags.format || "md").toLowerCase();
   if (!["md", "json"].includes(format)) throw new Error("format must be md|json");
   const listRequirePresetsMode = flags["list-require-presets"] === "true";
-  const version = String(flags.version || "").trim();
+  const version = await resolveVersion(flags.version, root);
   const snapshotId = String(flags["snapshot-id"] || "").trim();
   const requiredFilesPreset = String(flags["require-preset"] || "").trim();
   const requiredFilesFromFlag = String(flags["require-files"] || "")

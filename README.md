@@ -666,6 +666,7 @@ Archive release reports with a versioned snapshot:
 - `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
 - `release-archive` JSON includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 - `npm run verify:release-archive-find -- --version <version> --format json` (resolve latest snapshot / query archive index)
+- `npm run verify:release-archive-find -- --version current --format json` (resolve latest snapshot using root package version)
 - `npm run verify:release-archive-find -- --version <version> --require-preset rehearsal-archive-verify --format json` (validate latest snapshot completeness with built-in rehearsal required files)
 - `npm run verify:release-archive-find-presets` (list built-in required-file presets and their file sets)
 - `release-archive-find` guardrails: `--snapshot-id`, `--require-files`, and `--require-preset` require `--version`

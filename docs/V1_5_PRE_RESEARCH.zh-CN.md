@@ -69,6 +69,7 @@
 - [x] `release-rehearsal` 参数前置校验补齐：`--archive-snapshot-id/--snapshot-id/--archive-retention-days/--archive-max-snapshots-per-version` 必须配套 `--archive`。
 - [x] `release-archive-find` 参数前置校验补齐：`--list-require-presets` 与 `--version/--snapshot-id/--require-files/--require-preset` 互斥（避免模式混用）。
 - [x] `release-summary.json` 在 archive verify 非 JSON 输出场景下仍保留校验基线（`archive.verify.requiredFiles/requiredFilesPreset`）以便排障回放。
+- [x] `release-archive-find` 支持 `--version current`（自动读取根目录 `package.json.version`），减少手工传版本。
 
 ## 6. 启动时固定动作
 

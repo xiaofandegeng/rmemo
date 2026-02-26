@@ -98,6 +98,24 @@ test("release-archive-find resolves latest snapshot for a version", async () => 
   assert.equal(report.standardized.checkStatuses.latestSnapshot, "pass");
 });
 
+test("release-archive-find supports --version current alias from package.json", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-current-version-"));
+  await setupArchive(tmp);
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "x", version: "1.5.0", type: "module" }) + "\n", "utf8");
+
+  const r = await runNode(
+    [path.resolve("scripts/release-archive-find.js"), "--root", tmp, "--format", "json", "--version", "current"],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.mode, "version-latest");
+  assert.equal(report.version, "1.5.0");
+  assert.equal(report.latestSnapshot.snapshotId, "20260225_100000");
+  assert.equal(report.standardized.status, "pass");
+});
+
 test("release-archive-find resolves a specific snapshot manifest summary", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-snapshot-"));
   await setupArchive(tmp);
@@ -249,6 +267,18 @@ test("release-archive-find rejects unknown require preset", async () => {
   );
   assert.equal(r.code, 1);
   assert.match(String(r.err || ""), /unknown require preset/i);
+});
+
+test("release-archive-find rejects --version current when package version is missing", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-current-version-missing-"));
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "x", type: "module" }) + "\n", "utf8");
+
+  const r = await runNode([path.resolve("scripts/release-archive-find.js"), "--root", tmp, "--format", "json", "--version", "current"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /--version current requires package\.json with a valid version field/i);
 });
 
 test("release-archive-find rejects require preset without version", async () => {
