@@ -646,7 +646,7 @@ This writes release audit files to `artifacts/`:
 - `release-ready.md` / `release-ready.json`
 - `release-health.md` / `release-health.json`
 - `release-rehearsal.md` / `release-rehearsal.json`
-- `release-rehearsal.json` now includes `standardized.status/resultCode/checkStatuses/failureCodes/failures` and `summaryFailureCodes`
+- `release-rehearsal.json` now includes `standardized.status/resultCode/checkStatuses/failureCodes/failures` and `summaryFailureCodes` (merged step classification + failed-step downstream standardized codes + health codes)
 - `release-notes` also supports `--format json` with `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 - `verify:changelog` (`changelog-lint`) JSON now includes `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 - `verify:matrix` (`regression-matrix`) JSON now includes `standardized.status/resultCode/checkStatuses/failureCodes/failures`
@@ -669,9 +669,9 @@ Archive release reports with a versioned snapshot:
 - when using `--archive-verify`, `artifacts/release-archive-verify.json` is generated and missing required files fail the rehearsal
 - `release-summary.json` now includes failure categories + recovery hints (`failureBreakdown`, `retryableFailures`, `actionHints`)
 - `release-summary.json` includes archive status details (`archive.snapshotId`, `archive.archiveStep`, `archive.verify`)
-- `release-summary.json` also aggregates `release-health` standardized failure signals (`health.*`, `summaryFailureCodes`)
+- `release-summary.json` also aggregates `release-health` + failed-step downstream standardized failure signals (`health.*`, `summaryFailureCodes`)
 - `release-summary.json` includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
-- `release-summary.json.standardized.failures` now includes both step-level failures and health-level failures (from `release-health`)
+- `release-summary.json.standardized.failures` now includes step-level failures + downstream step failure details + health-level failures (from `release-health`)
 
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`

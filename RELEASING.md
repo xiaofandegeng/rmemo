@@ -51,12 +51,12 @@ Artifacts written under `artifacts/`:
 - `actionHints`
 - `archive.snapshotId/archiveStep/verify` (when archive mode is enabled)
 - `health.status/resultCode/failureCodes/failures` (aggregated from `release-health` standardized output when available)
-- `summaryFailureCodes` (merged step-level and health-level failure codes)
-- `standardized.status/resultCode/checkStatuses/failureCodes/failures` (one-block summary for integrations; `standardized.failures` now includes both step failures and `release-health` failures)
+- `summaryFailureCodes` (merged step-level classification codes + failed-step downstream standardized failure codes + health-level failure codes)
+- `standardized.status/resultCode/checkStatuses/failureCodes/failures` (one-block summary for integrations; `standardized.failures` includes step failures + downstream step failure details + `release-health` failures)
 
 `release-rehearsal.json` now also exposes integration-friendly summary fields:
 - `standardized.status/resultCode/checkStatuses/failureCodes/failures`
-- `summaryFailureCodes`
+- `summaryFailureCodes` (same merged code set as `release-summary.json`)
 
 Archive reports in a versioned snapshot (recommended):
 

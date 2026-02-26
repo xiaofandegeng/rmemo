@@ -48,6 +48,7 @@
 - [x] `changelog-lint` JSON 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 - [x] `regression-matrix` JSON 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 - [x] `release-rehearsal.json` 输出 `standardized` 汇总块与 `summaryFailureCodes`（便于直接接入告警/平台）。
+- [x] `release-summary.json/release-rehearsal.json` 的 `summaryFailureCodes` 聚合失败步骤下游 `standardized.failureCodes`（不仅限步骤分类码与 health 失败码）。
 
 ## 6. 启动时固定动作
 

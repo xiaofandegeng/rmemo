@@ -295,6 +295,78 @@ test("release-rehearsal summary aggregates standardized failure codes from relea
   assert.equal(summary.archive, null);
 });
 
+test("release-rehearsal summary aggregates standardized failure codes from failed step json output", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-step-codes-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-ready.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') {",
+      "  process.stdout.write(JSON.stringify({",
+      "    ok: false,",
+      "    standardized: {",
+      "      status: 'fail',",
+      "      resultCode: 'RELEASE_READY_FAIL',",
+      "      failureCodes: ['READY_CHECK_TESTS_FAILED'],",
+      "      failures: [",
+      "        { check: 'tests', code: 'READY_CHECK_TESTS_FAILED', retryable: false }",
+      "      ]",
+      "    }",
+      "  }, null, 2) + '\\n');",
+      "  process.exit(1);",
+      "}",
+      "process.stderr.write('ready markdown failed\\n');",
+      "process.exit(1);"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const summaryPath = "artifacts/release-summary.json";
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--summary-out",
+      summaryPath,
+      "--skip-health",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.standardized.failureCodes.includes("READY_CHECK_TESTS_FAILED"), true);
+  assert.equal(
+    report.standardized.failures.some((x) => x.step === "release-ready-json" && x.code === "READY_CHECK_TESTS_FAILED"),
+    true
+  );
+
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, summaryPath), "utf8"));
+  const readyJsonFailure = summary.failedSteps.find((x) => x.name === "release-ready-json");
+  assert.ok(readyJsonFailure);
+  assert.equal(readyJsonFailure.downstreamFailureCodes.includes("READY_CHECK_TESTS_FAILED"), true);
+  assert.equal(summary.summaryFailureCodes.includes("READY_CHECK_TESTS_FAILED"), true);
+  assert.equal(summary.standardized.failureCodes.includes("READY_CHECK_TESTS_FAILED"), true);
+});
+
 test("release-rehearsal writes compact summary report when summary-out is provided", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-summary-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });

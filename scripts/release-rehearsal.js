@@ -141,6 +141,43 @@ function toSummary(report) {
     }
   }
 
+  function parseStepPayload(step) {
+    if (!step) return null;
+    const parsedOut = parseJsonSafe(step.out);
+    if (parsedOut && typeof parsedOut === "object") return parsedOut;
+    const parsedErr = parseJsonSafe(step.err);
+    if (parsedErr && typeof parsedErr === "object") return parsedErr;
+    return null;
+  }
+
+  function normalizeFailureCodes(input) {
+    if (!Array.isArray(input)) return [];
+    return input.map((x) => String(x)).filter(Boolean);
+  }
+
+  function extractStepFailureDetail(step) {
+    const payload = parseStepPayload(step);
+    if (!payload || typeof payload !== "object") {
+      return { resultCode: "", failureCodes: [], failures: [] };
+    }
+
+    const standardized = payload.standardized && typeof payload.standardized === "object" ? payload.standardized : null;
+    const resultCode = String(standardized?.resultCode || payload.resultCode || "").trim();
+    const failureCodes = normalizeFailureCodes(standardized?.failureCodes || payload.failureCodes);
+    const failures = Array.isArray(standardized?.failures)
+      ? standardized.failures
+          .map((x) => ({
+            check: String(x?.check || ""),
+            code: String(x?.code || ""),
+            category: String(x?.category || ""),
+            retryable: typeof x?.retryable === "boolean" ? x.retryable : null
+          }))
+          .filter((x) => x.code)
+      : [];
+
+    return { resultCode, failureCodes, failures };
+  }
+
   function extractHealthStandardized() {
     const step = report.steps.find((s) => s.name === "release-health-json" && (s.status === "pass" || s.status === "fail"));
     if (!step) return null;
@@ -222,6 +259,7 @@ function toSummary(report) {
     .filter((s) => s.status === "fail")
     .map((s) => {
       const classified = classifyFailure(s);
+      const stepFailureDetail = extractStepFailureDetail(s);
       return {
         ...classified,
         name: s.name,
@@ -229,6 +267,9 @@ function toSummary(report) {
         stepExitCode: s.code,
         timedOut: !!s.timedOut,
         error: String(s.error || "").trim(),
+        downstreamResultCode: stepFailureDetail.resultCode,
+        downstreamFailureCodes: stepFailureDetail.failureCodes,
+        downstreamFailures: stepFailureDetail.failures,
         nextAction: hints[classified.category] || hints.unknown
       };
     });
@@ -253,14 +294,36 @@ function toSummary(report) {
         retryable: !!x?.retryable
       }))
     : [];
-  const summaryFailureCodes = Array.from(new Set([...failedSteps.map((x) => x.code), ...healthFailureCodes]));
+  const downstreamFailureCodes = failedSteps.flatMap((x) => normalizeFailureCodes(x.downstreamFailureCodes));
+  const summaryFailureCodes = Array.from(new Set([...failedSteps.map((x) => x.code), ...downstreamFailureCodes, ...healthFailureCodes]));
   const checkStatuses = Object.fromEntries(report.steps.map((s) => [s.name, s.status]));
-  const standardizedStepFailures = failedSteps.map((x) => ({
-    step: x.name,
-    code: x.code,
-    category: x.category,
-    retryable: !!x.retryable
-  }));
+  const standardizedStepFailures = failedSteps.flatMap((x) => {
+    const detailFailures = x.name === "release-health-json"
+      ? []
+      : Array.isArray(x.downstreamFailures)
+        ? x.downstreamFailures
+        : [];
+
+    const mappedDetailFailures = detailFailures
+      .map((detail) => ({
+        step: x.name,
+        code: String(detail.code || ""),
+        category: String(detail.category || x.category || "step"),
+        ...(detail.check ? { check: String(detail.check) } : {}),
+        retryable: typeof detail.retryable === "boolean" ? detail.retryable : !!x.retryable
+      }))
+      .filter((detail) => detail.code);
+
+    return [
+      {
+        step: x.name,
+        code: x.code,
+        category: x.category,
+        retryable: !!x.retryable
+      },
+      ...mappedDetailFailures
+    ];
+  });
   const standardizedHealthFailures = healthFailures.map((x) => ({
     step: "release-health-json",
     code: x.code,

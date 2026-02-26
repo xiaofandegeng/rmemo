@@ -44,6 +44,7 @@
   - v1.5 M2 已落地：`changelog-lint.standardized` 统一状态块（便于告警/平台接入）
   - v1.5 M2 已落地：`regression-matrix.standardized` 统一状态块（便于告警/平台接入）
   - v1.5 M2 已落地：`release-rehearsal.json.standardized` + `summaryFailureCodes`（便于告警/平台接入）
+  - v1.5 M2 已落地：`release-summary/rehearsal.summaryFailureCodes` 聚合失败步骤下游 `standardized.failureCodes`（细化跨步骤失败码视图）
 
 ## Execution Rule
 
