@@ -71,6 +71,10 @@ function md(report) {
   lines.push(`- tag: ${report.tag}`);
   lines.push(`- repo: ${report.repo}`);
   lines.push(`- result: ${report.ok ? "OK" : "FAIL"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
+  if (Array.isArray(report.standardized?.failureCodes) && report.standardized.failureCodes.length > 0) {
+    lines.push(`- failureCodes: ${report.standardized.failureCodes.join(",")}`);
+  }
   lines.push(`- attempts: ${report.attempts}`);
   lines.push(`- elapsedMs: ${report.elapsedMs}`);
   lines.push(`- maxWaitMs: ${report.options.maxWaitMs}`);
@@ -86,6 +90,77 @@ function md(report) {
     lines.push(`- releaseAssets: ${report.lastCheck.checks.releaseAssets?.ok ? "OK" : "FAIL"}`);
   }
   return `${lines.join("\n")}\n`;
+}
+
+function statusFromOk(ok) {
+  return ok ? "pass" : "fail";
+}
+
+function buildStandardized({ ok, attempts, elapsedMs, options, lastCheck }) {
+  const checkStatuses = {};
+  if (lastCheck?.standardized && typeof lastCheck.standardized.checkStatuses === "object" && lastCheck.standardized.checkStatuses) {
+    Object.assign(checkStatuses, lastCheck.standardized.checkStatuses);
+  } else if (lastCheck?.checks && typeof lastCheck.checks === "object") {
+    for (const [key, value] of Object.entries(lastCheck.checks)) {
+      checkStatuses[key] = statusFromOk(!!value?.ok);
+    }
+  }
+  checkStatuses.convergence = statusFromOk(ok);
+
+  let failures = [];
+  if (Array.isArray(lastCheck?.standardized?.failures) && lastCheck.standardized.failures.length > 0) {
+    failures = lastCheck.standardized.failures.map((x) => ({
+      check: String(x?.check || ""),
+      code: String(x?.code || ""),
+      message: String(x?.message || ""),
+      retryable: !!x?.retryable
+    }));
+  } else if (lastCheck?.checks && typeof lastCheck.checks === "object") {
+    failures = Object.entries(lastCheck.checks)
+      .filter(([, value]) => !value?.ok)
+      .map(([check, value]) => ({
+        check,
+        code: "RELEASE_VERIFY_CHECK_FAILED",
+        message: String(value?.error || `${check} not ready`),
+        retryable: true
+      }));
+  } else if (!ok) {
+    failures = [
+      {
+        check: "convergence",
+        code: "RELEASE_VERIFY_HEALTH_CHECK_FAILED",
+        message: String(lastCheck?.error || "release-health did not converge in verify window"),
+        retryable: true
+      }
+    ];
+  }
+
+  if (!ok && elapsedMs >= Number(options?.maxWaitMs || 0)) {
+    failures.push({
+      check: "convergence",
+      code: "RELEASE_VERIFY_CONVERGENCE_TIMEOUT",
+      message: `convergence not reached within ${Number(options?.maxWaitMs || 0)}ms`,
+      retryable: true
+    });
+  }
+
+  const failureCodes = Array.from(new Set(failures.map((x) => x.code).filter(Boolean)));
+  const checkEntries = Object.entries(checkStatuses);
+  return {
+    schema: 1,
+    status: statusFromOk(ok),
+    resultCode: ok ? "RELEASE_VERIFY_OK" : "RELEASE_VERIFY_FAIL",
+    summary: {
+      totalChecks: checkEntries.length,
+      passCount: checkEntries.filter(([, status]) => status === "pass").length,
+      failCount: checkEntries.filter(([, status]) => status === "fail").length,
+      attempts,
+      elapsedMs
+    },
+    checkStatuses,
+    failureCodes,
+    failures
+  };
 }
 
 async function runReleaseHealth({ root, repo, version, tag, timeoutMs, retries, retryDelayMs, allowLegacyScopedAsset }) {
@@ -186,6 +261,7 @@ async function main() {
     lastCheck: last,
     ok: !!last.ok
   };
+  report.standardized = buildStandardized(report);
 
   process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : md(report));
   if (!report.ok) process.exitCode = 1;

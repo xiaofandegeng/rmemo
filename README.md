@@ -670,6 +670,7 @@ Archive release reports with a versioned snapshot:
 
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
+- `release-verify` JSON includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 
 **Manual Fallback Publishing (Emergency Only)**
 If GitHub Actions is down or npm tokens are expired, a manual release requires administrator privileges:

@@ -88,6 +88,10 @@ test("release-verify succeeds when release-health converges within wait window",
   assert.equal(report.ok, true);
   assert.equal(report.attempts, 2);
   assert.equal(report.lastCheck.ok, true);
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.resultCode, "RELEASE_VERIFY_OK");
+  assert.equal(report.standardized.checkStatuses.convergence, "pass");
+  assert.deepEqual(report.standardized.failureCodes, []);
 });
 
 test("release-verify fails when max wait window is exhausted", async () => {
@@ -150,4 +154,9 @@ test("release-verify fails when max wait window is exhausted", async () => {
   assert.equal(report.ok, false);
   assert.ok(report.attempts >= 2);
   assert.equal(report.lastCheck.ok, false);
+  assert.equal(report.standardized.status, "fail");
+  assert.equal(report.standardized.resultCode, "RELEASE_VERIFY_FAIL");
+  assert.equal(report.standardized.checkStatuses.convergence, "fail");
+  assert.equal(report.standardized.failureCodes.includes("RELEASE_VERIFY_CONVERGENCE_TIMEOUT"), true);
+  assert.equal(report.standardized.failures.some((x) => x.code === "RELEASE_VERIFY_CONVERGENCE_TIMEOUT"), true);
 });

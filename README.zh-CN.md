@@ -650,6 +650,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 
 发布后收敛校验：
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
+- `release-verify` JSON 现已包含适合集成消费的标准化块（`standardized.status/resultCode/checkStatuses/failureCodes/failures`）
 
 ## Roadmap（简版）
 
