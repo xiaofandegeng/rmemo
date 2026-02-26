@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.14.0](https://github.com/xiaofandegeng/rmemo/compare/v1.13.0...v1.14.0) (2026-02-26)
+
+
+### ✨ Features
+
+* **release:** align current version alias across release tools ([2b04d41](https://github.com/xiaofandegeng/rmemo/commit/2b04d41f08ee0b2ef3d09051f0daa66a7b28bf64))
+* **release:** support current version alias in rehearsal ([d5052c3](https://github.com/xiaofandegeng/rmemo/commit/d5052c3a29252698b587fa6969960511cded6450))
+
 ## [1.13.0](https://github.com/xiaofandegeng/rmemo/compare/v1.12.0...v1.13.0) (2026-02-26)
 
 
