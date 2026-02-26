@@ -434,7 +434,49 @@ function buildReport({ root, outDir, version, tag, repo, options, steps, files }
   };
 }
 
-async function writeRehearsalOutputs({ files, report, summaryOut }) {
+function toSummaryMd(summary) {
+  const lines = [];
+  lines.push("# rmemo Release Rehearsal Summary");
+  lines.push("");
+  lines.push(`- generatedAt: ${summary.generatedAt}`);
+  lines.push(`- version: ${summary.version}`);
+  lines.push(`- result: ${summary.ok ? "READY" : "NOT READY"}`);
+  if (summary.standardized?.resultCode) lines.push(`- resultCode: ${summary.standardized.resultCode}`);
+  if (Array.isArray(summary.summaryFailureCodes) && summary.summaryFailureCodes.length > 0) {
+    lines.push(`- failureCodes: ${summary.summaryFailureCodes.join(",")}`);
+  }
+  lines.push(
+    `- summary: pass=${Number(summary.summary?.pass || 0)} fail=${Number(summary.summary?.fail || 0)} skipped=${Number(summary.summary?.skipped || 0)}`
+  );
+
+  if (Array.isArray(summary.failedSteps) && summary.failedSteps.length > 0) {
+    lines.push("");
+    lines.push("## Failed Steps");
+    lines.push("");
+    for (const step of summary.failedSteps) {
+      const name = String(step?.name || "unknown");
+      const code = String(step?.code || "STEP_FAILED");
+      lines.push(`- ${name}: ${code}`);
+      if (step?.category) lines.push(`  - category: ${String(step.category)}`);
+      if (typeof step?.retryable === "boolean") lines.push(`  - retryable: ${step.retryable}`);
+      if (step?.downstreamResultCode) lines.push(`  - downstreamResultCode: ${String(step.downstreamResultCode)}`);
+      if (Array.isArray(step?.downstreamFailureCodes) && step.downstreamFailureCodes.length > 0) {
+        lines.push(`  - downstreamFailureCodes: ${step.downstreamFailureCodes.join(",")}`);
+      }
+    }
+  }
+
+  if (Array.isArray(summary.actionHints) && summary.actionHints.length > 0) {
+    lines.push("");
+    lines.push("## Action Hints");
+    lines.push("");
+    for (const hint of summary.actionHints) lines.push(`- ${hint}`);
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+async function writeRehearsalOutputs({ files, report, summaryOut, summaryFormat }) {
   const summary = toSummary(report);
   report.standardized = summary.standardized;
   report.summaryFailureCodes = summary.summaryFailureCodes;
@@ -444,7 +486,8 @@ async function writeRehearsalOutputs({ files, report, summaryOut }) {
   await fs.writeFile(files.rehearsalJson, json, "utf8");
   if (summaryOut) {
     await fs.mkdir(path.dirname(summaryOut), { recursive: true });
-    await fs.writeFile(summaryOut, JSON.stringify(summary, null, 2) + "\n", "utf8");
+    const summaryBody = summaryFormat === "md" ? toSummaryMd(summary) : JSON.stringify(summary, null, 2) + "\n";
+    await fs.writeFile(summaryOut, summaryBody, "utf8");
   }
   return { md, json };
 }
@@ -469,6 +512,7 @@ async function main() {
   const skipTests = flags["skip-tests"] === "true";
   const archive = flags.archive === "true";
   const archiveVerify = archive && flags["archive-verify"] === "true";
+  const summaryFormatFlag = String(flags["summary-format"] || "").trim().toLowerCase();
   const archiveSnapshotId = String(flags["archive-snapshot-id"] || flags["snapshot-id"] || "").trim();
   const archiveRequireFiles = String(flags["archive-require-files"] || "")
     .split(",")
@@ -487,8 +531,10 @@ async function main() {
   const summaryOut = flags["summary-out"]
     ? path.resolve(root, String(flags["summary-out"]))
     : archive
-      ? path.join(outDir, "release-summary.json")
+      ? path.join(outDir, summaryFormatFlag === "md" ? "release-summary.md" : "release-summary.json")
       : "";
+  const inferredSummaryFormat = summaryOut && summaryOut.toLowerCase().endsWith(".md") ? "md" : "json";
+  const summaryFormat = summaryFormatFlag || inferredSummaryFormat;
   const healthTimeoutMs = Math.max(1000, Number(flags["health-timeout-ms"] || 15000));
   const healthGithubRetries = Math.max(0, Number(flags["health-github-retries"] || 2));
   const healthGithubRetryDelayMs = Math.max(0, Number(flags["health-github-retry-delay-ms"] || 1000));
@@ -497,6 +543,10 @@ async function main() {
     "md",
     "json"
   ].includes(format)) throw new Error("format must be md|json");
+  if (![
+    "md",
+    "json"
+  ].includes(summaryFormat)) throw new Error("summary-format must be md|json");
 
   const pkg = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
   const version = String(flags.version || pkg.version || "").trim();
@@ -640,6 +690,7 @@ async function main() {
     skipTests,
     archive,
     summaryOut,
+    summaryFormat,
     healthTimeoutMs,
     healthGithubRetries,
     healthGithubRetryDelayMs,
@@ -655,7 +706,7 @@ async function main() {
   };
 
   let report = buildReport({ root, outDir, version, tag, repo, options, steps, files });
-  await writeRehearsalOutputs({ files, report, summaryOut });
+  await writeRehearsalOutputs({ files, report, summaryOut, summaryFormat });
 
   if (archive) {
     const archiveArgs = [
@@ -758,7 +809,7 @@ async function main() {
     }
 
     report = buildReport({ root, outDir, version, tag, repo, options, steps, files });
-    await writeRehearsalOutputs({ files, report, summaryOut });
+    await writeRehearsalOutputs({ files, report, summaryOut, summaryFormat });
   }
 
   process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : toMd(report));

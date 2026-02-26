@@ -54,6 +54,10 @@ Artifacts written under `artifacts/`:
 - `summaryFailureCodes` (merged step-level classification codes + failed-step downstream standardized failure codes + health-level failure codes)
 - `standardized.status/resultCode/checkStatuses/failureCodes/failures` (one-block summary for integrations; `standardized.failures` includes step failures + downstream step failure details + `release-health` failures)
 
+You can also emit markdown summary output via:
+- `--summary-format md` (or set `--summary-out` to a `.md` path to auto-infer markdown)
+- default remains `json`
+
 `release-rehearsal.json` now also exposes integration-friendly summary fields:
 - `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 - `summaryFailureCodes` (same merged code set as `release-summary.json`)
@@ -86,6 +90,7 @@ Useful flags:
 - `--skip-tests` for quick smoke checks
 - `--archive` to run `release-archive` immediately after rehearsal output is generated
 - `--archive-verify` to run `release-archive-find` after archive step (fails rehearsal if required files are missing)
+- `--summary-format <json|md>` to control `--summary-out` file format (defaults to `json`; inferred as `md` when `--summary-out` ends with `.md`)
 - `--archive-require-files <a,b,c>` to define required files for `--archive-verify` (default: `release-ready.json,release-health.json,release-rehearsal.json`)
 - `--archive-snapshot-id <id>` to pin archive snapshot id in rehearsal-driven archive mode
 - `--archive-retention-days <days>` and `--archive-max-snapshots-per-version <n>` to control archive pruning in rehearsal-driven archive mode

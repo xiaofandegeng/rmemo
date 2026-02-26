@@ -498,6 +498,68 @@ test("release-rehearsal writes compact summary report when summary-out is provid
   assert.deepEqual(summary.standardized.failureCodes, []);
 });
 
+test("release-rehearsal writes markdown summary when summary-format is md", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-summary-md-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-ready.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') process.stdout.write(JSON.stringify({ ok: true }) + '\\n');",
+      "else process.stdout.write('# ready\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-health.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') process.stdout.write(JSON.stringify({ ok: true }) + '\\n');",
+      "else process.stdout.write('# health\\n- status: OK\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const summaryPath = "artifacts/release-summary.md";
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--summary-out",
+      summaryPath,
+      "--summary-format",
+      "md",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.options.summaryFormat, "md");
+  const summaryMd = await fs.readFile(path.join(tmp, summaryPath), "utf8");
+  assert.match(summaryMd, /^# rmemo Release Rehearsal Summary/m);
+  assert.match(summaryMd, /- result: READY/);
+  assert.match(summaryMd, /- resultCode: RELEASE_REHEARSAL_SUMMARY_OK/);
+  assert.match(summaryMd, /- summary: pass=5 fail=0 skipped=0/);
+});
+
 test("release-rehearsal runs archive step and auto-writes default summary when archive is enabled", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-ok-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });

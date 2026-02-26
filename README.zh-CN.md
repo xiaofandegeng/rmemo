@@ -635,6 +635,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 超时参数（网络不稳定时建议设置，避免命令长时间挂起）：
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
+- `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.md --summary-format md`
 - `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
 - `npm run verify:release-rehearsal-archive-verify -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
@@ -653,6 +654,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `release-summary.json` 还会汇总 `release-health` 与失败步骤下游标准化失败信号（`health.*`、`summaryFailureCodes`）
 - `release-summary.json` 新增适合集成消费的标准化块（`standardized.status/resultCode/checkStatuses/failureCodes/failures`）
 - `release-summary.json.standardized.failures` 现已同时包含步骤级失败、步骤下游失败细节与 health 失败（来自 `release-health`）
+- 摘要输出支持 `--summary-format md|json`（默认 `json`；当 `--summary-out` 以 `.md` 结尾时会自动推断为 Markdown）
 
 发布后收敛校验：
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`

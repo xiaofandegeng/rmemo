@@ -655,6 +655,7 @@ This writes release audit files to `artifacts/`:
 Timeout tuning (avoid hanging checks on unstable networks):
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
+- `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.md --summary-format md`
 - `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
 - `npm run verify:release-rehearsal-archive-verify -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
@@ -673,6 +674,7 @@ Archive release reports with a versioned snapshot:
 - `release-summary.json` also aggregates `release-health` + failed-step downstream standardized failure signals (`health.*`, `summaryFailureCodes`)
 - `release-summary.json` includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 - `release-summary.json.standardized.failures` now includes step-level failures + downstream step failure details + health-level failures (from `release-health`)
+- summary output supports `--summary-format md|json` (default `json`; `.md` summary paths auto-infer markdown)
 
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
