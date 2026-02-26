@@ -56,6 +56,7 @@
   - v1.5 M2 已落地：`verify:release-rehearsal-archive-verify` 复用默认必需文件集合（避免 npm 脚本参数漂移）
   - v1.5 M2 已落地：`release-archive-find --require-preset rehearsal-archive-verify` 内置必需文件集合（减少长参数与文档漂移）
   - v1.5 M2 已落地：`release-rehearsal --archive-verify` 默认透传 `--require-preset rehearsal-archive-verify`（支持 `--archive-require-preset`，且与 `--archive-require-files` 互斥）
+  - v1.5 M2 已落地：`release-summary.json/.md` 输出 `archive.verify.requiredFilesPreset`（preset 校验链路可观测）
 
 ## Execution Rule
 

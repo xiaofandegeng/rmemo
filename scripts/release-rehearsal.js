@@ -236,10 +236,12 @@ function toSummary(report) {
     const missingRequiredFiles = Array.isArray(payload?.missingRequiredFiles)
       ? payload.missingRequiredFiles.map((x) => String(x)).filter(Boolean)
       : [];
+    const requiredFilesPreset = String(payload?.requiredFilesPreset || "").trim();
     return {
       status: step.status,
       stepExitCode: step.code,
       ok: step.status === "pass" && payload?.ok !== false,
+      requiredFilesPreset,
       requiredFiles,
       missingRequiredFiles
     };
@@ -391,6 +393,7 @@ function toSummary(report) {
                   status: archiveVerify.status,
                   ok: archiveVerify.ok,
                   stepExitCode: archiveVerify.stepExitCode,
+                  requiredFilesPreset: archiveVerify.requiredFilesPreset,
                   requiredFiles: archiveVerify.requiredFiles,
                   missingRequiredFiles: archiveVerify.missingRequiredFiles
                 }
@@ -499,6 +502,9 @@ function toSummaryMd(summary) {
     }
     if (summary.archive.verify && typeof summary.archive.verify === "object") {
       lines.push(`- verify: status=${String(summary.archive.verify.status || "")} ok=${String(!!summary.archive.verify.ok)}`);
+      if (summary.archive.verify.requiredFilesPreset) {
+        lines.push(`- requiredFilesPreset: ${String(summary.archive.verify.requiredFilesPreset)}`);
+      }
       if (Array.isArray(summary.archive.verify.missingRequiredFiles) && summary.archive.verify.missingRequiredFiles.length > 0) {
         lines.push(`- missingRequiredFiles: ${summary.archive.verify.missingRequiredFiles.join(",")}`);
       }

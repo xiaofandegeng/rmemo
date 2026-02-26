@@ -974,7 +974,9 @@ test("release-rehearsal archive verify uses default require preset", async () =>
       "import path from 'node:path';",
       "const args = process.argv.slice(2);",
       "await fs.writeFile(path.resolve('artifacts', 'archive-find-default-args.log'), JSON.stringify(args) + '\\n', 'utf8');",
-      "process.stdout.write(JSON.stringify({ ok: true, requiredFiles: [], missingRequiredFiles: [] }, null, 2) + '\\n');"
+      "const presetIdx = args.indexOf('--require-preset');",
+      "const requiredFilesPreset = presetIdx >= 0 ? String(args[presetIdx + 1] || '') : '';",
+      "process.stdout.write(JSON.stringify({ ok: true, requiredFilesPreset, requiredFiles: [], missingRequiredFiles: [] }, null, 2) + '\\n');"
     ].join("\n"),
     "utf8"
   );
@@ -1002,6 +1004,8 @@ test("release-rehearsal archive verify uses default require preset", async () =>
   assert.notEqual(presetIdx, -1);
   assert.equal(String(archiveFindArgs[presetIdx + 1] || ""), "rehearsal-archive-verify");
   assert.equal(archiveFindArgs.includes("--require-files"), false);
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
+  assert.equal(summary.archive.verify.requiredFilesPreset, "rehearsal-archive-verify");
 });
 
 test("release-rehearsal forwards archive-require-preset to archive verify step", async () => {
@@ -1031,7 +1035,9 @@ test("release-rehearsal forwards archive-require-preset to archive verify step",
       "import path from 'node:path';",
       "const args = process.argv.slice(2);",
       "await fs.writeFile(path.resolve('artifacts', 'archive-find-preset-args.log'), JSON.stringify(args) + '\\n', 'utf8');",
-      "process.stdout.write(JSON.stringify({ ok: true, requiredFiles: [], missingRequiredFiles: [] }, null, 2) + '\\n');"
+      "const presetIdx = args.indexOf('--require-preset');",
+      "const requiredFilesPreset = presetIdx >= 0 ? String(args[presetIdx + 1] || '') : '';",
+      "process.stdout.write(JSON.stringify({ ok: true, requiredFilesPreset, requiredFiles: [], missingRequiredFiles: [] }, null, 2) + '\\n');"
     ].join("\n"),
     "utf8"
   );
@@ -1061,6 +1067,8 @@ test("release-rehearsal forwards archive-require-preset to archive verify step",
   assert.notEqual(presetIdx, -1);
   assert.equal(String(archiveFindArgs[presetIdx + 1] || ""), "custom-preset");
   assert.equal(archiveFindArgs.includes("--require-files"), false);
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
+  assert.equal(summary.archive.verify.requiredFilesPreset, "custom-preset");
 });
 
 test("release-rehearsal rejects mixing archive-require-files and archive-require-preset", async () => {
