@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0](https://github.com/xiaofandegeng/rmemo/compare/v1.6.0...v1.7.0) (2026-02-25)
+
+
+### ✨ Features
+
+* **release:** add standardized block to rehearsal summary ([d9b7273](https://github.com/xiaofandegeng/rmemo/commit/d9b727359cf92090c0f4832c8d1bee94eaecfe43))
+* **release:** expose archive verify details in rehearsal summary ([07ed677](https://github.com/xiaofandegeng/rmemo/commit/07ed67764cd5cee286af412b1d3669f9f9192b5c))
+
 ## [1.6.0](https://github.com/xiaofandegeng/rmemo/compare/v1.5.0...v1.6.0) (2026-02-25)
 
 
