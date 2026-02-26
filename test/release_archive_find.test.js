@@ -327,6 +327,43 @@ test("release-archive-find lists built-in require presets in json mode", async (
   ]);
 });
 
+test("release-archive-find rejects combining list-require-presets with version query flags", async () => {
+  const r = await runNode(
+    [path.resolve("scripts/release-archive-find.js"), "--format", "json", "--list-require-presets", "--version", "1.5.0"],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+  assert.equal(r.code, 1);
+  assert.match(
+    String(r.err || ""),
+    /--list-require-presets cannot be combined with --version\/--snapshot-id\/--require-files\/--require-preset/i
+  );
+});
+
+test("release-archive-find rejects combining list-require-presets with require preset", async () => {
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-archive-find.js"),
+      "--format",
+      "json",
+      "--list-require-presets",
+      "--require-preset",
+      "rehearsal-archive-verify"
+    ],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+  assert.equal(r.code, 1);
+  assert.match(
+    String(r.err || ""),
+    /--list-require-presets cannot be combined with --version\/--snapshot-id\/--require-files\/--require-preset/i
+  );
+});
+
 test("release-archive-find lists built-in require presets in markdown mode", async () => {
   const r = await runNode([path.resolve("scripts/release-archive-find.js"), "--format", "md", "--list-require-presets"], {
     cwd: path.resolve("."),

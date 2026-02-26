@@ -242,6 +242,17 @@ async function main() {
   const format = String(flags.format || "md").toLowerCase();
   if (!["md", "json"].includes(format)) throw new Error("format must be md|json");
   const listRequirePresetsMode = flags["list-require-presets"] === "true";
+  const version = String(flags.version || "").trim();
+  const snapshotId = String(flags["snapshot-id"] || "").trim();
+  const requiredFilesPreset = String(flags["require-preset"] || "").trim();
+  const requiredFilesFromFlag = String(flags["require-files"] || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  if (listRequirePresetsMode && (version || snapshotId || requiredFilesPreset || requiredFilesFromFlag.length > 0)) {
+    throw new Error("--list-require-presets cannot be combined with --version/--snapshot-id/--require-files/--require-preset");
+  }
 
   if (listRequirePresetsMode) {
     const report = {
@@ -258,13 +269,6 @@ async function main() {
 
   const artifactsDir = flags["artifacts-dir"] ? path.resolve(root, String(flags["artifacts-dir"])) : path.join(root, "artifacts");
   const archiveRoot = path.join(artifactsDir, "release-archive");
-  const version = String(flags.version || "").trim();
-  const snapshotId = String(flags["snapshot-id"] || "").trim();
-  const requiredFilesPreset = String(flags["require-preset"] || "").trim();
-  const requiredFilesFromFlag = String(flags["require-files"] || "")
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
   if (requiredFilesPreset && requiredFilesFromFlag.length > 0) {
     throw new Error("cannot combine --require-files with --require-preset");
   }

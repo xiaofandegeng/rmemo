@@ -649,6 +649,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `npm run verify:release-archive-find -- --version <version> --require-preset rehearsal-archive-verify --format json`（使用内置演练必需文件集合校验最新快照完整性）
 - `npm run verify:release-archive-find-presets`（列出内置必需文件 preset 与文件集合）
 - `release-archive-find` 参数保护：`--snapshot-id`、`--require-files`、`--require-preset` 必须与 `--version` 一起使用
+- `release-archive-find` 参数保护：`--list-require-presets` 不能与 `--version/--snapshot-id/--require-files/--require-preset` 同时使用
 - `release-archive-find` JSON 现已包含适合集成消费的标准化块（`standardized.status/resultCode/checkStatuses/failureCodes/failures`），`--list-require-presets` 模式同样适用
 - 在演练命令中启用 `--archive` 时，会自动生成 `artifacts/release-summary.json` 与 `artifacts/release-archive.json`
 - 启用 `--archive-verify` 时，会生成 `artifacts/release-archive-verify.json`，并在关键文件缺失时使演练失败

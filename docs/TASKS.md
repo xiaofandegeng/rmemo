@@ -63,6 +63,7 @@
   - v1.5 M2 已落地：`release-archive-find` 增加参数前置校验（`--snapshot-id/--require-files/--require-preset` 必须配套 `--version`）
   - v1.5 M2 已落地：`release-rehearsal` 增加参数前置校验（`--archive-verify` 需配套 `--archive`；`--archive-require-files/--archive-require-preset` 需配套 `--archive-verify`）
   - v1.5 M2 已落地：`release-rehearsal` 增加 archive 参数前置校验（`--archive-snapshot-id/--snapshot-id/--archive-retention-days/--archive-max-snapshots-per-version` 需配套 `--archive`）
+  - v1.5 M2 已落地：`release-archive-find` 增加 list 模式互斥校验（`--list-require-presets` 与 `--version/--snapshot-id/--require-files/--require-preset` 互斥）
 
 ## Execution Rule
 

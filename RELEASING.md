@@ -86,6 +86,7 @@ Quick query examples:
 - inspect one snapshot: `npm run verify:release-archive-find -- --version <version> --snapshot-id <snapshot-id> --format json`
 - validate latest snapshot required files: `npm run verify:release-archive-find -- --version <version> --require-preset rehearsal-archive-verify --format json`
 - guardrails: `--snapshot-id`, `--require-files`, and `--require-preset` require `--version`
+- guardrails: `--list-require-presets` cannot be combined with `--version/--snapshot-id/--require-files/--require-preset`
 
 Useful flags:
 - `--skip-health` when GitHub API is unavailable
