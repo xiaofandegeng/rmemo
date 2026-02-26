@@ -83,6 +83,10 @@ function toMd(report) {
   lines.push(`- generatedAt: ${report.generatedAt}`);
   lines.push(`- summary: pass=${report.summary.pass} fail=${report.summary.fail} skipped=${report.summary.skipped}`);
   lines.push(`- result: ${report.ok ? "READY" : "NOT READY"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
+  if (Array.isArray(report.standardized?.failureCodes) && report.standardized.failureCodes.length > 0) {
+    lines.push(`- failureCodes: ${report.standardized.failureCodes.join(",")}`);
+  }
   lines.push("");
   for (const c of report.checks) {
     lines.push(`## ${c.name}`);
@@ -94,6 +98,62 @@ function toMd(report) {
     lines.push("");
   }
   return lines.join("\n");
+}
+
+function statusFromOk(ok) {
+  return ok ? "pass" : "fail";
+}
+
+function classifyFailure(check) {
+  const msg = String(check?.error || "").toLowerCase();
+  if (check?.timedOut || /timed out|timeout/.test(msg)) {
+    return { code: "STEP_TIMEOUT", retryable: true };
+  }
+  if (/econn|enotfound|eai_again|network|socket|request timeout|429|5\d\d/.test(msg)) {
+    return { code: "NETWORK_UNAVAILABLE", retryable: true };
+  }
+  const codeByCheck = {
+    "git-clean": "RELEASE_READY_GIT_CLEAN_FAILED",
+    "node-test": "RELEASE_READY_NODE_TEST_FAILED",
+    "pack-dry": "RELEASE_READY_PACK_DRY_FAILED",
+    "changelog-lint": "RELEASE_READY_CHANGELOG_LINT_FAILED",
+    "contract-check": "RELEASE_READY_CONTRACT_CHECK_FAILED",
+    "regression-matrix": "RELEASE_READY_REGRESSION_MATRIX_FAILED"
+  };
+  return {
+    code: codeByCheck[String(check?.name || "")] || "RELEASE_READY_CHECK_FAILED",
+    retryable: false
+  };
+}
+
+function buildStandardized(report) {
+  const checkStatuses = Object.fromEntries(report.checks.map((check) => [check.name, check.status]));
+  const failures = report.checks
+    .filter((check) => check.status === "fail")
+    .map((check) => {
+      const classified = classifyFailure(check);
+      return {
+        check: check.name,
+        code: classified.code,
+        message: String(check.error || ""),
+        retryable: !!classified.retryable
+      };
+    });
+  const checkEntries = Object.entries(checkStatuses);
+  return {
+    schema: 1,
+    status: statusFromOk(report.ok),
+    resultCode: report.ok ? "RELEASE_READY_OK" : "RELEASE_READY_FAIL",
+    summary: {
+      totalChecks: checkEntries.length,
+      passCount: checkEntries.filter(([, status]) => status === "pass").length,
+      failCount: checkEntries.filter(([, status]) => status === "fail").length,
+      skippedCount: checkEntries.filter(([, status]) => status === "skipped").length
+    },
+    checkStatuses,
+    failureCodes: Array.from(new Set(failures.map((failure) => failure.code).filter(Boolean))),
+    failures
+  };
 }
 
 async function main() {
@@ -144,6 +204,7 @@ async function main() {
     summary,
     ok: summary.fail === 0
   };
+  report.standardized = buildStandardized(report);
 
   const rendered = format === "json" ? JSON.stringify(report, null, 2) + "\n" : toMd(report) + "\n";
   process.stdout.write(rendered);

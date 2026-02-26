@@ -91,6 +91,10 @@ test("release-ready fails and records network error when regression-matrix comma
   assert.equal(matrix.status, "fail");
   assert.match(String(matrix.error || ""), /ENOTFOUND/);
   assert.equal(report.ok, false);
+  assert.equal(report.standardized.status, "fail");
+  assert.equal(report.standardized.resultCode, "RELEASE_READY_FAIL");
+  assert.equal(report.standardized.checkStatuses["regression-matrix"], "fail");
+  assert.equal(report.standardized.failureCodes.includes("NETWORK_UNAVAILABLE"), true);
 });
 
 test("release-ready markdown includes condensed network failure line", async () => {
@@ -107,6 +111,7 @@ test("release-ready markdown includes condensed network failure line", async () 
 
   assert.equal(r.code, 1, r.err || r.out);
   assert.match(r.out, /- result: NOT READY/);
+  assert.match(r.out, /- resultCode: RELEASE_READY_FAIL/);
   assert.match(r.out, /## regression-matrix/);
   assert.match(r.out, /- error: npm ERR! code ENOTFOUND/);
 });
@@ -140,4 +145,6 @@ test("release-ready reports timeout when a check command hangs", async () => {
   assert.equal(matrix.status, "fail");
   assert.equal(matrix.timedOut, true);
   assert.match(String(matrix.error || ""), /timed out after 1000ms/);
+  assert.equal(report.standardized.failureCodes.includes("STEP_TIMEOUT"), true);
+  assert.equal(report.standardized.failures.some((x) => x.check === "regression-matrix" && x.code === "STEP_TIMEOUT"), true);
 });
