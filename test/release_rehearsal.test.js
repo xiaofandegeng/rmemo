@@ -285,6 +285,8 @@ test("release-rehearsal summary aggregates standardized failure codes from relea
   assert.equal(summary.health.failureCodes.includes("RELEASE_ASSET_CHECK_BLOCKED"), true);
   assert.equal(summary.summaryFailureCodes.includes("GITHUB_RELEASE_HTTP_5XX"), true);
   assert.equal(summary.summaryFailureCodes.includes("RELEASE_ASSET_CHECK_BLOCKED"), true);
+  assert.equal(summary.standardized.failureCodes.includes("GITHUB_RELEASE_HTTP_5XX"), true);
+  assert.equal(summary.standardized.failures.some((x) => x.category === "health" && x.code === "GITHUB_RELEASE_HTTP_5XX"), true);
   assert.equal(summary.failedSteps.some((x) => typeof x.code === "string"), true);
   assert.equal(summary.archive, null);
 });

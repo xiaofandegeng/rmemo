@@ -251,10 +251,17 @@ function toSummary(report) {
     : [];
   const summaryFailureCodes = Array.from(new Set([...failedSteps.map((x) => x.code), ...healthFailureCodes]));
   const checkStatuses = Object.fromEntries(report.steps.map((s) => [s.name, s.status]));
-  const standardizedFailures = failedSteps.map((x) => ({
+  const standardizedStepFailures = failedSteps.map((x) => ({
     step: x.name,
     code: x.code,
     category: x.category,
+    retryable: !!x.retryable
+  }));
+  const standardizedHealthFailures = healthFailures.map((x) => ({
+    step: "release-health-json",
+    code: x.code,
+    category: "health",
+    check: x.check,
     retryable: !!x.retryable
   }));
   const standardized = {
@@ -269,7 +276,7 @@ function toSummary(report) {
     },
     checkStatuses,
     failureCodes: summaryFailureCodes,
-    failures: standardizedFailures
+    failures: [...standardizedStepFailures, ...standardizedHealthFailures]
   };
 
   return {

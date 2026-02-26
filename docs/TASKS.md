@@ -37,6 +37,7 @@
   - v1.5 M2 已落地：`release-summary.json.standardized` 统一状态块（便于告警/平台接入）
   - v1.5 M2 已落地：`release-archive-find.standardized` 统一状态块（便于告警/平台接入）
   - v1.5 M2 已落地：`release-archive.standardized` 统一状态块（便于告警/平台接入）
+  - v1.5 M2 已落地：`release-summary.standardized.failures` 跨来源聚合（步骤失败 + health 失败）
 
 ## Execution Rule
 
