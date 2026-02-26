@@ -183,6 +183,11 @@ function toMarkdown(report) {
   lines.push("");
   lines.push(`- root: ${report.root}`);
   lines.push(`- generatedAt: ${report.generatedAt}`);
+  lines.push(`- result: ${report.ok ? "OK" : "FAIL"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
+  if (Array.isArray(report.standardized?.failureCodes) && report.standardized.failureCodes.length > 0) {
+    lines.push(`- failureCodes: ${report.standardized.failureCodes.join(",")}`);
+  }
   lines.push(`- summary: pass=${report.summary.pass} fail=${report.summary.fail} skipped=${report.summary.skipped}`);
   lines.push("");
   for (const r of report.results) {
@@ -196,6 +201,44 @@ function toMarkdown(report) {
     lines.push("");
   }
   return lines.join("\n").trimEnd() + "\n";
+}
+
+function buildStandardized(report) {
+  const checkStatuses = Object.fromEntries(report.results.map((result) => [result.name, result.status]));
+  const failures = [];
+  for (const result of report.results) {
+    if (result.status === "fail") {
+      failures.push({
+        check: result.name,
+        code: "REGRESSION_MATRIX_CHECK_FAILED",
+        message: String(result.error || `${result.name} failed`),
+        retryable: true
+      });
+    }
+    if (report.strict && result.status === "skipped") {
+      failures.push({
+        check: result.name,
+        code: "REGRESSION_MATRIX_STRICT_SKIPPED",
+        message: String(result.reason || `${result.name} skipped in strict mode`),
+        retryable: false
+      });
+    }
+  }
+  const checkEntries = Object.entries(checkStatuses);
+  return {
+    schema: 1,
+    status: report.ok ? "pass" : "fail",
+    resultCode: report.ok ? "REGRESSION_MATRIX_OK" : "REGRESSION_MATRIX_FAIL",
+    summary: {
+      totalChecks: checkEntries.length,
+      passCount: checkEntries.filter(([, status]) => status === "pass").length,
+      failCount: checkEntries.filter(([, status]) => status === "fail").length,
+      skippedCount: checkEntries.filter(([, status]) => status === "skipped").length
+    },
+    checkStatuses,
+    failureCodes: Array.from(new Set(failures.map((failure) => failure.code).filter(Boolean))),
+    failures
+  };
 }
 
 async function main() {
@@ -246,13 +289,15 @@ async function main() {
     generatedAt: new Date().toISOString(),
     strict,
     summary,
-    results
+    results,
+    ok: summary.fail === 0 && (!strict || summary.skipped === 0)
   };
+  report.standardized = buildStandardized(report);
 
   if (format === "json") process.stdout.write(JSON.stringify(report, null, 2) + "\n");
   else process.stdout.write(toMarkdown(report));
 
-  if (summary.fail > 0 || (strict && summary.skipped > 0)) process.exitCode = 1;
+  if (!report.ok) process.exitCode = 1;
 }
 
 main().catch((e) => {
