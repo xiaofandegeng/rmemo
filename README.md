@@ -641,6 +641,12 @@ If the pipeline fails, it will attempt to dump a JSON diagnostics payload to the
 npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 ```
 
+Fast preflight (parameter/dependency/output-path checks only, no heavy release checks):
+
+```bash
+npm run verify:release-rehearsal-preflight
+```
+
 This writes release audit files to `artifacts/`:
 - `release-notes.md`
 - `release-ready.md` / `release-ready.json`

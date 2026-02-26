@@ -26,6 +26,7 @@
     "verify:release-health": "node scripts/release-health.js --format md",
     "verify:release-ready": "node scripts/release-ready.js --format md",
     "verify:release-rehearsal": "node scripts/release-rehearsal.js --format md",
+    "verify:release-rehearsal-preflight": "node scripts/release-rehearsal.js --format md --preflight",
     "verify:release-rehearsal-archive": "node scripts/release-rehearsal.js --format md --archive",
     "verify:release-rehearsal-archive-verify": "node scripts/release-rehearsal.js --format md --archive --archive-verify",
     "verify:release-archive": "node scripts/release-archive.js --format md",

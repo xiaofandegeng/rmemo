@@ -552,6 +552,94 @@ async function writeRehearsalOutputs({ files, report, summaryOut, summaryFormat,
   return { md, json };
 }
 
+async function isFile(filePath) {
+  try {
+    const st = await fs.stat(filePath);
+    return st.isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function assertWritableDirectory(dirPath, label) {
+  await fs.mkdir(dirPath, { recursive: true });
+  const probe = path.join(dirPath, `.release-rehearsal-preflight-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.tmp`);
+  await fs.writeFile(probe, "ok\n", "utf8");
+  await fs.rm(probe, { force: true });
+  return {
+    name: `preflight-${label}`,
+    status: "pass",
+    optional: false,
+    durationMs: 0,
+    code: 0
+  };
+}
+
+async function runPreflightChecks({ root, outDir, summaryOut, archive, archiveVerify }) {
+  const steps = [];
+  const requiredScripts = [
+    "release-notes.js",
+    "release-ready.js",
+    "release-health.js",
+    ...(archive ? ["release-archive.js"] : []),
+    ...(archiveVerify ? ["release-archive-find.js"] : [])
+  ];
+
+  for (const scriptName of requiredScripts) {
+    const scriptPath = path.join(root, "scripts", scriptName);
+    const ok = await isFile(scriptPath);
+    steps.push(
+      ok
+        ? {
+            name: `preflight-script-${scriptName}`,
+            status: "pass",
+            optional: false,
+            durationMs: 0,
+            code: 0
+          }
+        : {
+            name: `preflight-script-${scriptName}`,
+            status: "fail",
+            optional: false,
+            durationMs: 0,
+            code: 1,
+            error: `required script missing: ${scriptPath}`
+          }
+    );
+  }
+
+  try {
+    steps.push(await assertWritableDirectory(outDir, "out-dir"));
+  } catch (e) {
+    steps.push({
+      name: "preflight-out-dir",
+      status: "fail",
+      optional: false,
+      durationMs: 0,
+      code: 1,
+      error: `out-dir is not writable: ${String(e?.message || e)}`
+    });
+  }
+
+  if (summaryOut) {
+    const summaryDir = path.dirname(summaryOut);
+    try {
+      steps.push(await assertWritableDirectory(summaryDir, "summary-out-dir"));
+    } catch (e) {
+      steps.push({
+        name: "preflight-summary-out-dir",
+        status: "fail",
+        optional: false,
+        durationMs: 0,
+        code: 1,
+        error: `summary-out directory is not writable: ${String(e?.message || e)}`
+      });
+    }
+  }
+
+  return steps;
+}
+
 async function main() {
   function parseJsonSafe(input) {
     const raw = String(input || "").trim();
@@ -570,6 +658,7 @@ async function main() {
   const skipHealth = flags["skip-health"] === "true";
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
+  const preflight = flags.preflight === "true";
   const archive = flags.archive === "true";
   const archiveVerifyFlag = flags["archive-verify"] === "true";
   const archiveVerify = archive && flags["archive-verify"] === "true";
@@ -661,7 +750,48 @@ async function main() {
     ...(archiveVerify ? { archiveVerifyJson: path.join(outDir, "release-archive-verify.json") } : {})
   };
 
+  const repo = String(flags.repo || process.env.GITHUB_REPOSITORY || "").trim();
+  const tag = String(flags.tag || `v${version}`).trim();
   const steps = [];
+  const options = {
+    skipHealth,
+    allowDirty,
+    skipTests,
+    preflight,
+    archive,
+    summaryOut,
+    summaryJsonCompatOut,
+    summaryFormat,
+    healthTimeoutMs,
+    healthGithubRetries,
+    healthGithubRetryDelayMs,
+    ...(archive
+      ? {
+          archiveSnapshotId,
+          archiveVerify,
+          archiveRequirePreset: effectiveArchiveRequirePreset,
+          archiveRequireFiles: effectiveArchiveRequireFiles,
+          archiveRetentionDays,
+          archiveMaxSnapshotsPerVersion
+        }
+      : {})
+  };
+
+  if (preflight) {
+    steps.push(...(await runPreflightChecks({ root, outDir, summaryOut, archive, archiveVerify })));
+    const preflightFiles = {
+      rehearsalMd: files.rehearsalMd,
+      rehearsalJson: files.rehearsalJson,
+      ...(summaryOut ? { summaryOut } : {}),
+      ...(summaryJsonCompatOut ? { summaryJsonCompatOut } : {})
+    };
+    const report = buildReport({ root, outDir, version, tag, repo, options, steps, files: preflightFiles });
+    await writeRehearsalOutputs({ files: preflightFiles, report, summaryOut, summaryFormat, summaryJsonCompatOut });
+    process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : toMd(report));
+    if (!report.ok) process.exitCode = 1;
+    return;
+  }
+
   steps.push(
     await execStep({
       name: "release-notes",
@@ -692,8 +822,6 @@ async function main() {
     })
   );
 
-  const repo = String(flags.repo || process.env.GITHUB_REPOSITORY || "").trim();
-  const tag = String(flags.tag || `v${version}`).trim();
   const healthSkipReason = skipHealth ? "skip-health=true" : !repo ? "missing repo (use --repo owner/name or GITHUB_REPOSITORY)" : "";
 
   steps.push(
@@ -778,29 +906,6 @@ async function main() {
       "utf8"
     );
   }
-
-  const options = {
-    skipHealth,
-    allowDirty,
-    skipTests,
-    archive,
-    summaryOut,
-    summaryJsonCompatOut,
-    summaryFormat,
-    healthTimeoutMs,
-    healthGithubRetries,
-    healthGithubRetryDelayMs,
-    ...(archive
-      ? {
-          archiveSnapshotId,
-          archiveVerify,
-          archiveRequirePreset: effectiveArchiveRequirePreset,
-          archiveRequireFiles: effectiveArchiveRequireFiles,
-          archiveRetentionDays,
-          archiveMaxSnapshotsPerVersion
-        }
-      : {})
-  };
 
   let report = buildReport({ root, outDir, version, tag, repo, options, steps, files });
   await writeRehearsalOutputs({ files, report, summaryOut, summaryFormat, summaryJsonCompatOut });

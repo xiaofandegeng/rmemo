@@ -20,6 +20,12 @@ Run one command before releasing:
 npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000
 ```
 
+For a fast local pre-check (params/dependencies/output paths only, no heavy release checks):
+
+```bash
+npm run verify:release-rehearsal-preflight
+```
+
 Or explicitly use the root package version alias:
 
 ```bash
@@ -103,6 +109,7 @@ Quick query examples:
 - guardrails: `--list-require-presets` cannot be combined with `--version/--snapshot-id/--require-files/--require-preset`
 
 Useful flags:
+- `--preflight` to run only fast guard checks (required scripts + output path writability), without executing release notes/ready/health/archive steps
 - `--skip-health` when GitHub API is unavailable
 - `--allow-dirty` for local dry runs with uncommitted changes
 - `--skip-tests` for quick smoke checks

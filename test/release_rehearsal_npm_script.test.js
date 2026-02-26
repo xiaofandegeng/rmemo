@@ -25,3 +25,13 @@ test("verify:release-archive-find-presets script lists built-in presets", async 
   assert.match(command, /release-archive-find\.js/);
   assert.match(command, /--list-require-presets/);
 });
+
+test("verify:release-rehearsal-preflight script enables preflight mode", async () => {
+  const pkgRaw = await fs.readFile(path.resolve("package.json"), "utf8");
+  const pkg = JSON.parse(pkgRaw);
+  const command = pkg?.scripts?.["verify:release-rehearsal-preflight"];
+
+  assert.equal(typeof command, "string");
+  assert.match(command, /release-rehearsal\.js/);
+  assert.match(command, /--preflight/);
+});

@@ -788,6 +788,83 @@ test("release-rehearsal rejects --version current when package version is missin
   assert.match(String(r.err || ""), /--version current requires package\.json with a valid version field/);
 });
 
+test("release-rehearsal preflight validates dependencies without executing release steps", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-preflight-ok-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  const markerFile = path.join(tmp, "should-not-run.txt");
+  const sideEffectScript = [
+    "import fs from 'node:fs/promises';",
+    `await fs.writeFile(${JSON.stringify(markerFile)}, 'ran\\n', 'utf8');`,
+    "process.exit(1);"
+  ].join("\n");
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), sideEffectScript, "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), sideEffectScript, "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-health.js"), sideEffectScript, "utf8");
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--format",
+      "json",
+      "--preflight",
+      "--summary-out",
+      "artifacts/release-summary.json"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.options.preflight, true);
+  assert.equal(report.ok, true);
+  assert.equal(report.steps.some((step) => step.name === "release-notes"), false);
+  assert.equal(report.steps.some((step) => step.name === "preflight-script-release-notes.js"), true);
+
+  const markerExists = await fs
+    .stat(markerFile)
+    .then(() => true)
+    .catch(() => false);
+  assert.equal(markerExists, false);
+
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
+  assert.equal(summary.ok, true);
+  assert.equal(summary.standardized.status, "pass");
+});
+
+test("release-rehearsal preflight fails when required scripts are missing", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-preflight-missing-script-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+
+  const r = await runNode(
+    [path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--format", "json", "--preflight"],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.options.preflight, true);
+  assert.equal(report.ok, false);
+  assert.equal(report.steps.some((step) => step.name === "preflight-script-release-ready.js" && step.status === "fail"), true);
+  assert.equal(report.steps.some((step) => step.name === "preflight-script-release-health.js" && step.status === "fail"), true);
+  assert.match(JSON.stringify(report.steps), /required script missing/);
+});
+
 test("release-rehearsal rejects archive-verify without archive", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-verify-without-archive-"));
 

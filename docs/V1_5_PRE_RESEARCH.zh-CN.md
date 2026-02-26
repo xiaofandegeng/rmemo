@@ -75,7 +75,7 @@
 ## 6. 当前执行任务（v1.5 M3）
 
 - [x] `release-health/release-archive/release-verify` 统一支持 `--version current`（自动读取根目录 `package.json.version`，避免工具间 alias 能力不一致）。
-- [ ] `release-rehearsal` 新增预检模式（仅参数/依赖/输出路径校验，不执行耗时检查）以加快本地演练前自检。
+- [x] `release-rehearsal` 新增预检模式（`--preflight`，仅参数/依赖/输出路径校验，不执行耗时检查）以加快本地演练前自检。
 - [ ] 发布资产命名规则收敛为单一可复用实现（workflow 与脚本共享命名推导，减少漂移风险）。
 - [ ] 增加一键“演练+归档+完整性校验”组合命令入口，减少手工拼装长参数。
 

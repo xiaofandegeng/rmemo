@@ -621,6 +621,12 @@ rmemo --root . init --auto
 npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 ```
 
+快速预检（仅参数/依赖/输出路径校验，不执行耗时发布检查）：
+
+```bash
+npm run verify:release-rehearsal-preflight
+```
+
 该命令会统一生成 `artifacts/` 下的审计文件：
 - `release-notes.md`
 - `release-ready.md` / `release-ready.json`
