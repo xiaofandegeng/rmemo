@@ -186,10 +186,13 @@ jobs:
             }
 
             const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
-            const packageName = String(pkg.name || "");
-            const packageBaseName = packageName.includes("/") ? packageName.split("/").pop() : packageName;
-            const scopedPackFile = `${packageName.replace(/^@/, "").replace("/", "-")}-${version}.tgz`;
-            const preferredAssetName = `${packageBaseName}-${version}.tgz`;
+            const { pathToFileURL } = require("url");
+            const helperUrl = pathToFileURL(path.join(process.cwd(), "scripts", "release-asset-names.js")).href;
+            const { deriveReleaseAssetNames } = await import(helperUrl);
+            const { scopedPackFile, expectedAsset: preferredAssetName } = deriveReleaseAssetNames({
+              packageName: String(pkg.name || ""),
+              version
+            });
 
             const assets = await github.paginate(github.rest.repos.listReleaseAssets, { owner, repo, release_id, per_page: 100 });
             const byName = new Map(assets.map((a) => [a.name, a]));

@@ -70,6 +70,7 @@
   - v1.5 M3 已启动：进入“发布工具链一致性收敛”阶段
   - v1.5 M3 已落地首项：`release-health/release-archive/release-verify` 支持 `--version current`（跨脚本 alias 一致）
   - v1.5 M3 已落地：`release-rehearsal --preflight` 预检模式（仅参数/依赖/输出路径校验，不执行耗时步骤）
+  - v1.5 M3 已落地：发布资产命名共享实现（`scripts/release-asset-names.js`，workflow 与 `release-health` 统一使用）
 
 ## Execution Rule
 

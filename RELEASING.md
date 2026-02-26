@@ -197,6 +197,7 @@ Keep these values aligned between local rehearsal and workflow:
 - `release-health` retries: `2`
 - `release-health` retry delay: `1000ms`
 - strict asset naming: `rmemo-<version>.tgz` (`legacy scoped` name is rejected in workflow strict mode)
+- asset naming is derived from shared helper `scripts/release-asset-names.js` (workflow upload + `release-health` stay in sync)
 
 ## Release flow (default)
 

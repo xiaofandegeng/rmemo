@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import https from "node:https";
 import { readFile } from "node:fs/promises";
+import { deriveReleaseAssetNames } from "./release-asset-names.js";
 
 function parseFlags(argv) {
   const flags = {};
@@ -277,10 +278,10 @@ async function main() {
   const version = versionFlag.toLowerCase() === "current" ? pkgVersion : String(versionFlag || pkgVersion || "").trim();
   if (!version) throw new Error("version is required (--version or package.json version)");
   const tag = flags.tag || `v${version}`;
-  const packageBaseName = String(packageName || "").includes("/") ? String(packageName).split("/").pop() : String(packageName || "");
-  const expectedAsset = String(flags["expected-asset"] || `${packageBaseName}-${version}.tgz`);
+  const assetNameSpec = deriveReleaseAssetNames({ packageName, version });
+  const expectedAsset = String(flags["expected-asset"] || assetNameSpec.expectedAsset);
   const allowLegacyScopedAsset = String(flags["allow-legacy-scoped-asset"] || "true") !== "false";
-  const legacyScopedAsset = `${String(packageName || "").replace(/^@/, "").replace("/", "-")}-${version}.tgz`;
+  const legacyScopedAsset = assetNameSpec.scopedPackFile;
 
   const repoArg = flags.repo || process.env.GITHUB_REPOSITORY || "";
   const [owner, name] = repoArg.split("/");
