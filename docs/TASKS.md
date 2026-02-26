@@ -78,6 +78,7 @@
   - v1.5 M4 已落地：release checklist/runbook 切换为 bundle 优先路径，并提供长参数回退命令
   - v1.5 M5 已启动：进入“bundle/preset 共享基线收敛”阶段
   - v1.5 M5 已落地：新增 `scripts/release-require-presets.js`，`release-archive-find` 与 `release-rehearsal --list-bundles` 共享 requiredFiles 基线
+  - v1.5 M5 已落地：`release-rehearsal --list-bundles` 输出 `standardized.metrics.bundleCount`（平台侧可直接观测 bundle 数量）
 
 ## Execution Rule
 

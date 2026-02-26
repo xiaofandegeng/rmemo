@@ -743,6 +743,9 @@ async function main() {
         summary: {
           totalBundles: bundles.length
         },
+        metrics: {
+          bundleCount: bundles.length
+        },
         checkStatuses: { bundles: "pass" },
         failureCodes: [],
         failures: []

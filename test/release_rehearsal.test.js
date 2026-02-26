@@ -830,6 +830,7 @@ test("release-rehearsal lists supported bundles in json mode", async () => {
   ]);
   assert.equal(report.standardized.status, "pass");
   assert.equal(report.standardized.resultCode, "RELEASE_REHEARSAL_BUNDLES_OK");
+  assert.equal(report.standardized.metrics.bundleCount, report.bundles.length);
 });
 
 test("release-rehearsal rejects conflicting flags in list-bundles mode", async () => {
