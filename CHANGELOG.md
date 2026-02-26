@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0](https://github.com/xiaofandegeng/rmemo/compare/v1.7.0...v1.8.0) (2026-02-26)
+
+
+### ✨ Features
+
+* **release:** add standardized json output for release-notes ([d0f314c](https://github.com/xiaofandegeng/rmemo/commit/d0f314cc95a9fb48a676e491e5f966bc93b6a356))
+* **release:** merge health failures into rehearsal standardized summary ([fbc3a3e](https://github.com/xiaofandegeng/rmemo/commit/fbc3a3e594de803c90bd3d4d9178f34eda5d2210))
+* **release:** standardize archive report output for integrations ([f26ee5a](https://github.com/xiaofandegeng/rmemo/commit/f26ee5a821fddf027cb1a4c073c43798033237c7))
+* **release:** standardize changelog-lint output for integrations ([aee3165](https://github.com/xiaofandegeng/rmemo/commit/aee3165178ad3c3e83a6fd8842df50124f9acb0a))
+* **release:** standardize regression-matrix output for integrations ([e84f5ca](https://github.com/xiaofandegeng/rmemo/commit/e84f5ca7c0e3e729c54678aa8df480c73d992e82))
+* **release:** standardize release-ready output for integrations ([fe62380](https://github.com/xiaofandegeng/rmemo/commit/fe62380a880eb872b3592960e78073c64ff8d5b0))
+* **release:** standardize release-verify output for integrations ([74452e7](https://github.com/xiaofandegeng/rmemo/commit/74452e761ab0edcffdd1c787239e7f1cb3bee71b))
+
 ## [1.7.0](https://github.com/xiaofandegeng/rmemo/compare/v1.6.0...v1.7.0) (2026-02-25)
 
 
