@@ -238,12 +238,47 @@ test("release-archive-find fails when required files are missing", async () => {
 });
 
 test("release-archive-find rejects unknown require preset", async () => {
-  const r = await runNode([path.resolve("scripts/release-archive-find.js"), "--format", "json", "--require-preset", "unknown"], {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-unknown-preset-"));
+  await setupArchive(tmp);
+  const r = await runNode(
+    [path.resolve("scripts/release-archive-find.js"), "--root", tmp, "--format", "json", "--version", "1.5.0", "--require-preset", "unknown"],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /unknown require preset/i);
+});
+
+test("release-archive-find rejects require preset without version", async () => {
+  const r = await runNode(
+    [path.resolve("scripts/release-archive-find.js"), "--format", "json", "--require-preset", "rehearsal-archive-verify"],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /--require-files\/--require-preset requires --version/i);
+});
+
+test("release-archive-find rejects require files without version", async () => {
+  const r = await runNode([path.resolve("scripts/release-archive-find.js"), "--format", "json", "--require-files", "release-ready.json"], {
     cwd: path.resolve("."),
     env: { ...process.env }
   });
   assert.equal(r.code, 1);
-  assert.match(String(r.err || ""), /unknown require preset/i);
+  assert.match(String(r.err || ""), /--require-files\/--require-preset requires --version/i);
+});
+
+test("release-archive-find rejects snapshot-id without version", async () => {
+  const r = await runNode([path.resolve("scripts/release-archive-find.js"), "--format", "json", "--snapshot-id", "20260225_100000"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /--snapshot-id requires --version/i);
 });
 
 test("release-archive-find rejects mixing require-files and require-preset", async () => {

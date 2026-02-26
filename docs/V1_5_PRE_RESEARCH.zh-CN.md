@@ -64,6 +64,7 @@
 - [x] `release-archive-find` 新增 `--list-require-presets`（并提供 `verify:release-archive-find-presets` 脚本）用于查看内置 preset 及文件清单。
 - [x] `release-archive-find --list-require-presets` 输出新增 `standardized` 汇总块（与其它 JSON 模式结构一致）。
 - [x] `release-summary.md` 的 `Archive.verify` 段补充 `requiredFiles` 展示（人工审阅可直接看到完整性校验基线）。
+- [x] `release-archive-find` 参数前置校验：`--snapshot-id/--require-files/--require-preset` 必须配套 `--version`（避免静默误用）。
 
 ## 6. 启动时固定动作
 

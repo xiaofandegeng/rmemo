@@ -60,6 +60,7 @@
   - v1.5 M2 已落地：`release-archive-find --list-require-presets` + `verify:release-archive-find-presets`（内置 preset 清单可发现）
   - v1.5 M2 已落地：`release-archive-find --list-require-presets` 新增 `standardized` 汇总块（JSON 结构同构）
   - v1.5 M2 已落地：`release-summary.md` 的 `Archive.verify` 段补充 `requiredFiles`（人工审阅可直接看到校验基线）
+  - v1.5 M2 已落地：`release-archive-find` 增加参数前置校验（`--snapshot-id/--require-files/--require-preset` 必须配套 `--version`）
 
 ## Execution Rule
 

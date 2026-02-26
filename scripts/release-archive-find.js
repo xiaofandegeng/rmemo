@@ -268,6 +268,12 @@ async function main() {
   if (requiredFilesPreset && requiredFilesFromFlag.length > 0) {
     throw new Error("cannot combine --require-files with --require-preset");
   }
+  if (snapshotId && !version) {
+    throw new Error("--snapshot-id requires --version");
+  }
+  if (!version && (requiredFilesPreset || requiredFilesFromFlag.length > 0)) {
+    throw new Error("--require-files/--require-preset requires --version");
+  }
   const requiredFiles = requiredFilesPreset
     ? REQUIRED_FILE_PRESETS[requiredFilesPreset]
     : requiredFilesFromFlag;
