@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0](https://github.com/xiaofandegeng/rmemo/compare/v1.8.0...v1.9.0) (2026-02-26)
+
+
+### ✨ Features
+
+* **release:** aggregate downstream step failure codes in rehearsal summary ([3dde114](https://github.com/xiaofandegeng/rmemo/commit/3dde114c9d82a6bc4d5f979173a4eec1794e42a4))
+* **release:** expose standardized summary in rehearsal report ([15be698](https://github.com/xiaofandegeng/rmemo/commit/15be69848a8285bfaea027d9045d53229c33105c))
+* **release:** show downstream failure signals in rehearsal markdown ([5f92bac](https://github.com/xiaofandegeng/rmemo/commit/5f92bac7a71394d43663a006853b82d11b19798a))
+* **release:** support markdown summary output in rehearsal ([d0ff685](https://github.com/xiaofandegeng/rmemo/commit/d0ff685cb64c8fa511687eb4ab43f45477097844))
+
+
+### 🎯 Testing
+
+* **release:** cover summary-format edge cases in rehearsal ([2bb34ca](https://github.com/xiaofandegeng/rmemo/commit/2bb34cab9d6bfc17d105b54f7be6592b02c3e117))
+
 ## [1.8.0](https://github.com/xiaofandegeng/rmemo/compare/v1.7.0...v1.8.0) (2026-02-26)
 
 
