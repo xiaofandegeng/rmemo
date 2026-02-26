@@ -83,7 +83,7 @@ Quick query examples:
 - list versions: `npm run verify:release-archive-find -- --format json`
 - locate latest snapshot: `npm run verify:release-archive-find -- --version <version> --format json`
 - inspect one snapshot: `npm run verify:release-archive-find -- --version <version> --snapshot-id <snapshot-id> --format json`
-- validate latest snapshot required files: `npm run verify:release-archive-find -- --version <version> --require-files release-ready.json,release-health.json,release-rehearsal.json --format json`
+- validate latest snapshot required files: `npm run verify:release-archive-find -- --version <version> --require-files release-ready.json,release-health.json,release-rehearsal.json,release-summary.json --format json`
 
 Useful flags:
 - `--skip-health` when GitHub API is unavailable
@@ -97,7 +97,7 @@ Useful flags:
   - when both are provided, `.md/.json` suffix and `--summary-format` must match (conflicts fail fast)
 
 `release-archive` now also collects `release-summary.md` (when present) into each snapshot, alongside `release-summary.json`.
-- `--archive-require-files <a,b,c>` to define required files for `--archive-verify` (default: `release-ready.json,release-health.json,release-rehearsal.json`)
+- `--archive-require-files <a,b,c>` to define required files for `--archive-verify` (default: `release-ready.json,release-health.json,release-rehearsal.json,release-summary.json`)
 - `--archive-snapshot-id <id>` to pin archive snapshot id in rehearsal-driven archive mode
 - `--archive-retention-days <days>` and `--archive-max-snapshots-per-version <n>` to control archive pruning in rehearsal-driven archive mode
 - `--health-timeout-ms <ms>` to cap GitHub API checks during rehearsal (default `15000`)

@@ -568,7 +568,7 @@ async function main() {
   const effectiveArchiveRequireFiles = archiveVerify
     ? archiveRequireFiles.length > 0
       ? archiveRequireFiles
-      : ["release-ready.json", "release-health.json", "release-rehearsal.json"]
+      : ["release-ready.json", "release-health.json", "release-rehearsal.json", "release-summary.json"]
     : [];
   const archiveRetentionDays = Math.max(1, Number(flags["archive-retention-days"] || flags["retention-days"] || 30));
   const archiveMaxSnapshotsPerVersion = Math.max(

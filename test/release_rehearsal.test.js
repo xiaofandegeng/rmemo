@@ -929,6 +929,84 @@ test("release-rehearsal archive mode writes markdown summary by default when sum
   assert.equal(summaryJsonCompat.version, "9.9.9");
 });
 
+test("release-rehearsal archive verify uses default required files including release-summary.json", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-default-require-files-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-ready.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') process.stdout.write(JSON.stringify({ ok: true }) + '\\n');",
+      "else process.stdout.write('# ready\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-health.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') process.stdout.write(JSON.stringify({ ok: true }) + '\\n');",
+      "else process.stdout.write('# health\\n- status: OK\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive.js"),
+    [
+      "process.stdout.write(JSON.stringify({ ok: true, snapshotId: '20260225_141000' }, null, 2) + '\\n');",
+      "process.exit(0);"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive-find.js"),
+    [
+      "import fs from 'node:fs/promises';",
+      "import path from 'node:path';",
+      "const args = process.argv.slice(2);",
+      "await fs.writeFile(path.resolve('artifacts', 'archive-find-default-args.log'), JSON.stringify(args) + '\\n', 'utf8');",
+      "process.stdout.write(JSON.stringify({ ok: true, requiredFiles: [], missingRequiredFiles: [] }, null, 2) + '\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--archive",
+      "--archive-verify",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const archiveFindArgs = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "archive-find-default-args.log"), "utf8"));
+  const requireIdx = archiveFindArgs.indexOf("--require-files");
+  assert.notEqual(requireIdx, -1);
+  const requireValue = String(archiveFindArgs[requireIdx + 1] || "");
+  assert.equal(
+    requireValue,
+    "release-ready.json,release-health.json,release-rehearsal.json,release-summary.json"
+  );
+});
+
 test("release-rehearsal fails when archive step fails", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-fail-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
