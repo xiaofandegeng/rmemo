@@ -49,6 +49,7 @@
   - v1.5 M2 已落地：`release-rehearsal --summary-format md|json`（摘要同时支持机器消费与人工阅读）
   - v1.5 M2 已落地：`release-rehearsal --summary-format` 边界测试补齐（非法值校验 + archive 默认摘要路径按格式输出）
   - v1.5 M2 已落地：`release-summary.md` 高信号分段增强（Failure Breakdown/Health Signals/Archive）
+  - v1.5 M2 已落地：`summary-out` 与 `summary-format` 冲突校验（后缀与格式不一致时快速失败）
 
 ## Execution Rule
 

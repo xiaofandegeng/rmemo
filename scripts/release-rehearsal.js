@@ -572,7 +572,13 @@ async function main() {
     : archive
       ? path.join(outDir, summaryFormatFlag === "md" ? "release-summary.md" : "release-summary.json")
       : "";
-  const inferredSummaryFormat = summaryOut && summaryOut.toLowerCase().endsWith(".md") ? "md" : "json";
+  const summaryOutLower = String(summaryOut || "").toLowerCase();
+  const summaryOutExtFormat = summaryOutLower.endsWith(".md")
+    ? "md"
+    : summaryOutLower.endsWith(".json")
+      ? "json"
+      : "";
+  const inferredSummaryFormat = summaryOutExtFormat || "json";
   const summaryFormat = summaryFormatFlag || inferredSummaryFormat;
   const healthTimeoutMs = Math.max(1000, Number(flags["health-timeout-ms"] || 15000));
   const healthGithubRetries = Math.max(0, Number(flags["health-github-retries"] || 2));
@@ -586,6 +592,11 @@ async function main() {
     "md",
     "json"
   ].includes(summaryFormat)) throw new Error("summary-format must be md|json");
+  if (summaryOut && summaryFormatFlag && summaryOutExtFormat && summaryOutExtFormat !== summaryFormatFlag) {
+    throw new Error(
+      `summary-format (${summaryFormatFlag}) conflicts with summary-out extension (${summaryOutExtFormat}); keep them consistent`
+    );
+  }
 
   const pkg = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
   const version = String(flags.version || pkg.version || "").trim();

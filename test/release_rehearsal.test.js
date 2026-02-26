@@ -696,6 +696,40 @@ test("release-rehearsal rejects invalid summary-format", async () => {
   assert.match(String(r.err || ""), /summary-format must be md\|json/);
 });
 
+test("release-rehearsal rejects conflicting summary-format and summary-out extension", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-summary-format-conflict-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), "process.stdout.write('# ready\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-health.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--summary-out",
+      "artifacts/release-summary.json",
+      "--summary-format",
+      "md",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /summary-format \(md\) conflicts with summary-out extension \(json\)/);
+});
+
 test("release-rehearsal runs archive step and auto-writes default summary when archive is enabled", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-ok-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
