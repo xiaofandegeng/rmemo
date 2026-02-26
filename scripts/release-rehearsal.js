@@ -659,9 +659,14 @@ async function main() {
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
   const preflight = flags.preflight === "true";
-  const archive = flags.archive === "true";
-  const archiveVerifyFlag = flags["archive-verify"] === "true";
-  const archiveVerify = archive && flags["archive-verify"] === "true";
+  const bundle = String(flags.bundle || "").trim();
+  const bundleArchiveVerify = bundle === "rehearsal-archive-verify";
+  if (bundle && !bundleArchiveVerify) {
+    throw new Error("bundle must be rehearsal-archive-verify");
+  }
+  const archive = flags.archive === "true" || bundleArchiveVerify;
+  const archiveVerifyFlag = flags["archive-verify"] === "true" || bundleArchiveVerify;
+  const archiveVerifyEnabled = archive && archiveVerifyFlag;
   const summaryFormatFlag = String(flags["summary-format"] || "").trim().toLowerCase();
   const archiveSnapshotId = String(flags["archive-snapshot-id"] || flags["snapshot-id"] || "").trim();
   const archiveSnapshotIdFlag = String(flags["archive-snapshot-id"] || "").trim();
@@ -683,13 +688,13 @@ async function main() {
   if (!archiveVerifyFlag && (archiveRequirePreset || archiveRequireFiles.length > 0)) {
     throw new Error("--archive-require-files/--archive-require-preset requires --archive-verify");
   }
-  if (archiveVerify && archiveRequirePreset && archiveRequireFiles.length > 0) {
+  if (archiveVerifyEnabled && archiveRequirePreset && archiveRequireFiles.length > 0) {
     throw new Error("cannot combine --archive-require-files with --archive-require-preset");
   }
-  const effectiveArchiveRequirePreset = archiveVerify
+  const effectiveArchiveRequirePreset = archiveVerifyEnabled
     ? archiveRequirePreset || (archiveRequireFiles.length === 0 ? "rehearsal-archive-verify" : "")
     : "";
-  const effectiveArchiveRequireFiles = archiveVerify && !effectiveArchiveRequirePreset ? archiveRequireFiles : [];
+  const effectiveArchiveRequireFiles = archiveVerifyEnabled && !effectiveArchiveRequirePreset ? archiveRequireFiles : [];
   const archiveRetentionDays = Math.max(1, Number(flags["archive-retention-days"] || flags["retention-days"] || 30));
   const archiveMaxSnapshotsPerVersion = Math.max(
     1,
@@ -747,7 +752,7 @@ async function main() {
     rehearsalMd: path.join(outDir, "release-rehearsal.md"),
     rehearsalJson: path.join(outDir, "release-rehearsal.json"),
     ...(archive ? { archiveJson: path.join(outDir, "release-archive.json") } : {}),
-    ...(archiveVerify ? { archiveVerifyJson: path.join(outDir, "release-archive-verify.json") } : {})
+    ...(archiveVerifyEnabled ? { archiveVerifyJson: path.join(outDir, "release-archive-verify.json") } : {})
   };
 
   const repo = String(flags.repo || process.env.GITHUB_REPOSITORY || "").trim();
@@ -758,6 +763,7 @@ async function main() {
     allowDirty,
     skipTests,
     preflight,
+    bundle,
     archive,
     summaryOut,
     summaryJsonCompatOut,
@@ -768,7 +774,7 @@ async function main() {
     ...(archive
       ? {
           archiveSnapshotId,
-          archiveVerify,
+          archiveVerify: archiveVerifyEnabled,
           archiveRequirePreset: effectiveArchiveRequirePreset,
           archiveRequireFiles: effectiveArchiveRequireFiles,
           archiveRetentionDays,
@@ -778,7 +784,7 @@ async function main() {
   };
 
   if (preflight) {
-    steps.push(...(await runPreflightChecks({ root, outDir, summaryOut, archive, archiveVerify })));
+    steps.push(...(await runPreflightChecks({ root, outDir, summaryOut, archive, archiveVerify: archiveVerifyEnabled })));
     const preflightFiles = {
       rehearsalMd: files.rehearsalMd,
       rehearsalJson: files.rehearsalJson,
@@ -960,7 +966,7 @@ async function main() {
       await fs.writeFile(files.archiveJson, archiveJson, "utf8");
     }
 
-    if (archiveVerify) {
+    if (archiveVerifyEnabled) {
       const archiveOut = parseJsonSafe(archiveStep.out);
       const verifySnapshotId = String(archiveOut?.snapshotId || archiveSnapshotId || "").trim();
       const archiveVerifyStep = await execStep({

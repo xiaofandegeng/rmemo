@@ -44,6 +44,12 @@ Or enable archive completeness verification in the same rehearsal:
 npm run verify:release-rehearsal-archive-verify -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000 --archive-snapshot-id <yyyymmdd_hhmmss>
 ```
 
+Or use bundle mode (one entry for rehearsal + archive + archive-verify):
+
+```bash
+npm run verify:release-rehearsal-bundle -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000
+```
+
 Artifacts written under `artifacts/`:
 - `release-notes.md`
 - `release-ready.md`
@@ -110,6 +116,7 @@ Quick query examples:
 
 Useful flags:
 - `--preflight` to run only fast guard checks (required scripts + output path writability), without executing release notes/ready/health/archive steps
+- `--bundle rehearsal-archive-verify` to enable `--archive + --archive-verify` with default preset baseline in one flag
 - `--skip-health` when GitHub API is unavailable
 - `--allow-dirty` for local dry runs with uncommitted changes
 - `--skip-tests` for quick smoke checks

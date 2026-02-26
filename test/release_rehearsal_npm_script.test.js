@@ -35,3 +35,14 @@ test("verify:release-rehearsal-preflight script enables preflight mode", async (
   assert.match(command, /release-rehearsal\.js/);
   assert.match(command, /--preflight/);
 });
+
+test("verify:release-rehearsal-bundle script enables archive verify bundle", async () => {
+  const pkgRaw = await fs.readFile(path.resolve("package.json"), "utf8");
+  const pkg = JSON.parse(pkgRaw);
+  const command = pkg?.scripts?.["verify:release-rehearsal-bundle"];
+
+  assert.equal(typeof command, "string");
+  assert.match(command, /release-rehearsal\.js/);
+  assert.match(command, /--bundle\s+rehearsal-archive-verify/);
+  assert.match(command, /--version\s+current/);
+});

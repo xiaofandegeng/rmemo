@@ -788,6 +788,24 @@ test("release-rehearsal rejects --version current when package version is missin
   assert.match(String(r.err || ""), /--version current requires package\.json with a valid version field/);
 });
 
+test("release-rehearsal rejects unknown bundle value", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-bundle-invalid-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  const r = await runNode([path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--bundle", "unknown"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /bundle must be rehearsal-archive-verify/);
+});
+
 test("release-rehearsal preflight validates dependencies without executing release steps", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-preflight-ok-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
@@ -838,6 +856,87 @@ test("release-rehearsal preflight validates dependencies without executing relea
   const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
   assert.equal(summary.ok, true);
   assert.equal(summary.standardized.status, "pass");
+});
+
+test("release-rehearsal bundle enables archive + archive-verify flow", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-bundle-ok-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-ready.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') process.stdout.write(JSON.stringify({ ok: true }) + '\\n');",
+      "else process.stdout.write('# ready\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-health.js"),
+    [
+      "const fmtIdx = process.argv.indexOf('--format');",
+      "const fmt = fmtIdx >= 0 ? process.argv[fmtIdx + 1] : 'md';",
+      "if (fmt === 'json') process.stdout.write(JSON.stringify({ ok: true }) + '\\n');",
+      "else process.stdout.write('# health\\n- status: OK\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive.js"),
+    [
+      "process.stdout.write(JSON.stringify({ ok: true, snapshotId: '20260226_160000' }, null, 2) + '\\n');",
+      "process.exit(0);"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive-find.js"),
+    [
+      "process.stdout.write(JSON.stringify({",
+      "  ok: true,",
+      "  requiredFilesPreset: 'rehearsal-archive-verify',",
+      "  requiredFiles: ['release-ready.json','release-health.json','release-rehearsal.json','release-summary.json'],",
+      "  missingRequiredFiles: []",
+      "}, null, 2) + '\\n');",
+      "process.exit(0);"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--bundle",
+      "rehearsal-archive-verify",
+      "--format",
+      "json",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.options.bundle, "rehearsal-archive-verify");
+  assert.equal(report.options.archive, true);
+  assert.equal(report.options.archiveVerify, true);
+  assert.equal(report.options.archiveRequirePreset, "rehearsal-archive-verify");
+  assert.equal(report.steps.some((step) => step.name === "release-archive"), true);
+  assert.equal(report.steps.some((step) => step.name === "release-archive-verify"), true);
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
+  assert.equal(summary.archive.verify.requiredFilesPreset, "rehearsal-archive-verify");
 });
 
 test("release-rehearsal preflight fails when required scripts are missing", async () => {
