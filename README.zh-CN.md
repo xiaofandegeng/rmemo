@@ -627,6 +627,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `release-health.md` / `release-health.json`
 - `release-rehearsal.md` / `release-rehearsal.json`
 - `release-rehearsal.json` 现已包含 `standardized.status/resultCode/checkStatuses/failureCodes/failures` 与 `summaryFailureCodes`（合并步骤分类码 + 失败步骤下游标准化 failure codes + health failure codes）
+- `release-rehearsal.md` 在失败时新增 `Failure Signals` 段，直接展示 step/check/code/category/retryable 细节
 - `release-notes` 同时支持 `--format json`，并提供 `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 - `verify:changelog`（`changelog-lint`）的 JSON 现已包含 `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 - `verify:matrix`（`regression-matrix`）的 JSON 现已包含 `standardized.status/resultCode/checkStatuses/failureCodes/failures`

@@ -97,6 +97,26 @@ async function execStep({ name, cmd, args, cwd, optional = false, skipReason = "
 }
 
 function toMd(report) {
+  function renderFailureSignals(lines) {
+    const failures = Array.isArray(report.standardized?.failures) ? report.standardized.failures : [];
+    if (failures.length === 0) return;
+
+    lines.push("");
+    lines.push("## Failure Signals");
+    lines.push("");
+
+    for (const failure of failures) {
+      const step = String(failure?.step || "").trim();
+      const check = String(failure?.check || "").trim();
+      const code = String(failure?.code || "").trim() || "STEP_FAILED";
+      const target = step || check || "unknown";
+      lines.push(`- ${target}: ${code}`);
+      if (step && check) lines.push(`  - check: ${check}`);
+      if (failure?.category) lines.push(`  - category: ${String(failure.category)}`);
+      if (typeof failure?.retryable === "boolean") lines.push(`  - retryable: ${failure.retryable}`);
+    }
+  }
+
   const lines = [];
   lines.push("# rmemo Release Rehearsal");
   lines.push("");
@@ -121,6 +141,8 @@ function toMd(report) {
     if (s.durationMs !== undefined) lines.push(`  - durationMs: ${s.durationMs}`);
     if (s.error) lines.push(`  - error: ${String(s.error).trim().split("\n")[0]}`);
   }
+
+  renderFailureSignals(lines);
 
   lines.push("");
   lines.push("## Generated Files");

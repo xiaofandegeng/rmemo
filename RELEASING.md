@@ -58,6 +58,8 @@ Artifacts written under `artifacts/`:
 - `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 - `summaryFailureCodes` (same merged code set as `release-summary.json`)
 
+`release-rehearsal.md` now includes a `Failure Signals` section when failures exist, showing step/check/code/category/retryable from `standardized.failures` for fast manual triage.
+
 Archive reports in a versioned snapshot (recommended):
 
 ```bash
