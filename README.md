@@ -675,6 +675,7 @@ Archive release reports with a versioned snapshot:
 - when using `--archive-verify`, `artifacts/release-archive-verify.json` is generated and missing required files fail the rehearsal
 - `release-summary.json` now includes failure categories + recovery hints (`failureBreakdown`, `retryableFailures`, `actionHints`)
 - `release-summary.json` includes archive status details (`archive.snapshotId`, `archive.archiveStep`, `archive.verify`), including `archive.verify.requiredFiles`; preset-based verification also includes `archive.verify.requiredFilesPreset`
+- even when archive verify output is non-JSON, `release-summary.json` keeps configured verify baseline from rehearsal options (`archive.verify.requiredFiles` / `archive.verify.requiredFilesPreset`)
 - `release-summary.json` also aggregates `release-health` + failed-step downstream standardized failure signals (`health.*`, `summaryFailureCodes`)
 - `release-summary.json` includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 - `release-summary.json.standardized.failures` now includes step-level failures + downstream step failure details + health-level failures (from `release-health`)

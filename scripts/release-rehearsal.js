@@ -230,13 +230,17 @@ function toSummary(report) {
     const parsedOut = parseJsonSafe(step.out);
     const parsedErr = parseJsonSafe(step.err);
     const payload = parsedOut || parsedErr || null;
+    const configuredRequiredFilesPreset = String(report.options?.archiveRequirePreset || "").trim();
+    const configuredRequiredFiles = Array.isArray(report.options?.archiveRequireFiles)
+      ? report.options.archiveRequireFiles.map((x) => String(x)).filter(Boolean)
+      : [];
     const requiredFiles = Array.isArray(payload?.requiredFiles)
       ? payload.requiredFiles.map((x) => String(x)).filter(Boolean)
-      : [];
+      : configuredRequiredFiles;
     const missingRequiredFiles = Array.isArray(payload?.missingRequiredFiles)
       ? payload.missingRequiredFiles.map((x) => String(x)).filter(Boolean)
       : [];
-    const requiredFilesPreset = String(payload?.requiredFilesPreset || "").trim();
+    const requiredFilesPreset = String(payload?.requiredFilesPreset || configuredRequiredFilesPreset || "").trim();
     return {
       status: step.status,
       stepExitCode: step.code,
@@ -877,7 +881,19 @@ async function main() {
         if (archiveVerifyStep.status === "pass" && String(archiveVerifyStep.out || "").trim()) {
           verifyJson = `${String(archiveVerifyStep.out || "").trim()}\n`;
         } else if (archiveVerifyStep.status === "skipped") {
-          verifyJson = JSON.stringify({ schema: 1, ok: false, skipped: true, reason: archiveVerifyStep.reason }, null, 2) + "\n";
+          verifyJson =
+            JSON.stringify(
+              {
+                schema: 1,
+                ok: false,
+                skipped: true,
+                reason: archiveVerifyStep.reason,
+                requiredFilesPreset: effectiveArchiveRequirePreset,
+                requiredFiles: effectiveArchiveRequireFiles
+              },
+              null,
+              2
+            ) + "\n";
         } else if (String(archiveVerifyStep.out || "").trim()) {
           verifyJson = `${String(archiveVerifyStep.out || "").trim()}\n`;
         } else {
@@ -887,7 +903,9 @@ async function main() {
                 schema: 1,
                 ok: false,
                 reason: "release-archive-verify failed",
-                error: String(archiveVerifyStep.error || "").trim()
+                error: String(archiveVerifyStep.error || "").trim(),
+                requiredFilesPreset: effectiveArchiveRequirePreset,
+                requiredFiles: effectiveArchiveRequireFiles
               },
               null,
               2

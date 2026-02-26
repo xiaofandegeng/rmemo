@@ -1319,3 +1319,64 @@ test("release-rehearsal fails when archive verify step fails", async () => {
   assert.equal(summary.standardized.checkStatuses["release-archive-verify"], "fail");
   assert.equal(summary.standardized.failureCodes.includes("RELEASE_ARCHIVE_VERIFY_FAILED"), true);
 });
+
+test("release-rehearsal keeps configured archive verify required files when verify output is non-json", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-verify-non-json-fail-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.9", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), "process.stdout.write('# ready\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-health.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive.js"),
+    [
+      "process.stdout.write(JSON.stringify({ ok: true, snapshotId: '20260225_131500' }) + '\\n');",
+      "process.exit(0);"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-archive-find.js"),
+    [
+      "process.stderr.write('archive verify failed\\n');",
+      "process.exit(1);"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--archive",
+      "--archive-verify",
+      "--archive-require-files",
+      "release-ready.json,release-health.json",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+
+  const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
+  assert.equal(summary.archive.verify.ok, false);
+  assert.deepEqual(summary.archive.verify.requiredFiles, ["release-ready.json", "release-health.json"]);
+  assert.equal(String(summary.archive.verify.requiredFilesPreset || ""), "");
+
+  const archiveVerifyReport = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-archive-verify.json"), "utf8"));
+  assert.equal(archiveVerifyReport.ok, false);
+  assert.deepEqual(archiveVerifyReport.requiredFiles, ["release-ready.json", "release-health.json"]);
+});
