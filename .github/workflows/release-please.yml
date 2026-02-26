@@ -254,8 +254,8 @@ jobs:
         run: |
           mkdir -p artifacts
           node scripts/release-health.js --format json --version "${{ steps.vars.outputs.version }}" --tag "v${{ steps.vars.outputs.version }}" --repo "${{ github.repository }}" --allow-legacy-scoped-asset false --timeout-ms "${RELEASE_HEALTH_TIMEOUT_MS}" --github-retries "${RELEASE_HEALTH_GITHUB_RETRIES}" --github-retry-delay-ms "${RELEASE_HEALTH_GITHUB_RETRY_DELAY_MS}" > artifacts/release-health.json
-          node scripts/release-ready.js --format md --skip-tests --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.md
-          node scripts/release-ready.js --format json --skip-tests --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.json
+          node scripts/release-ready.js --format md --skip-tests --allow-dirty --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.md
+          node scripts/release-ready.js --format json --skip-tests --allow-dirty --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.json
 
       - name: Upload release audit artifact
         if: always()
