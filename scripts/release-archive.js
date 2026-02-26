@@ -70,6 +70,10 @@ function md(report) {
   lines.push("# rmemo Release Archive");
   lines.push("");
   lines.push(`- status: ${report.ok ? "OK" : "FAIL"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
+  if (Array.isArray(report.standardized?.failureCodes) && report.standardized.failureCodes.length > 0) {
+    lines.push(`- failureCodes: ${report.standardized.failureCodes.join(",")}`);
+  }
   lines.push(`- version: ${report.version}`);
   lines.push(`- tag: ${report.tag}`);
   lines.push(`- snapshotId: ${report.snapshotId}`);
@@ -81,6 +85,49 @@ function md(report) {
   lines.push(`- latest: ${report.latestPath}`);
   if (!report.ok && report.error) lines.push(`- error: ${report.error}`);
   return `${lines.join("\n")}\n`;
+}
+
+function statusFromOk(ok) {
+  return ok ? "pass" : "fail";
+}
+
+function buildStandardized(report) {
+  const checkStatuses = {
+    sourceArtifacts: report.copiedFiles.length > 0 ? "pass" : "fail",
+    snapshotManifest: "pass",
+    archiveIndexes: report.catalogPath && report.latestPath ? "pass" : "fail"
+  };
+  const failures = [];
+  if (checkStatuses.sourceArtifacts === "fail") {
+    failures.push({
+      check: "sourceArtifacts",
+      code: "ARCHIVE_SOURCE_FILES_MISSING",
+      message: String(report.error || "no release artifact files found under artifacts/"),
+      retryable: false
+    });
+  }
+  if (!report.ok && failures.length === 0) {
+    failures.push({
+      check: "releaseArchive",
+      code: "RELEASE_ARCHIVE_FAIL",
+      message: String(report.error || "release archive failed"),
+      retryable: false
+    });
+  }
+  const checkEntries = Object.entries(checkStatuses);
+  return {
+    schema: 1,
+    status: statusFromOk(report.ok),
+    resultCode: report.ok ? "RELEASE_ARCHIVE_OK" : "RELEASE_ARCHIVE_FAIL",
+    summary: {
+      totalChecks: checkEntries.length,
+      passCount: checkEntries.filter(([, status]) => status === "pass").length,
+      failCount: checkEntries.filter(([, status]) => status === "fail").length
+    },
+    checkStatuses,
+    failureCodes: failures.map((failure) => failure.code),
+    failures
+  };
 }
 
 async function main() {
@@ -224,6 +271,7 @@ async function main() {
     ok,
     error: ok ? "" : "no release artifact files found under artifacts/"
   };
+  report.standardized = buildStandardized(report);
 
   process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : md(report));
   if (!ok) process.exitCode = 1;

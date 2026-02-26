@@ -40,6 +40,7 @@
 - [x] `release-summary.json` 输出归档可观测字段（`archive.snapshotId/archiveStep/verify`）。
 - [x] `release-summary.json` 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 - [x] `release-archive-find` JSON 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
+- [x] `release-archive` JSON 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 
 ## 6. 启动时固定动作
 

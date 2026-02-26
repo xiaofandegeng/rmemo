@@ -102,6 +102,13 @@ Useful flags:
 - `standardized.failureCodes`
 - `standardized.failures`
 
+`release-archive` JSON also includes the same standardized summary block:
+- `standardized.status`
+- `standardized.resultCode`
+- `standardized.checkStatuses`
+- `standardized.failureCodes`
+- `standardized.failures`
+
 ## v1.4 release guardrails
 
 Keep these values aligned between local rehearsal and workflow:

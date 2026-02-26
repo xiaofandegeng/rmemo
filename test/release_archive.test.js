@@ -44,6 +44,10 @@ test("release-archive copies reports into versioned snapshot and writes indexes"
   assert.equal(report.version, "9.9.9");
   assert.equal(report.snapshotId, "20260225_100000");
   assert.equal(report.copiedFiles.length, 2);
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.resultCode, "RELEASE_ARCHIVE_OK");
+  assert.equal(report.standardized.checkStatuses.sourceArtifacts, "pass");
+  assert.deepEqual(report.standardized.failureCodes, []);
 
   const manifestPath = path.join(report.snapshotDir, "manifest.json");
   const catalogPath = path.join(tmp, "artifacts", "release-archive", "catalog.json");
@@ -87,6 +91,8 @@ test("release-archive prunes snapshots by max-snapshots-per-version", async () =
   const report = JSON.parse(r.out);
   assert.equal(report.ok, true);
   assert.ok(report.prunedSnapshots.length >= 2);
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.checkStatuses.archiveIndexes, "pass");
 
   const names = await fs.readdir(versionDir);
   assert.ok(names.includes("20260225_120000"));
@@ -108,4 +114,8 @@ test("release-archive fails when artifacts directory has no releasable files", a
   const report = JSON.parse(r.out);
   assert.equal(report.ok, false);
   assert.match(String(report.error || ""), /no release artifact files found/i);
+  assert.equal(report.standardized.status, "fail");
+  assert.equal(report.standardized.resultCode, "RELEASE_ARCHIVE_FAIL");
+  assert.equal(report.standardized.checkStatuses.sourceArtifacts, "fail");
+  assert.equal(report.standardized.failureCodes.includes("ARCHIVE_SOURCE_FILES_MISSING"), true);
 });
