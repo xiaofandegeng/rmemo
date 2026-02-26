@@ -47,6 +47,7 @@
 - [x] `release-notes` 支持 `--format json` 并新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 - [x] `changelog-lint` JSON 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 - [x] `regression-matrix` JSON 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
+- [x] `release-rehearsal.json` 输出 `standardized` 汇总块与 `summaryFailureCodes`（便于直接接入告警/平台）。
 
 ## 6. 启动时固定动作
 

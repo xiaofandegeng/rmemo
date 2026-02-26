@@ -106,6 +106,10 @@ function toMd(report) {
   lines.push(`- outDir: ${report.outDir}`);
   lines.push(`- summary: pass=${report.summary.pass} fail=${report.summary.fail} skipped=${report.summary.skipped}`);
   lines.push(`- result: ${report.ok ? "READY" : "NOT READY"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
+  if (Array.isArray(report.standardized?.failureCodes) && report.standardized.failureCodes.length > 0) {
+    lines.push(`- failureCodes: ${report.standardized.failureCodes.join(",")}`);
+  }
   lines.push("");
 
   lines.push("## Steps");
@@ -346,12 +350,14 @@ function buildReport({ root, outDir, version, tag, repo, options, steps, files }
 }
 
 async function writeRehearsalOutputs({ files, report, summaryOut }) {
+  const summary = toSummary(report);
+  report.standardized = summary.standardized;
+  report.summaryFailureCodes = summary.summaryFailureCodes;
   const md = toMd(report);
   const json = JSON.stringify(report, null, 2) + "\n";
   await fs.writeFile(files.rehearsalMd, md, "utf8");
   await fs.writeFile(files.rehearsalJson, json, "utf8");
   if (summaryOut) {
-    const summary = toSummary(report);
     await fs.mkdir(path.dirname(summaryOut), { recursive: true });
     await fs.writeFile(summaryOut, JSON.stringify(summary, null, 2) + "\n", "utf8");
   }

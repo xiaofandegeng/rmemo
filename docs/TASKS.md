@@ -43,6 +43,7 @@
   - v1.5 M2 已落地：`release-notes --format json` + `standardized` 统一状态块（便于告警/平台接入）
   - v1.5 M2 已落地：`changelog-lint.standardized` 统一状态块（便于告警/平台接入）
   - v1.5 M2 已落地：`regression-matrix.standardized` 统一状态块（便于告警/平台接入）
+  - v1.5 M2 已落地：`release-rehearsal.json.standardized` + `summaryFailureCodes`（便于告警/平台接入）
 
 ## Execution Rule
 

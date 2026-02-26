@@ -54,6 +54,10 @@ Artifacts written under `artifacts/`:
 - `summaryFailureCodes` (merged step-level and health-level failure codes)
 - `standardized.status/resultCode/checkStatuses/failureCodes/failures` (one-block summary for integrations; `standardized.failures` now includes both step failures and `release-health` failures)
 
+`release-rehearsal.json` now also exposes integration-friendly summary fields:
+- `standardized.status/resultCode/checkStatuses/failureCodes/failures`
+- `summaryFailureCodes`
+
 Archive reports in a versioned snapshot (recommended):
 
 ```bash

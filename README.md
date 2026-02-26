@@ -646,6 +646,7 @@ This writes release audit files to `artifacts/`:
 - `release-ready.md` / `release-ready.json`
 - `release-health.md` / `release-health.json`
 - `release-rehearsal.md` / `release-rehearsal.json`
+- `release-rehearsal.json` now includes `standardized.status/resultCode/checkStatuses/failureCodes/failures` and `summaryFailureCodes`
 - `release-notes` also supports `--format json` with `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 - `verify:changelog` (`changelog-lint`) JSON now includes `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 - `verify:matrix` (`regression-matrix`) JSON now includes `standardized.status/resultCode/checkStatuses/failureCodes/failures`

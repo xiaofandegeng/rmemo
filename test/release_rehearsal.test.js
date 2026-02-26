@@ -99,6 +99,10 @@ test("release-rehearsal marks health steps as timeout failures", async () => {
   assert.equal(healthJson.timedOut, true);
   assert.match(String(healthMd.error || ""), /timed out after/);
   assert.match(String(healthJson.error || ""), /timed out after/);
+  assert.equal(report.standardized.status, "fail");
+  assert.equal(report.standardized.resultCode, "RELEASE_REHEARSAL_SUMMARY_FAIL");
+  assert.equal(report.standardized.failureCodes.includes("STEP_TIMEOUT"), true);
+  assert.equal(report.summaryFailureCodes.includes("STEP_TIMEOUT"), true);
 
   const summary = JSON.parse(await fs.readFile(path.join(tmp, summaryPath), "utf8"));
   assert.ok(Array.isArray(summary.failedSteps));
@@ -348,6 +352,10 @@ test("release-rehearsal writes compact summary report when summary-out is provid
   );
 
   assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.resultCode, "RELEASE_REHEARSAL_SUMMARY_OK");
+  assert.deepEqual(report.summaryFailureCodes, []);
   const summary = JSON.parse(await fs.readFile(path.join(tmp, summaryPath), "utf8"));
   assert.equal(summary.ok, true);
   assert.equal(summary.version, "9.9.9");
@@ -592,6 +600,8 @@ test("release-rehearsal fails when archive verify step fails", async () => {
   const archiveVerifyStep = report.steps.find((s) => s.name === "release-archive-verify");
   assert.ok(archiveVerifyStep);
   assert.equal(archiveVerifyStep.status, "fail");
+  assert.equal(report.standardized.status, "fail");
+  assert.equal(report.standardized.failureCodes.includes("RELEASE_ARCHIVE_VERIFY_FAILED"), true);
 
   const summary = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
   assert.equal(summary.failedSteps.some((x) => x.name === "release-archive-verify"), true);
