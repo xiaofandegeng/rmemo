@@ -731,6 +731,63 @@ test("release-rehearsal rejects conflicting summary-format and summary-out exten
   assert.match(String(r.err || ""), /summary-format \(md\) conflicts with summary-out extension \(json\)/);
 });
 
+test("release-rehearsal supports --version current alias from package.json", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-version-current-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", version: "9.9.8", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), "process.stdout.write('# ready\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-health.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-rehearsal.js"),
+      "--root",
+      tmp,
+      "--version",
+      "current",
+      "--repo",
+      "owner/repo",
+      "--format",
+      "json",
+      "--skip-tests",
+      "--allow-dirty"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.version, "9.9.8");
+});
+
+test("release-rehearsal rejects --version current when package version is missing", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-version-current-missing-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "test-release-rehearsal", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+  await fs.writeFile(path.join(tmp, "scripts", "release-notes.js"), "process.stdout.write('# notes\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-ready.js"), "process.stdout.write('# ready\\n');\n", "utf8");
+  await fs.writeFile(path.join(tmp, "scripts", "release-health.js"), "process.stdout.write('{\"ok\":true}\\n');\n", "utf8");
+
+  const r = await runNode(
+    [path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--version", "current", "--repo", "owner/repo"],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /--version current requires package\.json with a valid version field/);
+});
+
 test("release-rehearsal rejects archive-verify without archive", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-verify-without-archive-"));
 

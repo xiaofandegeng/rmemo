@@ -20,6 +20,12 @@ Run one command before releasing:
 npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000
 ```
 
+Or explicitly use the root package version alias:
+
+```bash
+npm run verify:release-rehearsal -- --version current --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000
+```
+
 Or run rehearsal + archive in one command:
 
 ```bash

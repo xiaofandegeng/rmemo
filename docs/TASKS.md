@@ -66,6 +66,7 @@
   - v1.5 M2 已落地：`release-archive-find` 增加 list 模式互斥校验（`--list-require-presets` 与 `--version/--snapshot-id/--require-files/--require-preset` 互斥）
   - v1.5 M2 已落地：archive verify 非 JSON 失败时 `release-summary.json` 仍保留 `archive.verify.requiredFiles/requiredFilesPreset`（便于排障回放）
   - v1.5 M2 已落地：`release-archive-find --version current`（自动读取根目录 `package.json.version`）
+  - v1.5 M2 已落地：`release-rehearsal --version current`（自动读取根目录 `package.json.version`，避免字面量透传）
 
 ## Execution Rule
 
