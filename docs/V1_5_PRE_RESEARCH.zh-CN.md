@@ -57,6 +57,7 @@
 - [x] `release-rehearsal --archive` 在 Markdown 摘要模式下仍保留 `release-summary.json` 兼容输出（避免归档链路断裂）。
 - [x] `release-archive` 收录 `release-summary.md`（存在时）到快照归档，补齐 Markdown 摘要归档链路。
 - [x] `release-rehearsal --archive-verify` 默认 `--require-files` 扩展包含 `release-summary.json`（归档完整性覆盖摘要文件）。
+- [x] `verify:release-rehearsal-archive-verify` npm 脚本改为复用 `release-rehearsal` 默认必需文件（避免脚本参数写死导致与默认值漂移）。
 
 ## 6. 启动时固定动作
 

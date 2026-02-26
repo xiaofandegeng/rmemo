@@ -53,6 +53,7 @@
   - v1.5 M2 已落地：`--archive + --summary-format md` 仍写出 `release-summary.json` 兼容文件（归档链路兼容）
   - v1.5 M2 已落地：`release-archive` 收录 `release-summary.md`（存在时）到快照归档
   - v1.5 M2 已落地：`release-rehearsal --archive-verify` 默认必需文件增加 `release-summary.json`
+  - v1.5 M2 已落地：`verify:release-rehearsal-archive-verify` 复用默认必需文件集合（避免 npm 脚本参数漂移）
 
 ## Execution Rule
 
