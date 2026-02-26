@@ -919,10 +919,14 @@ test("release-rehearsal archive mode writes markdown summary by default when sum
   assert.equal(r.code, 0, r.err || r.out);
   const report = JSON.parse(r.out);
   assert.match(String(report.options.summaryOut || ""), /artifacts\/release-summary\.md$/);
+  assert.match(String(report.options.summaryJsonCompatOut || ""), /artifacts\/release-summary\.json$/);
   assert.equal(report.options.summaryFormat, "md");
   const summaryMd = await fs.readFile(path.join(tmp, "artifacts", "release-summary.md"), "utf8");
   assert.match(summaryMd, /^# rmemo Release Rehearsal Summary/m);
   assert.match(summaryMd, /- result: READY/);
+  const summaryJsonCompat = JSON.parse(await fs.readFile(path.join(tmp, "artifacts", "release-summary.json"), "utf8"));
+  assert.equal(summaryJsonCompat.ok, true);
+  assert.equal(summaryJsonCompat.version, "9.9.9");
 });
 
 test("release-rehearsal fails when archive step fails", async () => {

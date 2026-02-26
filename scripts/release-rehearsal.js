@@ -515,18 +515,26 @@ function toSummaryMd(summary) {
   return `${lines.join("\n")}\n`;
 }
 
-async function writeRehearsalOutputs({ files, report, summaryOut, summaryFormat }) {
+async function writeRehearsalOutputs({ files, report, summaryOut, summaryFormat, summaryJsonCompatOut = "" }) {
   const summary = toSummary(report);
   report.standardized = summary.standardized;
   report.summaryFailureCodes = summary.summaryFailureCodes;
   const md = toMd(report);
   const json = JSON.stringify(report, null, 2) + "\n";
+  const summaryJsonBody = JSON.stringify(summary, null, 2) + "\n";
   await fs.writeFile(files.rehearsalMd, md, "utf8");
   await fs.writeFile(files.rehearsalJson, json, "utf8");
   if (summaryOut) {
     await fs.mkdir(path.dirname(summaryOut), { recursive: true });
-    const summaryBody = summaryFormat === "md" ? toSummaryMd(summary) : JSON.stringify(summary, null, 2) + "\n";
+    const summaryBody = summaryFormat === "md" ? toSummaryMd(summary) : summaryJsonBody;
     await fs.writeFile(summaryOut, summaryBody, "utf8");
+  }
+  if (summaryJsonCompatOut) {
+    const sameAsPrimary = summaryOut && path.resolve(summaryOut) === path.resolve(summaryJsonCompatOut);
+    if (!sameAsPrimary) {
+      await fs.mkdir(path.dirname(summaryJsonCompatOut), { recursive: true });
+      await fs.writeFile(summaryJsonCompatOut, summaryJsonBody, "utf8");
+    }
   }
   return { md, json };
 }
@@ -572,6 +580,7 @@ async function main() {
     : archive
       ? path.join(outDir, summaryFormatFlag === "md" ? "release-summary.md" : "release-summary.json")
       : "";
+  const summaryJsonCompatOut = archive ? path.join(outDir, "release-summary.json") : "";
   const summaryOutLower = String(summaryOut || "").toLowerCase();
   const summaryOutExtFormat = summaryOutLower.endsWith(".md")
     ? "md"
@@ -740,6 +749,7 @@ async function main() {
     skipTests,
     archive,
     summaryOut,
+    summaryJsonCompatOut,
     summaryFormat,
     healthTimeoutMs,
     healthGithubRetries,
@@ -756,7 +766,7 @@ async function main() {
   };
 
   let report = buildReport({ root, outDir, version, tag, repo, options, steps, files });
-  await writeRehearsalOutputs({ files, report, summaryOut, summaryFormat });
+  await writeRehearsalOutputs({ files, report, summaryOut, summaryFormat, summaryJsonCompatOut });
 
   if (archive) {
     const archiveArgs = [
@@ -859,7 +869,7 @@ async function main() {
     }
 
     report = buildReport({ root, outDir, version, tag, repo, options, steps, files });
-    await writeRehearsalOutputs({ files, report, summaryOut, summaryFormat });
+    await writeRehearsalOutputs({ files, report, summaryOut, summaryFormat, summaryJsonCompatOut });
   }
 
   process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : toMd(report));

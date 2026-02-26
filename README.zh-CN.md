@@ -656,6 +656,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `release-summary.json.standardized.failures` 现已同时包含步骤级失败、步骤下游失败细节与 health 失败（来自 `release-health`）
 - 摘要输出支持 `--summary-format md|json`（默认 `json`；当 `--summary-out` 以 `.md` 结尾时会自动推断为 Markdown）
 - 在 `--archive` 且未显式传 `--summary-out` 时，若设置 `--summary-format md`，默认摘要路径为 `artifacts/release-summary.md`（否则为 `artifacts/release-summary.json`）
+- 在 `--archive` 模式下，即使主摘要输出为 Markdown，仍会保留机器可读的兼容摘要 `artifacts/release-summary.json`
 - Markdown 摘要新增 `Failure Breakdown` / `Health Signals` / `Archive` 高信号分段，便于快速排障
 - 当同时传 `--summary-out` 与 `--summary-format` 时，文件后缀（`.md/.json`）必须与格式一致，否则会快速失败
 
