@@ -115,7 +115,7 @@ Useful flags:
 - `standardized.failureCodes`
 - `standardized.failures`
 
-`release-archive-find` JSON now includes the same standardized summary block:
+`release-archive-find` JSON now includes the same standardized summary block (also in `--list-require-presets` mode):
 - `standardized.status`
 - `standardized.resultCode`
 - `standardized.checkStatuses`

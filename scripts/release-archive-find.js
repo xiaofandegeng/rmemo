@@ -155,6 +155,37 @@ function buildStandardized(report) {
   };
 }
 
+function buildRequirePresetsStandardized(report) {
+  const presetCount = Array.isArray(report.requirePresets) ? report.requirePresets.length : 0;
+  return {
+    schema: 1,
+    status: statusFromOk(report.ok),
+    resultCode: report.ok ? "RELEASE_ARCHIVE_FIND_PRESETS_OK" : "RELEASE_ARCHIVE_FIND_PRESETS_FAIL",
+    summary: {
+      totalChecks: 1,
+      passCount: report.ok ? 1 : 0,
+      failCount: report.ok ? 0 : 1
+    },
+    checkStatuses: {
+      requirePresets: report.ok ? "pass" : "fail"
+    },
+    failureCodes: report.ok ? [] : ["RELEASE_ARCHIVE_FIND_PRESETS_FAIL"],
+    failures: report.ok
+      ? []
+      : [
+          {
+            check: "requirePresets",
+            code: "RELEASE_ARCHIVE_FIND_PRESETS_FAIL",
+            message: String(report.error || "failed to list require presets"),
+            retryable: false
+          }
+        ],
+    metrics: {
+      presetCount
+    }
+  };
+}
+
 function md(report) {
   const lines = [];
   lines.push("# rmemo Release Archive Find");
@@ -194,6 +225,7 @@ function mdRequirePresets(report) {
   lines.push("# rmemo Release Archive Find Require Presets");
   lines.push("");
   lines.push(`- status: ${report.ok ? "OK" : "FAIL"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
   lines.push(`- presetCount: ${Array.isArray(report.requirePresets) ? report.requirePresets.length : 0}`);
   lines.push("");
   lines.push("## Presets");
@@ -219,6 +251,7 @@ async function main() {
       ok: true,
       requirePresets: listRequirePresets()
     };
+    report.standardized = buildRequirePresetsStandardized(report);
     process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : mdRequirePresets(report));
     return;
   }

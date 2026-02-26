@@ -58,6 +58,7 @@
   - v1.5 M2 已落地：`release-rehearsal --archive-verify` 默认透传 `--require-preset rehearsal-archive-verify`（支持 `--archive-require-preset`，且与 `--archive-require-files` 互斥）
   - v1.5 M2 已落地：`release-summary.json/.md` 输出 `archive.verify.requiredFilesPreset`（preset 校验链路可观测）
   - v1.5 M2 已落地：`release-archive-find --list-require-presets` + `verify:release-archive-find-presets`（内置 preset 清单可发现）
+  - v1.5 M2 已落地：`release-archive-find --list-require-presets` 新增 `standardized` 汇总块（JSON 结构同构）
 
 ## Execution Rule
 

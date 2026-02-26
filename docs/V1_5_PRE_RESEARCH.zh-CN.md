@@ -62,6 +62,7 @@
 - [x] `release-rehearsal --archive-verify` 默认改为透传 `--require-preset rehearsal-archive-verify`（并支持 `--archive-require-preset`；与 `--archive-require-files` 互斥）。
 - [x] `release-summary.json/.md` 新增归档校验 preset 透出（`archive.verify.requiredFilesPreset`），便于审计回放定位校验基线。
 - [x] `release-archive-find` 新增 `--list-require-presets`（并提供 `verify:release-archive-find-presets` 脚本）用于查看内置 preset 及文件清单。
+- [x] `release-archive-find --list-require-presets` 输出新增 `standardized` 汇总块（与其它 JSON 模式结构一致）。
 
 ## 6. 启动时固定动作
 

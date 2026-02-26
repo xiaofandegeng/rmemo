@@ -275,6 +275,11 @@ test("release-archive-find lists built-in require presets in json mode", async (
   const report = JSON.parse(r.out);
   assert.equal(report.mode, "require-presets");
   assert.equal(report.ok, true);
+  assert.equal(report.standardized?.status, "pass");
+  assert.equal(report.standardized?.resultCode, "RELEASE_ARCHIVE_FIND_PRESETS_OK");
+  assert.equal(report.standardized?.checkStatuses?.requirePresets, "pass");
+  assert.deepEqual(report.standardized?.failureCodes, []);
+  assert.ok(Number(report.standardized?.metrics?.presetCount || 0) >= 1);
   const preset = Array.isArray(report.requirePresets)
     ? report.requirePresets.find((x) => x?.name === "rehearsal-archive-verify")
     : null;
@@ -294,5 +299,6 @@ test("release-archive-find lists built-in require presets in markdown mode", asy
   });
   assert.equal(r.code, 0, r.err || r.out);
   assert.match(r.out, /^# rmemo Release Archive Find Require Presets/m);
+  assert.match(r.out, /- resultCode: RELEASE_ARCHIVE_FIND_PRESETS_OK/);
   assert.match(r.out, /- rehearsal-archive-verify: release-ready\.json,release-health\.json,release-rehearsal\.json,release-summary\.json/);
 });
