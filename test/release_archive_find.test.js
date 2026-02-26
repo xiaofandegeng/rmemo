@@ -265,3 +265,34 @@ test("release-archive-find rejects mixing require-files and require-preset", asy
   assert.equal(r.code, 1);
   assert.match(String(r.err || ""), /cannot combine --require-files with --require-preset/i);
 });
+
+test("release-archive-find lists built-in require presets in json mode", async () => {
+  const r = await runNode([path.resolve("scripts/release-archive-find.js"), "--format", "json", "--list-require-presets"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.mode, "require-presets");
+  assert.equal(report.ok, true);
+  const preset = Array.isArray(report.requirePresets)
+    ? report.requirePresets.find((x) => x?.name === "rehearsal-archive-verify")
+    : null;
+  assert.ok(preset);
+  assert.deepEqual(preset.files, [
+    "release-ready.json",
+    "release-health.json",
+    "release-rehearsal.json",
+    "release-summary.json"
+  ]);
+});
+
+test("release-archive-find lists built-in require presets in markdown mode", async () => {
+  const r = await runNode([path.resolve("scripts/release-archive-find.js"), "--format", "md", "--list-require-presets"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+  assert.equal(r.code, 0, r.err || r.out);
+  assert.match(r.out, /^# rmemo Release Archive Find Require Presets/m);
+  assert.match(r.out, /- rehearsal-archive-verify: release-ready\.json,release-health\.json,release-rehearsal\.json,release-summary\.json/);
+});

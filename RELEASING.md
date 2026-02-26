@@ -81,6 +81,7 @@ Archive conventions:
 
 Quick query examples:
 - list versions: `npm run verify:release-archive-find -- --format json`
+- list built-in required-file presets: `npm run verify:release-archive-find-presets`
 - locate latest snapshot: `npm run verify:release-archive-find -- --version <version> --format json`
 - inspect one snapshot: `npm run verify:release-archive-find -- --version <version> --snapshot-id <snapshot-id> --format json`
 - validate latest snapshot required files: `npm run verify:release-archive-find -- --version <version> --require-preset rehearsal-archive-verify --format json`

@@ -15,3 +15,13 @@ test("verify:release-rehearsal-archive-verify script relies on rehearsal default
     "script should rely on release-rehearsal default required files to avoid drift"
   );
 });
+
+test("verify:release-archive-find-presets script lists built-in presets", async () => {
+  const pkgRaw = await fs.readFile(path.resolve("package.json"), "utf8");
+  const pkg = JSON.parse(pkgRaw);
+  const command = pkg?.scripts?.["verify:release-archive-find-presets"];
+
+  assert.equal(typeof command, "string");
+  assert.match(command, /release-archive-find\.js/);
+  assert.match(command, /--list-require-presets/);
+});

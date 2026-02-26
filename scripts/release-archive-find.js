@@ -11,6 +11,13 @@ const REQUIRED_FILE_PRESETS = Object.freeze({
   ]
 });
 
+function listRequirePresets() {
+  return Object.entries(REQUIRED_FILE_PRESETS).map(([name, files]) => ({
+    name,
+    files: Array.isArray(files) ? files.slice() : []
+  }));
+}
+
 function parseFlags(argv) {
   const flags = {};
   for (let i = 0; i < argv.length; i++) {
@@ -182,11 +189,39 @@ function md(report) {
   return `${lines.join("\n")}\n`;
 }
 
+function mdRequirePresets(report) {
+  const lines = [];
+  lines.push("# rmemo Release Archive Find Require Presets");
+  lines.push("");
+  lines.push(`- status: ${report.ok ? "OK" : "FAIL"}`);
+  lines.push(`- presetCount: ${Array.isArray(report.requirePresets) ? report.requirePresets.length : 0}`);
+  lines.push("");
+  lines.push("## Presets");
+  lines.push("");
+  for (const preset of report.requirePresets || []) {
+    lines.push(`- ${preset.name}: ${(preset.files || []).join(",")}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 async function main() {
   const flags = parseFlags(process.argv.slice(2));
   const root = flags.root ? path.resolve(flags.root) : process.cwd();
   const format = String(flags.format || "md").toLowerCase();
   if (!["md", "json"].includes(format)) throw new Error("format must be md|json");
+  const listRequirePresetsMode = flags["list-require-presets"] === "true";
+
+  if (listRequirePresetsMode) {
+    const report = {
+      schema: 1,
+      generatedAt: new Date().toISOString(),
+      mode: "require-presets",
+      ok: true,
+      requirePresets: listRequirePresets()
+    };
+    process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : mdRequirePresets(report));
+    return;
+  }
 
   const artifactsDir = flags["artifacts-dir"] ? path.resolve(root, String(flags["artifacts-dir"])) : path.join(root, "artifacts");
   const archiveRoot = path.join(artifactsDir, "release-archive");

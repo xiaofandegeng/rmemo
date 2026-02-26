@@ -30,6 +30,7 @@
     "verify:release-rehearsal-archive-verify": "node scripts/release-rehearsal.js --format md --archive --archive-verify",
     "verify:release-archive": "node scripts/release-archive.js --format md",
     "verify:release-archive-find": "node scripts/release-archive-find.js --format md",
+    "verify:release-archive-find-presets": "node scripts/release-archive-find.js --format md --list-require-presets",
     "verify:release-verify": "node scripts/release-verify.js --format md",
     "release:notes": "node scripts/release-notes.js"
   },
