@@ -1,7 +1,7 @@
 # rmemo v1.5 预研入口（草案）
 
 更新时间：2026-02-25  
-状态：v1.5 M1 已完成，M2 进行中
+状态：v1.5 M1 已完成，M2 持续收敛中
 
 ## 1. 进入条件
 
@@ -39,6 +39,7 @@
 - [x] `release-rehearsal` 新增 `--archive-verify` 串联归档完整性校验，输出 `release-archive-verify.json`。
 - [x] `release-summary.json` 输出归档可观测字段（`archive.snapshotId/archiveStep/verify`）。
 - [x] `release-summary.json` 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
+- [x] `release-archive-find` JSON 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 
 ## 6. 启动时固定动作
 

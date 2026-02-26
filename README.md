@@ -658,6 +658,7 @@ Archive release reports with a versioned snapshot:
 - `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
 - `npm run verify:release-archive-find -- --version <version> --format json` (resolve latest snapshot / query archive index)
 - `npm run verify:release-archive-find -- --version <version> --require-files release-ready.json,release-health.json,release-rehearsal.json --format json` (validate latest snapshot completeness)
+- `release-archive-find` JSON includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 - when using `--archive` in rehearsal mode, `artifacts/release-summary.json` and `artifacts/release-archive.json` are generated automatically
 - when using `--archive-verify`, `artifacts/release-archive-verify.json` is generated and missing required files fail the rehearsal
 - `release-summary.json` now includes failure categories + recovery hints (`failureBreakdown`, `retryableFailures`, `actionHints`)

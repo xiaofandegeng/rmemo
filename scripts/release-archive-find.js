@@ -63,11 +63,91 @@ function validateRequiredFiles(requiredFiles, copiedFiles) {
   };
 }
 
+function statusFromOk(ok) {
+  return ok ? "pass" : "fail";
+}
+
+function buildStandardized(report) {
+  const checkStatuses = {};
+
+  if (report.mode === "versions") {
+    checkStatuses.archiveIndex = statusFromOk(report.ok);
+  } else if (report.mode === "version-latest") {
+    checkStatuses.latestSnapshot = report.latestSnapshot ? "pass" : "fail";
+  } else if (report.mode === "snapshot") {
+    checkStatuses.snapshotManifest = report.snapshot ? "pass" : "fail";
+  }
+
+  const hasRequiredFilesCheck = Array.isArray(report.requiredFiles) && report.requiredFiles.length > 0;
+  const missingRequiredFiles = Array.isArray(report.missingRequiredFiles) ? report.missingRequiredFiles : [];
+  if (hasRequiredFilesCheck) {
+    checkStatuses.requiredFiles = missingRequiredFiles.length === 0 ? "pass" : "fail";
+  }
+
+  const failures = [];
+  if (!report.ok) {
+    if (missingRequiredFiles.length > 0) {
+      failures.push({
+        check: "requiredFiles",
+        code: "ARCHIVE_REQUIRED_FILES_MISSING",
+        message: `missing required files: ${missingRequiredFiles.join(",")}`,
+        retryable: false
+      });
+    }
+
+    if (report.mode === "version-latest" && !report.latestSnapshot) {
+      failures.push({
+        check: "latestSnapshot",
+        code: "ARCHIVE_VERSION_NO_SNAPSHOTS",
+        message: String(report.error || "version has no snapshots"),
+        retryable: false
+      });
+    }
+
+    if (report.mode === "snapshot" && !report.snapshot) {
+      failures.push({
+        check: "snapshotManifest",
+        code: "ARCHIVE_MANIFEST_NOT_FOUND",
+        message: String(report.error || "snapshot manifest not found"),
+        retryable: false
+      });
+    }
+
+    if (failures.length === 0) {
+      failures.push({
+        check: "archiveFind",
+        code: "RELEASE_ARCHIVE_FIND_FAIL",
+        message: String(report.error || "release archive find failed"),
+        retryable: false
+      });
+    }
+  }
+
+  const checkEntries = Object.entries(checkStatuses);
+  return {
+    schema: 1,
+    status: statusFromOk(report.ok),
+    resultCode: report.ok ? "RELEASE_ARCHIVE_FIND_OK" : "RELEASE_ARCHIVE_FIND_FAIL",
+    summary: {
+      totalChecks: checkEntries.length,
+      passCount: checkEntries.filter(([, status]) => status === "pass").length,
+      failCount: checkEntries.filter(([, status]) => status === "fail").length
+    },
+    checkStatuses,
+    failureCodes: failures.map((failure) => failure.code),
+    failures
+  };
+}
+
 function md(report) {
   const lines = [];
   lines.push("# rmemo Release Archive Find");
   lines.push("");
   lines.push(`- status: ${report.ok ? "OK" : "FAIL"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
+  if (Array.isArray(report.standardized?.failureCodes) && report.standardized.failureCodes.length > 0) {
+    lines.push(`- failureCodes: ${report.standardized.failureCodes.join(",")}`);
+  }
   lines.push(`- mode: ${report.mode}`);
   lines.push(`- archiveRoot: ${report.archiveRoot}`);
   if (report.version) lines.push(`- version: ${report.version}`);
@@ -196,6 +276,8 @@ async function main() {
       }
     }
   }
+
+  report.standardized = buildStandardized(report);
 
   process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : md(report));
   if (!report.ok) process.exitCode = 1;

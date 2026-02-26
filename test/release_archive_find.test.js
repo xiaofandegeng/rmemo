@@ -74,6 +74,10 @@ test("release-archive-find lists versions from catalog", async () => {
   assert.equal(report.mode, "versions");
   assert.equal(report.ok, true);
   assert.equal(report.versions[0].version, "1.5.0");
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.resultCode, "RELEASE_ARCHIVE_FIND_OK");
+  assert.equal(report.standardized.checkStatuses.archiveIndex, "pass");
+  assert.deepEqual(report.standardized.failureCodes, []);
 });
 
 test("release-archive-find resolves latest snapshot for a version", async () => {
@@ -90,6 +94,8 @@ test("release-archive-find resolves latest snapshot for a version", async () => 
   assert.equal(report.mode, "version-latest");
   assert.equal(report.latestSnapshot.snapshotId, "20260225_100000");
   assert.equal(report.snapshots.includes("20260225_100000"), true);
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.checkStatuses.latestSnapshot, "pass");
 });
 
 test("release-archive-find resolves a specific snapshot manifest summary", async () => {
@@ -117,6 +123,8 @@ test("release-archive-find resolves a specific snapshot manifest summary", async
   assert.equal(report.snapshot.copiedFiles, 2);
   assert.equal(report.snapshot.missingFiles, 1);
   assert.equal(report.snapshot.tag, "v1.5.0");
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.checkStatuses.snapshotManifest, "pass");
 });
 
 test("release-archive-find fails when version has no snapshots", async () => {
@@ -132,6 +140,10 @@ test("release-archive-find fails when version has no snapshots", async () => {
   const report = JSON.parse(r.out);
   assert.equal(report.ok, false);
   assert.match(String(report.error || ""), /has no snapshots/i);
+  assert.equal(report.standardized.status, "fail");
+  assert.equal(report.standardized.resultCode, "RELEASE_ARCHIVE_FIND_FAIL");
+  assert.equal(report.standardized.checkStatuses.latestSnapshot, "fail");
+  assert.equal(report.standardized.failureCodes.includes("ARCHIVE_VERSION_NO_SNAPSHOTS"), true);
 });
 
 test("release-archive-find validates required files on latest snapshot", async () => {
@@ -157,6 +169,8 @@ test("release-archive-find validates required files on latest snapshot", async (
   const report = JSON.parse(r.out);
   assert.equal(report.ok, true);
   assert.deepEqual(report.missingRequiredFiles, []);
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.checkStatuses.requiredFiles, "pass");
 });
 
 test("release-archive-find fails when required files are missing", async () => {
@@ -184,4 +198,7 @@ test("release-archive-find fails when required files are missing", async () => {
   assert.equal(Array.isArray(report.missingRequiredFiles), true);
   assert.equal(report.missingRequiredFiles.includes("release-notes.md"), true);
   assert.match(String(report.error || ""), /missing required files/i);
+  assert.equal(report.standardized.status, "fail");
+  assert.equal(report.standardized.checkStatuses.requiredFiles, "fail");
+  assert.equal(report.standardized.failureCodes.includes("ARCHIVE_REQUIRED_FILES_MISSING"), true);
 });
