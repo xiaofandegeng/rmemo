@@ -638,6 +638,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.md --summary-format md`
 - `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
 - `npm run verify:release-rehearsal-archive-verify -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
+- 演练参数保护：`--archive-verify` 必须搭配 `--archive`；`--archive-require-files`/`--archive-require-preset` 必须搭配 `--archive-verify`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
 - `release-ready` JSON 现已包含适合集成消费的标准化块（`standardized.status/resultCode/checkStatuses/failureCodes/failures`）
 

@@ -567,6 +567,7 @@ async function main() {
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
   const archive = flags.archive === "true";
+  const archiveVerifyFlag = flags["archive-verify"] === "true";
   const archiveVerify = archive && flags["archive-verify"] === "true";
   const summaryFormatFlag = String(flags["summary-format"] || "").trim().toLowerCase();
   const archiveSnapshotId = String(flags["archive-snapshot-id"] || flags["snapshot-id"] || "").trim();
@@ -575,6 +576,12 @@ async function main() {
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
+  if (archiveVerifyFlag && !archive) {
+    throw new Error("--archive-verify requires --archive");
+  }
+  if (!archiveVerifyFlag && (archiveRequirePreset || archiveRequireFiles.length > 0)) {
+    throw new Error("--archive-require-files/--archive-require-preset requires --archive-verify");
+  }
   if (archiveVerify && archiveRequirePreset && archiveRequireFiles.length > 0) {
     throw new Error("cannot combine --archive-require-files with --archive-require-preset");
   }

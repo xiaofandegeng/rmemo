@@ -731,6 +731,48 @@ test("release-rehearsal rejects conflicting summary-format and summary-out exten
   assert.match(String(r.err || ""), /summary-format \(md\) conflicts with summary-out extension \(json\)/);
 });
 
+test("release-rehearsal rejects archive-verify without archive", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-verify-without-archive-"));
+
+  const r = await runNode([path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--archive-verify"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /--archive-verify requires --archive/);
+});
+
+test("release-rehearsal rejects archive-require-files without archive-verify", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-require-files-without-verify-"));
+
+  const r = await runNode(
+    [path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--archive", "--archive-require-files", "release-ready.json"],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /--archive-require-files\/--archive-require-preset requires --archive-verify/);
+});
+
+test("release-rehearsal rejects archive-require-preset without archive-verify", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-require-preset-without-verify-"));
+
+  const r = await runNode(
+    [path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--archive", "--archive-require-preset", "rehearsal-archive-verify"],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /--archive-require-files\/--archive-require-preset requires --archive-verify/);
+});
+
 test("release-rehearsal runs archive step and auto-writes default summary when archive is enabled", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-ok-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });

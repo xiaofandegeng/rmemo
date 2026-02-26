@@ -658,6 +658,7 @@ Timeout tuning (avoid hanging checks on unstable networks):
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.md --summary-format md`
 - `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
 - `npm run verify:release-rehearsal-archive-verify -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`
+- rehearsal guardrails: `--archive-verify` requires `--archive`; `--archive-require-files`/`--archive-require-preset` require `--archive-verify`
 - `node scripts/release-ready.js --format md --step-timeout-ms 120000`
 - `release-ready` JSON includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 
