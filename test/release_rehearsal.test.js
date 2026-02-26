@@ -803,7 +803,43 @@ test("release-rehearsal rejects unknown bundle value", async () => {
   });
 
   assert.equal(r.code, 1);
-  assert.match(String(r.err || ""), /bundle must be rehearsal-archive-verify/);
+  assert.match(String(r.err || ""), /bundle must be one of: rehearsal-archive-verify/);
+});
+
+test("release-rehearsal lists supported bundles in json mode", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-list-bundles-"));
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "x", version: "1.0.0", type: "module" }) + "\n", "utf8");
+
+  const r = await runNode([path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--format", "json", "--list-bundles"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.mode, "list-bundles");
+  assert.equal(report.ok, true);
+  assert.equal(Array.isArray(report.bundles), true);
+  assert.equal(report.bundles.some((bundle) => bundle.name === "rehearsal-archive-verify"), true);
+  assert.equal(report.standardized.status, "pass");
+  assert.equal(report.standardized.resultCode, "RELEASE_REHEARSAL_BUNDLES_OK");
+});
+
+test("release-rehearsal rejects conflicting flags in list-bundles mode", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-list-bundles-conflict-"));
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "x", version: "1.0.0", type: "module" }) + "\n", "utf8");
+
+  const r = await runNode(
+    [path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--format", "json", "--list-bundles", "--bundle", "rehearsal-archive-verify"],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /--list-bundles cannot be combined with/);
+  assert.match(String(r.err || ""), /--bundle/);
 });
 
 test("release-rehearsal preflight validates dependencies without executing release steps", async () => {

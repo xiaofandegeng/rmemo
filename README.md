@@ -662,6 +662,7 @@ Timeout tuning (avoid hanging checks on unstable networks):
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
 - `npm run verify:release-rehearsal -- --version current --repo xiaofandegeng/rmemo --health-timeout-ms 15000` (use root package version explicitly)
 - `npm run verify:release-rehearsal-bundle -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000` (bundle entry: rehearsal + archive + archive-verify)
+- `npm run verify:release-rehearsal-bundles` (list built-in rehearsal bundles)
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.md --summary-format md`
 - `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`

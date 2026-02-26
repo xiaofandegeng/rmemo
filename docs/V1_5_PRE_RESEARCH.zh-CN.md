@@ -79,8 +79,14 @@
 - [x] 发布资产命名规则收敛为单一可复用实现（新增 `scripts/release-asset-names.js`，workflow 与 `release-health` 共享命名推导，减少漂移风险）。
 - [x] 增加一键“演练+归档+完整性校验”组合命令入口（`--bundle rehearsal-archive-verify` + `verify:release-rehearsal-bundle`），减少手工拼装长参数。
 
-## 7. 启动时固定动作
+## 7. 当前执行任务（v1.5 M4）
+
+- [x] `release-rehearsal` 支持 `--list-bundles`，输出内置组合入口清单（JSON/Markdown）。
+- [ ] 新增 `release-rehearsal --bundle` 与 `--list-bundles` 互斥与边界测试收敛（覆盖更多参数组合）。
+- [ ] 发布 checklist/runbook 增加“优先使用 bundle 入口”的推荐路径与故障回退路径。
+
+## 8. 启动时固定动作
 
 1. 从 `main` 拉取最新代码并确认工作区干净。
 2. 复核 `docs/RELEASE_CHECKLIST.md` 的 v1.4 实际执行记录。
-3. 在本文件中选定一个课题作为当前里程碑（M3）的唯一入口任务。
+3. 在本文件中选定一个课题作为当前里程碑（M4）的唯一入口任务。

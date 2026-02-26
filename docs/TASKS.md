@@ -72,6 +72,8 @@
   - v1.5 M3 已落地：`release-rehearsal --preflight` 预检模式（仅参数/依赖/输出路径校验，不执行耗时步骤）
   - v1.5 M3 已落地：发布资产命名共享实现（`scripts/release-asset-names.js`，workflow 与 `release-health` 统一使用）
   - v1.5 M3 已落地：`release-rehearsal --bundle rehearsal-archive-verify` + `verify:release-rehearsal-bundle` 一键组合入口（演练+归档+完整性校验）
+  - v1.5 M4 已启动：进入“组合入口可发现性与收敛”阶段
+  - v1.5 M4 已落地：`release-rehearsal --list-bundles` + `verify:release-rehearsal-bundles`（内置 bundle 清单可发现）
 
 ## Execution Rule
 

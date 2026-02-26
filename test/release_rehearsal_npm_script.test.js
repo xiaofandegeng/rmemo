@@ -46,3 +46,13 @@ test("verify:release-rehearsal-bundle script enables archive verify bundle", asy
   assert.match(command, /--bundle\s+rehearsal-archive-verify/);
   assert.match(command, /--version\s+current/);
 });
+
+test("verify:release-rehearsal-bundles script lists bundle presets", async () => {
+  const pkgRaw = await fs.readFile(path.resolve("package.json"), "utf8");
+  const pkg = JSON.parse(pkgRaw);
+  const command = pkg?.scripts?.["verify:release-rehearsal-bundles"];
+
+  assert.equal(typeof command, "string");
+  assert.match(command, /release-rehearsal\.js/);
+  assert.match(command, /--list-bundles/);
+});

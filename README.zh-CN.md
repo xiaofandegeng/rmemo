@@ -642,6 +642,7 @@ npm run verify:release-rehearsal-preflight
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`
 - `npm run verify:release-rehearsal -- --version current --repo xiaofandegeng/rmemo --health-timeout-ms 15000`（显式使用根目录 package 版本）
 - `npm run verify:release-rehearsal-bundle -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`（组合入口：演练 + 归档 + 完整性校验）
+- `npm run verify:release-rehearsal-bundles`（查看内置 bundle 清单）
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.json`
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --summary-out artifacts/release-summary.md --summary-format md`
 - `npm run verify:release-rehearsal-archive -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000 --archive-snapshot-id <yyyymmdd_hhmmss>`

@@ -528,6 +528,39 @@ function toSummaryMd(summary) {
   return `${lines.join("\n")}\n`;
 }
 
+function getSupportedBundles() {
+  return [
+    {
+      name: "rehearsal-archive-verify",
+      description: "Enable rehearsal + archive + archive verify with preset baseline.",
+      implies: {
+        archive: true,
+        archiveVerify: true,
+        archiveRequirePreset: "rehearsal-archive-verify"
+      }
+    }
+  ];
+}
+
+function toBundleListMd(report) {
+  const lines = [];
+  lines.push("# rmemo Release Rehearsal Bundles");
+  lines.push("");
+  lines.push(`- generatedAt: ${report.generatedAt}`);
+  lines.push(`- total: ${report.bundles.length}`);
+  lines.push(`- result: ${report.ok ? "READY" : "NOT READY"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
+  lines.push("");
+  lines.push("## Bundles");
+  lines.push("");
+  for (const bundle of report.bundles) {
+    lines.push(`- ${bundle.name}`);
+    lines.push(`  - description: ${bundle.description}`);
+    lines.push(`  - implies: archive=${bundle.implies.archive} archiveVerify=${bundle.implies.archiveVerify} archiveRequirePreset=${bundle.implies.archiveRequirePreset}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 async function writeRehearsalOutputs({ files, report, summaryOut, summaryFormat, summaryJsonCompatOut = "" }) {
   const summary = toSummary(report);
   report.standardized = summary.standardized;
@@ -655,14 +688,69 @@ async function main() {
   const root = flags.root ? path.resolve(flags.root) : process.cwd();
   const outDir = flags["out-dir"] ? path.resolve(root, String(flags["out-dir"])) : path.join(root, "artifacts");
   const format = String(flags.format || "md").toLowerCase();
+  const listBundles = flags["list-bundles"] === "true";
   const skipHealth = flags["skip-health"] === "true";
   const allowDirty = flags["allow-dirty"] === "true";
   const skipTests = flags["skip-tests"] === "true";
   const preflight = flags.preflight === "true";
+  if (![
+    "md",
+    "json"
+  ].includes(format)) throw new Error("format must be md|json");
+  if (listBundles) {
+    const forbidden = [
+      "bundle",
+      "version",
+      "tag",
+      "repo",
+      "archive",
+      "archive-verify",
+      "archive-require-preset",
+      "archive-require-files",
+      "archive-snapshot-id",
+      "snapshot-id",
+      "archive-retention-days",
+      "retention-days",
+      "archive-max-snapshots-per-version",
+      "max-snapshots-per-version",
+      "summary-out",
+      "summary-format",
+      "skip-health",
+      "skip-tests",
+      "allow-dirty",
+      "preflight"
+    ].filter((k) => flags[k] !== undefined);
+    if (forbidden.length > 0) {
+      throw new Error(`--list-bundles cannot be combined with: ${forbidden.map((x) => `--${x}`).join(", ")}`);
+    }
+    const bundles = getSupportedBundles();
+    const report = {
+      schema: 1,
+      mode: "list-bundles",
+      generatedAt: new Date().toISOString(),
+      ok: true,
+      bundles,
+      standardized: {
+        schema: 1,
+        status: "pass",
+        resultCode: "RELEASE_REHEARSAL_BUNDLES_OK",
+        summary: {
+          totalBundles: bundles.length
+        },
+        checkStatuses: { bundles: "pass" },
+        failureCodes: [],
+        failures: []
+      }
+    };
+    process.stdout.write(format === "json" ? `${JSON.stringify(report, null, 2)}\n` : toBundleListMd(report));
+    return;
+  }
+
   const bundle = String(flags.bundle || "").trim();
+  const supportedBundleNames = new Set(getSupportedBundles().map((x) => x.name));
   const bundleArchiveVerify = bundle === "rehearsal-archive-verify";
-  if (bundle && !bundleArchiveVerify) {
-    throw new Error("bundle must be rehearsal-archive-verify");
+  if (bundle && !supportedBundleNames.has(bundle)) {
+    throw new Error(`bundle must be one of: ${Array.from(supportedBundleNames).join(", ")}`);
   }
   const archive = flags.archive === "true" || bundleArchiveVerify;
   const archiveVerifyFlag = flags["archive-verify"] === "true" || bundleArchiveVerify;
@@ -718,10 +806,6 @@ async function main() {
   const healthGithubRetries = Math.max(0, Number(flags["health-github-retries"] || 2));
   const healthGithubRetryDelayMs = Math.max(0, Number(flags["health-github-retry-delay-ms"] || 1000));
 
-  if (![
-    "md",
-    "json"
-  ].includes(format)) throw new Error("format must be md|json");
   if (![
     "md",
     "json"
