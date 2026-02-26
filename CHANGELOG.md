@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.0](https://github.com/xiaofandegeng/rmemo/compare/v1.11.0...v1.12.0) (2026-02-26)
+
+
+### ✨ Features
+
+* **release:** add standardized output for preset listing mode ([ffb9f10](https://github.com/xiaofandegeng/rmemo/commit/ffb9f10724be8f87179befa66ab09d4aeee5eada))
+* **release:** list built-in archive require presets ([62e5ae1](https://github.com/xiaofandegeng/rmemo/commit/62e5ae1c2d2e1cd7c17005efb858e7a8160b9d14))
+* **release:** show archive verify required files in markdown summary ([55e5d01](https://github.com/xiaofandegeng/rmemo/commit/55e5d01671ce03f643419bd9cef30f7c479900a2))
+
+
+### 🐛 Bug Fixes
+
+* **release:** enforce archive verify flag dependencies ([cb2af1e](https://github.com/xiaofandegeng/rmemo/commit/cb2af1e776e742dc8d1133a2d2cc30c6477b37e4))
+* **release:** enforce version guardrails for archive-find checks ([a529cbe](https://github.com/xiaofandegeng/rmemo/commit/a529cbe10b6846a4ef9772ff875743ed0cf2fbbe))
+* **release:** reject conflicting flags in preset listing mode ([416cbdd](https://github.com/xiaofandegeng/rmemo/commit/416cbdddc583f4ddc459fcc33df4ab09ab43710f))
+* **release:** retain verify baseline on non-json archive verify output ([34cc4d8](https://github.com/xiaofandegeng/rmemo/commit/34cc4d8e19ea81092883d73826703f3f93277558))
+* **release:** validate archive-only flags in rehearsal ([983220f](https://github.com/xiaofandegeng/rmemo/commit/983220f732b5fc95d9c3f9c6ca06c93a3645e0af))
+
 ## [1.11.0](https://github.com/xiaofandegeng/rmemo/compare/v1.10.0...v1.11.0) (2026-02-26)
 
 
