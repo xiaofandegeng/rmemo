@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.0](https://github.com/xiaofandegeng/rmemo/compare/v1.14.0...v1.15.0) (2026-02-26)
+
+
+### ✨ Features
+
+* **release:** add rehearsal archive verify bundle ([c33cd72](https://github.com/xiaofandegeng/rmemo/commit/c33cd72d95c70c9c5fca3fb4935ff17928261efc))
+* **release:** add rehearsal bundle listing mode ([acc0c32](https://github.com/xiaofandegeng/rmemo/commit/acc0c324f84509648616744a50d5c551d2dd18ae))
+* **release:** add rehearsal preflight mode ([ecc1a3c](https://github.com/xiaofandegeng/rmemo/commit/ecc1a3cbdd25862729ba47e18f6f3968b6acf195))
+* **release:** expose bundle count metric in bundle listing ([3cc30cd](https://github.com/xiaofandegeng/rmemo/commit/3cc30cdc9796e8ac41a6193d02a8b7f28f1a892d))
+* **release:** surface resolved bundle in summary outputs ([a029736](https://github.com/xiaofandegeng/rmemo/commit/a0297365610d6897eff008b2bdb5eb874a00fbc3))
+
+
+### 📚 Documentation
+
+* **release:** prefer bundle path in runbook checklist ([888592c](https://github.com/xiaofandegeng/rmemo/commit/888592c2e9d01a2b94b1c96d7a39818b62e0bffa))
+
+
+### 🎯 Testing
+
+* **release:** harden rehearsal bundle listing guardrails ([32fdf14](https://github.com/xiaofandegeng/rmemo/commit/32fdf143fd35a38fc0845cb7a3b5b12c7bbb8442))
+
+
+### 🛠 Refactoring
+
+* **release:** centralize release asset naming ([9780003](https://github.com/xiaofandegeng/rmemo/commit/9780003c5b91ad6bae4b34838602f4e6b672a6e1))
+* **release:** share require presets across bundle and archive find ([eb58ea5](https://github.com/xiaofandegeng/rmemo/commit/eb58ea54a40689fe579ec1ed4d85c8ec859e3955))
+
 ## [1.14.0](https://github.com/xiaofandegeng/rmemo/compare/v1.13.0...v1.14.0) (2026-02-26)
 
 
