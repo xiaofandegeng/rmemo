@@ -44,6 +44,7 @@
 - [x] `release-summary.json.standardized.failures` 聚合步骤失败与 health 失败（跨来源统一失败明细）。
 - [x] `release-verify` JSON 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 - [x] `release-ready` JSON 新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
+- [x] `release-notes` 支持 `--format json` 并新增 `standardized` 汇总块（status/resultCode/checkStatuses/failureCodes/failures）。
 
 ## 6. 启动时固定动作
 

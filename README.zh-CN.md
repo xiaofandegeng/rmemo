@@ -626,6 +626,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `release-ready.md` / `release-ready.json`
 - `release-health.md` / `release-health.json`
 - `release-rehearsal.md` / `release-rehearsal.json`
+- `release-notes` 同时支持 `--format json`，并提供 `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 
 超时参数（网络不稳定时建议设置，避免命令长时间挂起）：
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`

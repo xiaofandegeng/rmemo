@@ -28,6 +28,8 @@ function parseFlags(argv) {
 async function main() {
   const flags = parseFlags(process.argv.slice(2));
   const root = flags.root ? path.resolve(flags.root) : process.cwd();
+  const format = String(flags.format || "md").toLowerCase();
+  if (!["md", "json"].includes(format)) throw new Error("format must be md|json");
   const outFile = flags.out ? path.resolve(root, flags.out) : null;
   let version = String(flags.version || "").trim();
   if (!version) {
@@ -38,7 +40,42 @@ async function main() {
 
   const changelog = await fs.readFile(path.join(root, "CHANGELOG.md"), "utf8");
   const section = extractReleaseNotesFromChangelog(changelog, version);
-  const out = buildReleaseNotesMarkdown({ version, changelogSection: section });
+  const markdown = buildReleaseNotesMarkdown({ version, changelogSection: section });
+  const hasChangelogSection = Boolean(section);
+  const jsonReport = {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    root,
+    version,
+    hasChangelogSection,
+    markdown,
+    ok: true,
+    standardized: {
+      schema: 1,
+      status: "pass",
+      resultCode: hasChangelogSection ? "RELEASE_NOTES_OK" : "RELEASE_NOTES_FALLBACK",
+      summary: {
+        totalChecks: 1,
+        passCount: hasChangelogSection ? 1 : 0,
+        failCount: hasChangelogSection ? 0 : 1
+      },
+      checkStatuses: {
+        changelogSection: hasChangelogSection ? "pass" : "fail"
+      },
+      failureCodes: hasChangelogSection ? [] : ["RELEASE_NOTES_CHANGELOG_SECTION_MISSING"],
+      failures: hasChangelogSection
+        ? []
+        : [
+            {
+              check: "changelogSection",
+              code: "RELEASE_NOTES_CHANGELOG_SECTION_MISSING",
+              message: `No changelog section found for version ${version}`,
+              retryable: false
+            }
+          ]
+    }
+  };
+  const out = format === "json" ? `${JSON.stringify(jsonReport, null, 2)}\n` : markdown;
 
   if (outFile) {
     await fs.mkdir(path.dirname(outFile), { recursive: true });
