@@ -89,7 +89,7 @@
 
 - [x] 归档 require preset 改为共享源（新增 `scripts/release-require-presets.js`，`release-archive-find` 与 `release-rehearsal --list-bundles` 复用同一基线）。
 - [x] `release-rehearsal --list-bundles` 增加 `standardized.metrics.bundleCount`，方便平台侧直接观测 bundle 数量。
-- [ ] 新增 `--bundle` 显式执行摘要字段（例如 `bundleResolved`）到 `release-summary.json/.md`，降低排障时对参数回放依赖。
+- [x] 新增 `--bundle` 显式执行摘要字段（例如 `bundleResolved`）到 `release-summary.json/.md`，降低排障时对参数回放依赖。
 
 ## 9. 启动时固定动作
 

@@ -312,6 +312,7 @@ function toSummary(report) {
   const healthStandardized = extractHealthStandardized();
   const archive = extractArchiveResult();
   const archiveVerify = extractArchiveVerifyResult();
+  const bundleResolved = String(report.options?.bundle || "").trim();
   const healthFailureCodes = Array.isArray(healthStandardized?.failureCodes)
     ? healthStandardized.failureCodes.map((x) => String(x)).filter(Boolean)
     : [];
@@ -381,6 +382,7 @@ function toSummary(report) {
     root: report.root,
     outDir: report.outDir,
     version: report.version,
+    bundleResolved,
     tag: report.tag,
     repo: report.repo,
     ok: report.ok,
@@ -450,6 +452,7 @@ function toSummaryMd(summary) {
   lines.push("");
   lines.push(`- generatedAt: ${summary.generatedAt}`);
   lines.push(`- version: ${summary.version}`);
+  if (summary.bundleResolved) lines.push(`- bundleResolved: ${summary.bundleResolved}`);
   lines.push(`- result: ${summary.ok ? "READY" : "NOT READY"}`);
   if (summary.standardized?.resultCode) lines.push(`- resultCode: ${summary.standardized.resultCode}`);
   if (Array.isArray(summary.summaryFailureCodes) && summary.summaryFailureCodes.length > 0) {
