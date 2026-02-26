@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.0](https://github.com/xiaofandegeng/rmemo/compare/v1.12.0...v1.13.0) (2026-02-26)
+
+
+### ✨ Features
+
+* **release:** support current version alias in archive-find ([9429bec](https://github.com/xiaofandegeng/rmemo/commit/9429bec78184f80198e21bf3caeccab607996558))
+
 ## [1.12.0](https://github.com/xiaofandegeng/rmemo/compare/v1.11.0...v1.12.0) (2026-02-26)
 
 
