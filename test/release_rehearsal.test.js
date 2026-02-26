@@ -820,7 +820,14 @@ test("release-rehearsal lists supported bundles in json mode", async () => {
   assert.equal(report.mode, "list-bundles");
   assert.equal(report.ok, true);
   assert.equal(Array.isArray(report.bundles), true);
-  assert.equal(report.bundles.some((bundle) => bundle.name === "rehearsal-archive-verify"), true);
+  const bundle = report.bundles.find((entry) => entry.name === "rehearsal-archive-verify");
+  assert.ok(bundle);
+  assert.deepEqual(bundle.requiredFiles, [
+    "release-ready.json",
+    "release-health.json",
+    "release-rehearsal.json",
+    "release-summary.json"
+  ]);
   assert.equal(report.standardized.status, "pass");
   assert.equal(report.standardized.resultCode, "RELEASE_REHEARSAL_BUNDLES_OK");
 });
@@ -856,6 +863,7 @@ test("release-rehearsal list-bundles outputs markdown summary", async () => {
   assert.match(r.out, /## Bundles/);
   assert.match(r.out, /- rehearsal-archive-verify/);
   assert.match(r.out, /archiveRequirePreset=rehearsal-archive-verify/);
+  assert.match(r.out, /requiredFiles: release-ready\.json,release-health\.json,release-rehearsal\.json,release-summary\.json/);
 });
 
 test("release-rehearsal list-bundles rejects multiple execution flags", async () => {

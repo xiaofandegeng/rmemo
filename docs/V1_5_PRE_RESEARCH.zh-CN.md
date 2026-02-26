@@ -85,8 +85,14 @@
 - [x] 新增 `release-rehearsal --bundle` 与 `--list-bundles` 互斥与边界测试收敛（覆盖更多参数组合，含 Markdown/JSON 列表输出与多参数冲突校验）。
 - [x] 发布 checklist/runbook 增加“优先使用 bundle 入口”的推荐路径与故障回退路径。
 
-## 8. 启动时固定动作
+## 8. 当前执行任务（v1.5 M5）
+
+- [x] 归档 require preset 改为共享源（新增 `scripts/release-require-presets.js`，`release-archive-find` 与 `release-rehearsal --list-bundles` 复用同一基线）。
+- [ ] `release-rehearsal --list-bundles` 增加 `standardized.metrics.bundleCount`，方便平台侧直接观测 bundle 数量。
+- [ ] 新增 `--bundle` 显式执行摘要字段（例如 `bundleResolved`）到 `release-summary.json/.md`，降低排障时对参数回放依赖。
+
+## 9. 启动时固定动作
 
 1. 从 `main` 拉取最新代码并确认工作区干净。
 2. 复核 `docs/RELEASE_CHECKLIST.md` 的 v1.4 实际执行记录。
-3. 在本文件中选定一个课题作为当前里程碑（M4）的唯一入口任务。
+3. 在本文件中选定一个课题作为当前里程碑（M5）的唯一入口任务。

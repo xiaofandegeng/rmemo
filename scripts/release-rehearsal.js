@@ -2,6 +2,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { getRequirePresetFiles } from "./release-require-presets.js";
 
 function parseFlags(argv) {
   const flags = {};
@@ -529,6 +530,7 @@ function toSummaryMd(summary) {
 }
 
 function getSupportedBundles() {
+  const rehearsalArchiveVerifyRequiredFiles = getRequirePresetFiles("rehearsal-archive-verify") || [];
   return [
     {
       name: "rehearsal-archive-verify",
@@ -537,7 +539,8 @@ function getSupportedBundles() {
         archive: true,
         archiveVerify: true,
         archiveRequirePreset: "rehearsal-archive-verify"
-      }
+      },
+      requiredFiles: rehearsalArchiveVerifyRequiredFiles
     }
   ];
 }
@@ -557,6 +560,9 @@ function toBundleListMd(report) {
     lines.push(`- ${bundle.name}`);
     lines.push(`  - description: ${bundle.description}`);
     lines.push(`  - implies: archive=${bundle.implies.archive} archiveVerify=${bundle.implies.archiveVerify} archiveRequirePreset=${bundle.implies.archiveRequirePreset}`);
+    if (Array.isArray(bundle.requiredFiles) && bundle.requiredFiles.length > 0) {
+      lines.push(`  - requiredFiles: ${bundle.requiredFiles.join(",")}`);
+    }
   }
   return `${lines.join("\n")}\n`;
 }

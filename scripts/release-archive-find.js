@@ -1,22 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { readFile, readdir } from "node:fs/promises";
-
-const REQUIRED_FILE_PRESETS = Object.freeze({
-  "rehearsal-archive-verify": [
-    "release-ready.json",
-    "release-health.json",
-    "release-rehearsal.json",
-    "release-summary.json"
-  ]
-});
-
-function listRequirePresets() {
-  return Object.entries(REQUIRED_FILE_PRESETS).map(([name, files]) => ({
-    name,
-    files: Array.isArray(files) ? files.slice() : []
-  }));
-}
+import { REQUIRED_FILE_PRESETS, listRequirePresets } from "./release-require-presets.js";
 
 function parseFlags(argv) {
   const flags = {};
