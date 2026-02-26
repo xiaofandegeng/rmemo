@@ -661,6 +661,7 @@ test("release-rehearsal markdown summary includes breakdown, health, and archive
   assert.match(summaryMd, /## Archive/);
   assert.match(summaryMd, /- snapshotId: 20260225_133000/);
   assert.match(summaryMd, /- verify: status=fail ok=false/);
+  assert.match(summaryMd, /- requiredFiles: release-ready\.json,release-health\.json,release-rehearsal\.json/);
   assert.match(summaryMd, /- missingRequiredFiles: release-health\.json/);
 });
 

@@ -49,7 +49,7 @@ Artifacts written under `artifacts/`:
 - `failureBreakdown`
 - `retryableFailures`
 - `actionHints`
-- `archive.snapshotId/archiveStep/verify` (when archive mode is enabled; `archive.verify.requiredFilesPreset` appears when preset-based verify is used)
+- `archive.snapshotId/archiveStep/verify` (when archive mode is enabled; `archive.verify.requiredFiles` is always present when verify runs; `archive.verify.requiredFilesPreset` appears when preset-based verify is used)
 - `health.status/resultCode/failureCodes/failures` (aggregated from `release-health` standardized output when available)
 - `summaryFailureCodes` (merged step-level classification codes + failed-step downstream standardized failure codes + health-level failure codes)
 - `standardized.status/resultCode/checkStatuses/failureCodes/failures` (one-block summary for integrations; `standardized.failures` includes step failures + downstream step failure details + `release-health` failures)

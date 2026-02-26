@@ -505,6 +505,9 @@ function toSummaryMd(summary) {
       if (summary.archive.verify.requiredFilesPreset) {
         lines.push(`- requiredFilesPreset: ${String(summary.archive.verify.requiredFilesPreset)}`);
       }
+      if (Array.isArray(summary.archive.verify.requiredFiles) && summary.archive.verify.requiredFiles.length > 0) {
+        lines.push(`- requiredFiles: ${summary.archive.verify.requiredFiles.join(",")}`);
+      }
       if (Array.isArray(summary.archive.verify.missingRequiredFiles) && summary.archive.verify.missingRequiredFiles.length > 0) {
         lines.push(`- missingRequiredFiles: ${summary.archive.verify.missingRequiredFiles.join(",")}`);
       }
