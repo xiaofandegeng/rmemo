@@ -665,6 +665,7 @@ Timeout tuning (avoid hanging checks on unstable networks):
 
 Archive release reports with a versioned snapshot:
 - `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
+- `npm run verify:release-archive -- --version current --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20` (use root package version alias)
 - `release-archive` JSON includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 - `npm run verify:release-archive-find -- --version <version> --format json` (resolve latest snapshot / query archive index)
 - `npm run verify:release-archive-find -- --version current --format json` (resolve latest snapshot using root package version)
@@ -690,6 +691,7 @@ Archive release reports with a versioned snapshot:
 
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
+- `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version current` (use root package version alias; tag defaults to `v<resolvedVersion>`)
 - `release-verify` JSON includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 
 **Manual Fallback Publishing (Emergency Only)**

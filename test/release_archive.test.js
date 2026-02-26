@@ -57,6 +57,36 @@ test("release-archive copies reports into versioned snapshot and writes indexes"
   assert.equal(Boolean(await fs.stat(latestPath)), true);
 });
 
+test("release-archive supports --version current alias from package.json", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-current-version-"));
+  const artifacts = path.join(tmp, "artifacts");
+  await fs.mkdir(artifacts, { recursive: true });
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "x", version: "1.5.0", type: "module" }) + "\n", "utf8");
+  await fs.writeFile(path.join(artifacts, "release-ready.json"), JSON.stringify({ ok: true }) + "\n", "utf8");
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-archive.js"),
+      "--root",
+      tmp,
+      "--format",
+      "json",
+      "--version",
+      "current",
+      "--snapshot-id",
+      "20260226_100000"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.version, "1.5.0");
+  assert.equal(report.tag, "v1.5.0");
+  assert.equal(report.snapshotId, "20260226_100000");
+  assert.equal(report.ok, true);
+});
+
 test("release-archive prunes snapshots by max-snapshots-per-version", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-prune-"));
   const artifacts = path.join(tmp, "artifacts");

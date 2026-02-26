@@ -78,6 +78,12 @@ Archive reports in a versioned snapshot (recommended):
 npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20
 ```
 
+Or use the root package version alias:
+
+```bash
+npm run verify:release-archive -- --version current --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20
+```
+
 Archive conventions:
 - root: `artifacts/release-archive/`
 - snapshot path: `artifacts/release-archive/<version>/<snapshot-id>/`
@@ -118,6 +124,7 @@ Useful flags:
 - `--health-github-retries <n>` to retry release-health on `429/5xx` during rehearsal (default `2`)
 - `--health-github-retry-delay-ms <ms>` delay between retry attempts during rehearsal (default `1000`)
 - `--step-timeout-ms <ms>` on `scripts/release-ready.js` to cap each readiness check (default `600000`)
+- `--version current` is supported by `release-rehearsal` / `release-archive-find` / `release-health` / `release-archive` / `release-verify`
 
 `release-health` JSON now includes a standardized summary block for integrations:
 - `standardized.status`
@@ -201,6 +208,12 @@ After release PR is merged, you can wait for npm + GitHub Release convergence wi
 
 ```bash
 npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version> --max-wait-ms 1800000 --poll-interval-ms 10000 --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000
+```
+
+Or use current version alias with default tag:
+
+```bash
+npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version current --max-wait-ms 1800000 --poll-interval-ms 10000 --health-timeout-ms 15000 --health-github-retries 2 --health-github-retry-delay-ms 1000
 ```
 
 This command reuses `release-health` in strict mode and exits non-zero if convergence is not reached in the wait window.

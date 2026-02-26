@@ -15,10 +15,10 @@
 - `docs/V1_0_CHAPTER.zh-CN.md`
 - `docs/V1_1_CYCLE_PLAN.zh-CN.md`
 
-## Snapshot (2026-02-25)
+## Snapshot (2026-02-26)
 
 - Package: `@xiaofandegeng/rmemo`
-- Current version: `1.4.0`（已完成双端可见性核验）
+- Current version: `1.13.0`（当前 `main` 分支 `package.json`）
 - Next release target: `1.5.0`（预研入口已建立）
 - Current focus:
   - v1.4 发布与核验已闭环（见 `docs/RELEASE_VERIFICATION_v1.4.0.md`）
@@ -67,6 +67,8 @@
   - v1.5 M2 已落地：archive verify 非 JSON 失败时 `release-summary.json` 仍保留 `archive.verify.requiredFiles/requiredFilesPreset`（便于排障回放）
   - v1.5 M2 已落地：`release-archive-find --version current`（自动读取根目录 `package.json.version`）
   - v1.5 M2 已落地：`release-rehearsal --version current`（自动读取根目录 `package.json.version`，避免字面量透传）
+  - v1.5 M3 已启动：进入“发布工具链一致性收敛”阶段
+  - v1.5 M3 已落地首项：`release-health/release-archive/release-verify` 支持 `--version current`（跨脚本 alias 一致）
 
 ## Execution Rule
 

@@ -94,6 +94,72 @@ test("release-verify succeeds when release-health converges within wait window",
   assert.deepEqual(report.standardized.failureCodes, []);
 });
 
+test("release-verify supports --version current alias and derives tag from resolved version", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-verify-current-version-"));
+  await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "@test/release-verify", version: "2.3.4", type: "module" }, null, 2) + "\n",
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(tmp, "scripts", "release-health.js"),
+    [
+      "import fs from 'node:fs/promises';",
+      "import path from 'node:path';",
+      "const args = process.argv.slice(2);",
+      "await fs.writeFile(path.join(process.cwd(), 'health-args.json'), JSON.stringify(args, null, 2) + '\\n', 'utf8');",
+      "process.stdout.write(JSON.stringify({",
+      "  schema: 1,",
+      "  ok: true,",
+      "  checks: { npm: { ok: true }, githubRelease: { ok: true }, releaseAssets: { ok: true } },",
+      "  standardized: { status: 'pass', resultCode: 'RELEASE_HEALTH_OK', checkStatuses: { npm: 'pass', githubRelease: 'pass', releaseAssets: 'pass' }, failureCodes: [], failures: [] }",
+      "}) + '\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-verify.js"),
+      "--root",
+      tmp,
+      "--repo",
+      "owner/repo",
+      "--version",
+      "current",
+      "--format",
+      "json",
+      "--max-wait-ms",
+      "500",
+      "--poll-interval-ms",
+      "10",
+      "--health-timeout-ms",
+      "1000",
+      "--health-github-retries",
+      "0",
+      "--health-github-retry-delay-ms",
+      "0"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.version, "2.3.4");
+  assert.equal(report.tag, "v2.3.4");
+  assert.equal(report.ok, true);
+
+  const healthArgs = JSON.parse(await fs.readFile(path.join(tmp, "health-args.json"), "utf8"));
+  const versionIdx = healthArgs.indexOf("--version");
+  const tagIdx = healthArgs.indexOf("--tag");
+  assert.notEqual(versionIdx, -1);
+  assert.notEqual(tagIdx, -1);
+  assert.equal(healthArgs[versionIdx + 1], "2.3.4");
+  assert.equal(healthArgs[tagIdx + 1], "v2.3.4");
+});
+
 test("release-verify fails when max wait window is exhausted", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-verify-timeout-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });

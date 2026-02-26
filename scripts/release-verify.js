@@ -206,7 +206,12 @@ async function main() {
 
   const pkg = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
   const packageName = String(pkg.name || "");
-  const version = String(flags.version || pkg.version || "").trim();
+  const pkgVersion = String(pkg.version || "").trim();
+  const versionFlag = String(flags.version || "").trim();
+  if (versionFlag.toLowerCase() === "current" && !pkgVersion) {
+    throw new Error("--version current requires package.json with a valid version field");
+  }
+  const version = versionFlag.toLowerCase() === "current" ? pkgVersion : String(versionFlag || pkgVersion || "").trim();
   if (!version) throw new Error("version is required (--version or package.json version)");
 
   const repo = String(flags.repo || process.env.GITHUB_REPOSITORY || "").trim();

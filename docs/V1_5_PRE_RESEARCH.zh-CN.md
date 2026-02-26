@@ -1,7 +1,7 @@
 # rmemo v1.5 预研入口（草案）
 
-更新时间：2026-02-25  
-状态：v1.5 M1 已完成，M2 持续收敛中
+更新时间：2026-02-26  
+状态：v1.5 M1/M2 已完成，M3 启动
 
 ## 1. 进入条件
 
@@ -72,8 +72,15 @@
 - [x] `release-archive-find` 支持 `--version current`（自动读取根目录 `package.json.version`），减少手工传版本。
 - [x] `release-rehearsal` 支持 `--version current`（自动读取根目录 `package.json.version`），避免把字面量 `current` 传入下游脚本。
 
-## 6. 启动时固定动作
+## 6. 当前执行任务（v1.5 M3）
+
+- [x] `release-health/release-archive/release-verify` 统一支持 `--version current`（自动读取根目录 `package.json.version`，避免工具间 alias 能力不一致）。
+- [ ] `release-rehearsal` 新增预检模式（仅参数/依赖/输出路径校验，不执行耗时检查）以加快本地演练前自检。
+- [ ] 发布资产命名规则收敛为单一可复用实现（workflow 与脚本共享命名推导，减少漂移风险）。
+- [ ] 增加一键“演练+归档+完整性校验”组合命令入口，减少手工拼装长参数。
+
+## 7. 启动时固定动作
 
 1. 从 `main` 拉取最新代码并确认工作区干净。
 2. 复核 `docs/RELEASE_CHECKLIST.md` 的 v1.4 实际执行记录。
-3. 在本文件中选定一个课题作为当前里程碑（M1/M2）的唯一入口任务。
+3. 在本文件中选定一个课题作为当前里程碑（M3）的唯一入口任务。

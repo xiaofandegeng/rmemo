@@ -645,6 +645,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 
 按版本快照归档发布报告：
 - `npm run verify:release-archive -- --version <version> --tag v<version> --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`
+- `npm run verify:release-archive -- --version current --snapshot-id <yyyymmdd_hhmmss> --retention-days 30 --max-snapshots-per-version 20`（使用根目录 package 版本别名）
 - `release-archive` JSON 现已包含适合集成消费的标准化块（`standardized.status/resultCode/checkStatuses/failureCodes/failures`）
 - `npm run verify:release-archive-find -- --version <version> --format json`（定位最新快照/查询归档索引）
 - `npm run verify:release-archive-find -- --version current --format json`（使用根目录 package 版本定位最新快照）
@@ -670,6 +671,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 
 发布后收敛校验：
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
+- `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version current`（使用根目录 package 版本别名，tag 默认 `v<解析后版本>`）
 - `release-verify` JSON 现已包含适合集成消费的标准化块（`standardized.status/resultCode/checkStatuses/failureCodes/failures`）
 
 ## Roadmap（简版）

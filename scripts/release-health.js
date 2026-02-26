@@ -269,7 +269,13 @@ async function main() {
 
   const pkg = JSON.parse(await readFile(path.join(cwd, "package.json"), "utf8"));
   const packageName = pkg.name;
-  const version = flags.version || pkg.version;
+  const pkgVersion = String(pkg.version || "").trim();
+  const versionFlag = String(flags.version || "").trim();
+  if (versionFlag.toLowerCase() === "current" && !pkgVersion) {
+    throw new Error("--version current requires package.json with a valid version field");
+  }
+  const version = versionFlag.toLowerCase() === "current" ? pkgVersion : String(versionFlag || pkgVersion || "").trim();
+  if (!version) throw new Error("version is required (--version or package.json version)");
   const tag = flags.tag || `v${version}`;
   const packageBaseName = String(packageName || "").includes("/") ? String(packageName).split("/").pop() : String(packageName || "");
   const expectedAsset = String(flags["expected-asset"] || `${packageBaseName}-${version}.tgz`);

@@ -166,6 +166,67 @@ test("release-health passes when expected unscoped tgz asset exists", async () =
   assert.deepEqual(report.standardized.failureCodes, []);
 });
 
+test("release-health supports --version current alias from package.json", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-health-current-version-"));
+  const binDir = path.join(tmp, "bin");
+  await fs.mkdir(binDir, { recursive: true });
+  await writeExecutable(path.join(binDir, "npm"), "#!/usr/bin/env bash\necho 1.5.0\n");
+  await fs.writeFile(
+    path.join(tmp, "package.json"),
+    JSON.stringify({ name: "@xiaofandegeng/rmemo", version: "1.5.0", type: "module" }) + "\n",
+    "utf8"
+  );
+
+  const preload = path.join(tmp, "mock-https-current-version.cjs");
+  await fs.writeFile(
+    preload,
+    [
+      "const https = require('node:https');",
+      "const { EventEmitter } = require('node:events');",
+      "https.request = function mockRequest(url, options, callback) {",
+      "  const req = new EventEmitter();",
+      "  req.setTimeout = () => {};",
+      "  req.destroy = () => {};",
+      "  req.end = () => {",
+      "    const res = new EventEmitter();",
+      "    res.setEncoding = () => {};",
+      "    const tagMatched = String(url || '').includes('/releases/tags/v1.5.0');",
+      "    res.statusCode = tagMatched ? 200 : 404;",
+      "    process.nextTick(() => {",
+      "      callback(res);",
+      "      if (tagMatched) {",
+      "        res.emit('data', JSON.stringify({ name: 'v1.5.0', assets: [{ name: 'rmemo-1.5.0.tgz' }] }));",
+      "      } else {",
+      "        res.emit('data', JSON.stringify({ message: 'not found' }));",
+      "      }",
+      "      res.emit('end');",
+      "    });",
+      "  };",
+      "  return req;",
+      "};"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const env = {
+    ...process.env,
+    PATH: `${binDir}:${process.env.PATH || ""}`,
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : ""}--require=${preload}`
+  };
+
+  const r = await runNode(
+    ["scripts/release-health.js", "--root", tmp, "--repo", "owner/repo", "--version", "current", "--format", "json", "--timeout-ms", "2000"],
+    { cwd: path.resolve("."), env }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.version, "1.5.0");
+  assert.equal(report.tag, "v1.5.0");
+  assert.equal(report.checks.releaseAssets.expectedAsset, "rmemo-1.5.0.tgz");
+  assert.equal(report.ok, true);
+});
+
 test("release-health fails when expected release tgz asset is missing", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-health-asset-miss-"));
   const binDir = path.join(tmp, "bin");
