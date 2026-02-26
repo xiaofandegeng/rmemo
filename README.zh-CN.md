@@ -655,6 +655,7 @@ npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo
 - `release-summary.json` 新增适合集成消费的标准化块（`standardized.status/resultCode/checkStatuses/failureCodes/failures`）
 - `release-summary.json.standardized.failures` 现已同时包含步骤级失败、步骤下游失败细节与 health 失败（来自 `release-health`）
 - 摘要输出支持 `--summary-format md|json`（默认 `json`；当 `--summary-out` 以 `.md` 结尾时会自动推断为 Markdown）
+- 在 `--archive` 且未显式传 `--summary-out` 时，若设置 `--summary-format md`，默认摘要路径为 `artifacts/release-summary.md`（否则为 `artifacts/release-summary.json`）
 
 发布后收敛校验：
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`

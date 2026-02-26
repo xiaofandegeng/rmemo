@@ -91,6 +91,7 @@ Useful flags:
 - `--archive` to run `release-archive` immediately after rehearsal output is generated
 - `--archive-verify` to run `release-archive-find` after archive step (fails rehearsal if required files are missing)
 - `--summary-format <json|md>` to control `--summary-out` file format (defaults to `json`; inferred as `md` when `--summary-out` ends with `.md`)
+  - in `--archive` mode without explicit `--summary-out`, default summary path becomes `artifacts/release-summary.md` when `--summary-format md` is set (otherwise `artifacts/release-summary.json`)
 - `--archive-require-files <a,b,c>` to define required files for `--archive-verify` (default: `release-ready.json,release-health.json,release-rehearsal.json`)
 - `--archive-snapshot-id <id>` to pin archive snapshot id in rehearsal-driven archive mode
 - `--archive-retention-days <days>` and `--archive-max-snapshots-per-version <n>` to control archive pruning in rehearsal-driven archive mode

@@ -47,6 +47,7 @@
   - v1.5 M2 已落地：`release-summary/rehearsal.summaryFailureCodes` 聚合失败步骤下游 `standardized.failureCodes`（细化跨步骤失败码视图）
   - v1.5 M2 已落地：`release-rehearsal.md` 新增 `Failure Signals` 失败明细段（人工排障可不依赖 JSON）
   - v1.5 M2 已落地：`release-rehearsal --summary-format md|json`（摘要同时支持机器消费与人工阅读）
+  - v1.5 M2 已落地：`release-rehearsal --summary-format` 边界测试补齐（非法值校验 + archive 默认摘要路径按格式输出）
 
 ## Execution Rule
 

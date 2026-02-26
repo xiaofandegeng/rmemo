@@ -51,6 +51,7 @@
 - [x] `release-summary.json/release-rehearsal.json` 的 `summaryFailureCodes` 聚合失败步骤下游 `standardized.failureCodes`（不仅限步骤分类码与 health 失败码）。
 - [x] `release-rehearsal.md` 新增 `Failure Signals` 失败明细段（直接展示 `standardized.failures`，便于人工排障）。
 - [x] `release-rehearsal --summary-out` 新增 `--summary-format md|json`（支持产出可读 Markdown 摘要）。
+- [x] `release-rehearsal --summary-format` 边界行为补齐测试（非法值拦截；archive 默认摘要路径按格式落盘）。
 
 ## 6. 启动时固定动作
 

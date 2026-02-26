@@ -675,6 +675,7 @@ Archive release reports with a versioned snapshot:
 - `release-summary.json` includes integration-friendly summary block (`standardized.status/resultCode/checkStatuses/failureCodes/failures`)
 - `release-summary.json.standardized.failures` now includes step-level failures + downstream step failure details + health-level failures (from `release-health`)
 - summary output supports `--summary-format md|json` (default `json`; `.md` summary paths auto-infer markdown)
+- in `--archive` mode without explicit `--summary-out`, `--summary-format md` defaults summary path to `artifacts/release-summary.md` (otherwise `artifacts/release-summary.json`)
 
 Post-release convergence check:
 - `npm run verify:release-verify -- --repo xiaofandegeng/rmemo --version <version> --tag v<version>`
