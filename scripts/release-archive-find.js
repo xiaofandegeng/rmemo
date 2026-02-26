@@ -2,6 +2,15 @@
 import path from "node:path";
 import { readFile, readdir } from "node:fs/promises";
 
+const REQUIRED_FILE_PRESETS = Object.freeze({
+  "rehearsal-archive-verify": [
+    "release-ready.json",
+    "release-health.json",
+    "release-rehearsal.json",
+    "release-summary.json"
+  ]
+});
+
 function parseFlags(argv) {
   const flags = {};
   for (let i = 0; i < argv.length; i++) {
@@ -166,6 +175,7 @@ function md(report) {
     lines.push(`- missingFiles: ${report.snapshot.missingFiles}`);
   }
   if (Array.isArray(report.requiredFiles) && report.requiredFiles.length > 0) {
+    if (report.requiredFilesPreset) lines.push(`- requiredFilesPreset: ${report.requiredFilesPreset}`);
     lines.push(`- requiredFiles: ${report.requiredFiles.join(",")}`);
     lines.push(`- missingRequiredFiles: ${Array.isArray(report.missingRequiredFiles) ? report.missingRequiredFiles.join(",") : ""}`);
   }
@@ -182,10 +192,20 @@ async function main() {
   const archiveRoot = path.join(artifactsDir, "release-archive");
   const version = String(flags.version || "").trim();
   const snapshotId = String(flags["snapshot-id"] || "").trim();
-  const requiredFiles = String(flags["require-files"] || "")
+  const requiredFilesPreset = String(flags["require-preset"] || "").trim();
+  const requiredFilesFromFlag = String(flags["require-files"] || "")
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
+  if (requiredFilesPreset && requiredFilesFromFlag.length > 0) {
+    throw new Error("cannot combine --require-files with --require-preset");
+  }
+  const requiredFiles = requiredFilesPreset
+    ? REQUIRED_FILE_PRESETS[requiredFilesPreset]
+    : requiredFilesFromFlag;
+  if (requiredFilesPreset && !requiredFiles) {
+    throw new Error(`unknown require preset '${requiredFilesPreset}', expected one of: ${Object.keys(REQUIRED_FILE_PRESETS).join(",")}`);
+  }
   const limit = Math.max(1, Number(flags.limit || 20));
 
   let report = {
@@ -233,6 +253,7 @@ async function main() {
         const manifest = await readJsonSafe(path.join(archiveRoot, version, latest.latestSnapshotId, "manifest.json"), null);
         const check = validateRequiredFiles(requiredFiles, normalizeCopiedFiles(manifest?.copiedFiles));
         report.requiredFiles = check.requiredFiles;
+        if (requiredFilesPreset) report.requiredFilesPreset = requiredFilesPreset;
         report.missingRequiredFiles = check.missingRequiredFiles;
         if (!check.ok) {
           report.ok = false;
@@ -268,6 +289,7 @@ async function main() {
       if (requiredFiles.length > 0) {
         const check = validateRequiredFiles(requiredFiles, normalizeCopiedFiles(manifest.copiedFiles));
         report.requiredFiles = check.requiredFiles;
+        if (requiredFilesPreset) report.requiredFilesPreset = requiredFilesPreset;
         report.missingRequiredFiles = check.missingRequiredFiles;
         if (!check.ok) {
           report.ok = false;

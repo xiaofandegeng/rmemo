@@ -173,6 +173,40 @@ test("release-archive-find validates required files on latest snapshot", async (
   assert.equal(report.standardized.checkStatuses.requiredFiles, "pass");
 });
 
+test("release-archive-find supports built-in require preset for rehearsal archive verify", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-required-preset-"));
+  await setupArchive(tmp);
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-archive-find.js"),
+      "--root",
+      tmp,
+      "--format",
+      "json",
+      "--version",
+      "1.5.0",
+      "--require-preset",
+      "rehearsal-archive-verify"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.requiredFilesPreset, "rehearsal-archive-verify");
+  assert.deepEqual(report.requiredFiles, [
+    "release-ready.json",
+    "release-health.json",
+    "release-rehearsal.json",
+    "release-summary.json"
+  ]);
+  assert.equal(report.missingRequiredFiles.includes("release-rehearsal.json"), true);
+  assert.equal(report.missingRequiredFiles.includes("release-summary.json"), true);
+  assert.equal(report.standardized.status, "fail");
+  assert.equal(report.standardized.checkStatuses.requiredFiles, "fail");
+});
+
 test("release-archive-find fails when required files are missing", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-find-required-fail-"));
   await setupArchive(tmp);
@@ -201,4 +235,33 @@ test("release-archive-find fails when required files are missing", async () => {
   assert.equal(report.standardized.status, "fail");
   assert.equal(report.standardized.checkStatuses.requiredFiles, "fail");
   assert.equal(report.standardized.failureCodes.includes("ARCHIVE_REQUIRED_FILES_MISSING"), true);
+});
+
+test("release-archive-find rejects unknown require preset", async () => {
+  const r = await runNode([path.resolve("scripts/release-archive-find.js"), "--format", "json", "--require-preset", "unknown"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /unknown require preset/i);
+});
+
+test("release-archive-find rejects mixing require-files and require-preset", async () => {
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-archive-find.js"),
+      "--format",
+      "json",
+      "--require-files",
+      "release-ready.json",
+      "--require-preset",
+      "rehearsal-archive-verify"
+    ],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+  assert.equal(r.code, 1);
+  assert.match(String(r.err || ""), /cannot combine --require-files with --require-preset/i);
 });

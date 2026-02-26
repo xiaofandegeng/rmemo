@@ -54,6 +54,7 @@
   - v1.5 M2 已落地：`release-archive` 收录 `release-summary.md`（存在时）到快照归档
   - v1.5 M2 已落地：`release-rehearsal --archive-verify` 默认必需文件增加 `release-summary.json`
   - v1.5 M2 已落地：`verify:release-rehearsal-archive-verify` 复用默认必需文件集合（避免 npm 脚本参数漂移）
+  - v1.5 M2 已落地：`release-archive-find --require-preset rehearsal-archive-verify` 内置必需文件集合（减少长参数与文档漂移）
 
 ## Execution Rule
 
