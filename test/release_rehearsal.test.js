@@ -773,6 +773,54 @@ test("release-rehearsal rejects archive-require-preset without archive-verify", 
   assert.match(String(r.err || ""), /--archive-require-files\/--archive-require-preset requires --archive-verify/);
 });
 
+test("release-rehearsal rejects archive-snapshot-id without archive", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-snapshot-id-without-archive-"));
+
+  const r = await runNode(
+    [path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--archive-snapshot-id", "20260226_120000"],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 1);
+  assert.match(
+    String(r.err || ""),
+    /--archive-snapshot-id\/--snapshot-id\/--archive-retention-days\/--archive-max-snapshots-per-version requires --archive/
+  );
+});
+
+test("release-rehearsal rejects archive-retention-days without archive", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-retention-without-archive-"));
+
+  const r = await runNode([path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--archive-retention-days", "30"], {
+    cwd: path.resolve("."),
+    env: { ...process.env }
+  });
+
+  assert.equal(r.code, 1);
+  assert.match(
+    String(r.err || ""),
+    /--archive-snapshot-id\/--snapshot-id\/--archive-retention-days\/--archive-max-snapshots-per-version requires --archive/
+  );
+});
+
+test("release-rehearsal rejects archive-max-snapshots-per-version without archive", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-max-snapshots-without-archive-"));
+
+  const r = await runNode(
+    [path.resolve("scripts/release-rehearsal.js"), "--root", tmp, "--archive-max-snapshots-per-version", "20"],
+    {
+      cwd: path.resolve("."),
+      env: { ...process.env }
+    }
+  );
+
+  assert.equal(r.code, 1);
+  assert.match(
+    String(r.err || ""),
+    /--archive-snapshot-id\/--snapshot-id\/--archive-retention-days\/--archive-max-snapshots-per-version requires --archive/
+  );
+});
+
 test("release-rehearsal runs archive step and auto-writes default summary when archive is enabled", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-rehearsal-archive-ok-"));
   await fs.mkdir(path.join(tmp, "scripts"), { recursive: true });

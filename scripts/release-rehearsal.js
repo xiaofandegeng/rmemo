@@ -571,13 +571,21 @@ async function main() {
   const archiveVerify = archive && flags["archive-verify"] === "true";
   const summaryFormatFlag = String(flags["summary-format"] || "").trim().toLowerCase();
   const archiveSnapshotId = String(flags["archive-snapshot-id"] || flags["snapshot-id"] || "").trim();
+  const archiveSnapshotIdFlag = String(flags["archive-snapshot-id"] || "").trim();
+  const legacySnapshotIdFlag = String(flags["snapshot-id"] || "").trim();
   const archiveRequirePreset = String(flags["archive-require-preset"] || "").trim();
   const archiveRequireFiles = String(flags["archive-require-files"] || "")
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
+  const archiveRetentionDaysFlag = flags["archive-retention-days"] !== undefined || flags["retention-days"] !== undefined;
+  const archiveMaxSnapshotsFlag =
+    flags["archive-max-snapshots-per-version"] !== undefined || flags["max-snapshots-per-version"] !== undefined;
   if (archiveVerifyFlag && !archive) {
     throw new Error("--archive-verify requires --archive");
+  }
+  if (!archive && (archiveSnapshotIdFlag || legacySnapshotIdFlag || archiveRetentionDaysFlag || archiveMaxSnapshotsFlag)) {
+    throw new Error("--archive-snapshot-id/--snapshot-id/--archive-retention-days/--archive-max-snapshots-per-version requires --archive");
   }
   if (!archiveVerifyFlag && (archiveRequirePreset || archiveRequireFiles.length > 0)) {
     throw new Error("--archive-require-files/--archive-require-preset requires --archive-verify");
