@@ -33,6 +33,10 @@ function toMd(report) {
   lines.push(`- duplicateVersions: ${report.duplicates.length}`);
   lines.push(`- nonNormalizedHeadings: ${report.nonNormalized.length}`);
   lines.push(`- result: ${report.ok ? "OK" : "FAIL"}`);
+  if (report.standardized?.resultCode) lines.push(`- resultCode: ${report.standardized.resultCode}`);
+  if (Array.isArray(report.standardized?.failureCodes) && report.standardized.failureCodes.length > 0) {
+    lines.push(`- failureCodes: ${report.standardized.failureCodes.join(",")}`);
+  }
   if (report.duplicates.length) {
     lines.push("");
     lines.push("## Duplicate Versions");
@@ -46,6 +50,44 @@ function toMd(report) {
   return lines.join("\n") + "\n";
 }
 
+function buildStandardized(report) {
+  const failures = [];
+  if (Array.isArray(report.duplicates) && report.duplicates.length > 0) {
+    failures.push({
+      check: "duplicates",
+      code: "CHANGELOG_DUPLICATE_VERSION",
+      message: `found ${report.duplicates.length} duplicate version heading group(s)`,
+      retryable: false
+    });
+  }
+  if (Array.isArray(report.nonNormalized) && report.nonNormalized.length > 0) {
+    failures.push({
+      check: "nonNormalized",
+      code: "CHANGELOG_NON_NORMALIZED_HEADING",
+      message: `found ${report.nonNormalized.length} non-normalized heading(s)`,
+      retryable: false
+    });
+  }
+  const checkStatuses = {
+    duplicates: failures.some((x) => x.check === "duplicates") ? "fail" : "pass",
+    nonNormalized: failures.some((x) => x.check === "nonNormalized") ? "fail" : "pass"
+  };
+  const checkEntries = Object.entries(checkStatuses);
+  return {
+    schema: 1,
+    status: report.ok ? "pass" : "fail",
+    resultCode: report.ok ? "CHANGELOG_LINT_OK" : "CHANGELOG_LINT_FAIL",
+    summary: {
+      totalChecks: checkEntries.length,
+      passCount: checkEntries.filter(([, status]) => status === "pass").length,
+      failCount: checkEntries.filter(([, status]) => status === "fail").length
+    },
+    checkStatuses,
+    failureCodes: failures.map((failure) => failure.code),
+    failures
+  };
+}
+
 async function main() {
   const flags = parseFlags(process.argv.slice(2));
   const root = flags.root ? path.resolve(flags.root) : process.cwd();
@@ -54,6 +96,7 @@ async function main() {
   const file = path.join(root, "CHANGELOG.md");
   const content = await fs.readFile(file, "utf8");
   const report = analyzeChangelog(content);
+  report.standardized = buildStandardized(report);
 
   if (format === "json") process.stdout.write(JSON.stringify(report, null, 2) + "\n");
   else process.stdout.write(toMd(report));

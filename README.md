@@ -647,6 +647,7 @@ This writes release audit files to `artifacts/`:
 - `release-health.md` / `release-health.json`
 - `release-rehearsal.md` / `release-rehearsal.json`
 - `release-notes` also supports `--format json` with `standardized.status/resultCode/checkStatuses/failureCodes/failures`
+- `verify:changelog` (`changelog-lint`) JSON now includes `standardized.status/resultCode/checkStatuses/failureCodes/failures`
 
 Timeout tuning (avoid hanging checks on unstable networks):
 - `npm run verify:release-rehearsal -- --repo xiaofandegeng/rmemo --health-timeout-ms 15000`

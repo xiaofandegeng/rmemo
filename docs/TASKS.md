@@ -41,6 +41,7 @@
   - v1.5 M2 已落地：`release-verify.standardized` 统一状态块（便于告警/平台接入）
   - v1.5 M2 已落地：`release-ready.standardized` 统一状态块（便于告警/平台接入）
   - v1.5 M2 已落地：`release-notes --format json` + `standardized` 统一状态块（便于告警/平台接入）
+  - v1.5 M2 已落地：`changelog-lint.standardized` 统一状态块（便于告警/平台接入）
 
 ## Execution Rule
 
