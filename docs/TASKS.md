@@ -51,6 +51,7 @@
   - v1.5 M2 已落地：`release-summary.md` 高信号分段增强（Failure Breakdown/Health Signals/Archive）
   - v1.5 M2 已落地：`summary-out` 与 `summary-format` 冲突校验（后缀与格式不一致时快速失败）
   - v1.5 M2 已落地：`--archive + --summary-format md` 仍写出 `release-summary.json` 兼容文件（归档链路兼容）
+  - v1.5 M2 已落地：`release-archive` 收录 `release-summary.md`（存在时）到快照归档
 
 ## Execution Rule
 

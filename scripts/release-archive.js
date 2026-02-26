@@ -157,6 +157,7 @@ async function main() {
     "release-health.json",
     "release-rehearsal.md",
     "release-rehearsal.json",
+    "release-summary.md",
     "release-summary.json",
     "release-verify.json"
   ];

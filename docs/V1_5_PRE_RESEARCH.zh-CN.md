@@ -55,6 +55,7 @@
 - [x] `release-summary.md` 增强观测段（`Failure Breakdown/Health Signals/Archive`），并补齐回归测试。
 - [x] `release-rehearsal` 新增 `summary-out` 与 `summary-format` 冲突校验（后缀与格式不一致时快速失败）。
 - [x] `release-rehearsal --archive` 在 Markdown 摘要模式下仍保留 `release-summary.json` 兼容输出（避免归档链路断裂）。
+- [x] `release-archive` 收录 `release-summary.md`（存在时）到快照归档，补齐 Markdown 摘要归档链路。
 
 ## 6. 启动时固定动作
 

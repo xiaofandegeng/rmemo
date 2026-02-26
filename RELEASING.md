@@ -95,6 +95,8 @@ Useful flags:
   - in `--archive` mode without explicit `--summary-out`, default summary path becomes `artifacts/release-summary.md` when `--summary-format md` is set (otherwise `artifacts/release-summary.json`)
   - archive mode always keeps a machine-readable `artifacts/release-summary.json` compatibility file for downstream archiving/integration, even when primary summary output is markdown
   - when both are provided, `.md/.json` suffix and `--summary-format` must match (conflicts fail fast)
+
+`release-archive` now also collects `release-summary.md` (when present) into each snapshot, alongside `release-summary.json`.
 - `--archive-require-files <a,b,c>` to define required files for `--archive-verify` (default: `release-ready.json,release-health.json,release-rehearsal.json`)
 - `--archive-snapshot-id <id>` to pin archive snapshot id in rehearsal-driven archive mode
 - `--archive-retention-days <days>` and `--archive-max-snapshots-per-version <n>` to control archive pruning in rehearsal-driven archive mode

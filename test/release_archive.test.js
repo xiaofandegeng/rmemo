@@ -119,3 +119,32 @@ test("release-archive fails when artifacts directory has no releasable files", a
   assert.equal(report.standardized.checkStatuses.sourceArtifacts, "fail");
   assert.equal(report.standardized.failureCodes.includes("ARCHIVE_SOURCE_FILES_MISSING"), true);
 });
+
+test("release-archive copies markdown release summary when json summary is absent", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "rmemo-release-archive-summary-md-only-"));
+  const artifacts = path.join(tmp, "artifacts");
+  await fs.mkdir(artifacts, { recursive: true });
+  await fs.writeFile(path.join(tmp, "package.json"), JSON.stringify({ name: "x", version: "9.9.9", type: "module" }) + "\n", "utf8");
+  await fs.writeFile(path.join(artifacts, "release-summary.md"), "# summary\n\n- result: READY\n", "utf8");
+
+  const r = await runNode(
+    [
+      path.resolve("scripts/release-archive.js"),
+      "--root",
+      tmp,
+      "--format",
+      "json",
+      "--snapshot-id",
+      "20260225_140000"
+    ],
+    { cwd: path.resolve("."), env: { ...process.env } }
+  );
+
+  assert.equal(r.code, 0, r.err || r.out);
+  const report = JSON.parse(r.out);
+  assert.equal(report.ok, true);
+  assert.equal(report.copiedFiles.some((entry) => entry.file === "release-summary.md"), true);
+  const copiedSummary = path.join(report.snapshotDir, "release-summary.md");
+  const summaryContent = await fs.readFile(copiedSummary, "utf8");
+  assert.match(summaryContent, /result: READY/);
+});
