@@ -247,9 +247,9 @@ jobs:
           PKG="$(node -p "require('./package.json').name")"
           V="${{ steps.vars.outputs.version }}"
           TMP_DIR="$(mktemp -d)"
-          npx -y "$PKG@$V" --help >/dev/null
-          npx -y "$PKG@$V" --root "$TMP_DIR" init >/dev/null
-          npx -y "$PKG@$V" --root "$TMP_DIR" status --format json > "$TMP_DIR/status.json"
+          npm exec --yes --package "$PKG@$V" -- rmemo --help >/dev/null
+          npm exec --yes --package "$PKG@$V" -- rmemo --root "$TMP_DIR" init >/dev/null
+          npm exec --yes --package "$PKG@$V" -- rmemo --root "$TMP_DIR" status --format json > "$TMP_DIR/status.json"
           node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); if (!data || typeof data.root !== 'string') { throw new Error('invalid status payload'); }" "$TMP_DIR/status.json"
 
       - name: Release health check
