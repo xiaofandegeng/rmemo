@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.2](https://github.com/xiaofandegeng/rmemo/compare/v2.0.1...v2.0.2) (2026-02-27)
+
+
+### 🐛 Bug Fixes
+
+* **ci:** use npx for post-publish smoke test ([30e8b30](https://github.com/xiaofandegeng/rmemo/commit/30e8b303aea51ecf00ff339475e24d66ae44fa24))
+
 ## [2.0.1](https://github.com/xiaofandegeng/rmemo/compare/v2.0.0...v2.0.1) (2026-02-27)
 
 
