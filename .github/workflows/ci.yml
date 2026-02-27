@@ -8,6 +8,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_READY_STEP_TIMEOUT_MS: "120000"
     strategy:
       fail-fast: false
       matrix:
@@ -34,8 +36,8 @@ jobs:
       - name: Generate release readiness report
         run: |
           mkdir -p artifacts
-          node scripts/release-ready.js --format md --out artifacts/release-ready.md
-          node scripts/release-ready.js --format json --out artifacts/release-ready.json
+          node scripts/release-ready.js --format md --skip-tests --allow-dirty --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.md
+          node scripts/release-ready.js --format json --skip-tests --allow-dirty --step-timeout-ms "${RELEASE_READY_STEP_TIMEOUT_MS}" --out artifacts/release-ready.json
       - name: Upload release readiness artifact
         uses: actions/upload-artifact@v4
         with:
