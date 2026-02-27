@@ -63,8 +63,8 @@ Release is driven by `release-please` on `main` push.
 
 - [ ] Verify npm package is published:
   - [ ] `npm view @xiaofandegeng/rmemo@<version> version`
-  - [ ] `npm exec --yes --package @xiaofandegeng/rmemo@<version> -- rmemo --help`
-  - [ ] `TMP_DIR=$(mktemp -d) && npm exec --yes --package @xiaofandegeng/rmemo@<version> -- rmemo --root "$TMP_DIR" init && npm exec --yes --package @xiaofandegeng/rmemo@<version> -- rmemo --root "$TMP_DIR" status --format json`
+  - [ ] `npx --yes @xiaofandegeng/rmemo@<version> --help`
+  - [ ] `TMP_DIR=$(mktemp -d) && npx --yes @xiaofandegeng/rmemo@<version> --root "$TMP_DIR" init && npx --yes @xiaofandegeng/rmemo@<version> --root "$TMP_DIR" status --format json`
 - [ ] Verify GitHub Release exists for tag `v<version>`
 - [ ] Download release audit artifact:
   - [ ] `rmemo-release-audit-<version>`
