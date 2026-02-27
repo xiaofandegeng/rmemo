@@ -118,6 +118,7 @@ npm run verify:release-ready
 
 ## 文档入口
 
+- [文档索引](./docs/INDEX.md)
 - [使用方式（AI 协作）](./docs/USAGE.zh-CN.md)
 - [PR 自动化](./docs/PR_AUTOMATION.zh-CN.md)
 - [接口契约（Contracts）](./docs/CONTRACTS.md)

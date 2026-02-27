@@ -118,6 +118,7 @@ For full release flow, use:
 
 ## Documentation
 
+- [Docs Index](./docs/INDEX.md)
 - [Usage](./docs/USAGE.md)
 - [PR Automation](./docs/PR_AUTOMATION.md)
 - [Contracts](./docs/CONTRACTS.md)
