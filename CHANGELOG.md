@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.3](https://github.com/xiaofandegeng/rmemo/compare/v2.0.2...v2.0.3) (2026-02-27)
+
+
+### 🎯 Testing
+
+* **ci:** align release workflow smoke assertions with npx ([04635e8](https://github.com/xiaofandegeng/rmemo/commit/04635e8d4c64fe7d4ea4d096c43b052abc6402c0))
+
 ## [2.0.2](https://github.com/xiaofandegeng/rmemo/compare/v2.0.1...v2.0.2) (2026-02-27)
 
 
