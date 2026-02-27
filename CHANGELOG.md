@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.4](https://github.com/xiaofandegeng/rmemo/compare/v2.0.3...v2.0.4) (2026-02-27)
+
+
+### 🐛 Bug Fixes
+
+* **ci:** install package in temp prefix for release smoke test ([c0926de](https://github.com/xiaofandegeng/rmemo/commit/c0926de7d2cb91d9346c97cf43f7fdfe63c3a219))
+
 ## [2.0.3](https://github.com/xiaofandegeng/rmemo/compare/v2.0.2...v2.0.3) (2026-02-27)
 
 
