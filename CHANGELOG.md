@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0](https://github.com/xiaofandegeng/rmemo/compare/v1.15.2...v2.0.0) (2026-02-27)
+
+
+### ✨ Features
+
+* **release:** harden post-publish smoke and refresh cycle docs ([4f22e67](https://github.com/xiaofandegeng/rmemo/commit/4f22e6719a4a085078b056bec38c355cd17fe5b1))
+
+
+### 🧹 Chores
+
+* trigger 2.0.0 release ([0806f97](https://github.com/xiaofandegeng/rmemo/commit/0806f97e3d3ed9331e3f839df0bf8007c8832d84))
+
 ## [1.15.2](https://github.com/xiaofandegeng/rmemo/compare/v1.15.1...v1.15.2) (2026-02-26)
 
 
