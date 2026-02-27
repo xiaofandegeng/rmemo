@@ -1,6 +1,6 @@
 {
   "name": "@xiaofandegeng/rmemo",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Repo memory + dev journal CLI: scan any project, persist conventions/progress, and generate an AI-ready context pack.",
   "type": "module",
   "bin": {
