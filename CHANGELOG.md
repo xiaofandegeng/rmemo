@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.5](https://github.com/xiaofandegeng/rmemo/compare/v2.0.4...v2.0.5) (2026-02-27)
+
+
+### 🐛 Bug Fixes
+
+* **ci:** speed up release-ready artifact step in matrix jobs ([16f9ba6](https://github.com/xiaofandegeng/rmemo/commit/16f9ba65a5178bd7aa9e112ab8256770d156f1d2))
+
 ## [2.0.4](https://github.com/xiaofandegeng/rmemo/compare/v2.0.3...v2.0.4) (2026-02-27)
 
 
