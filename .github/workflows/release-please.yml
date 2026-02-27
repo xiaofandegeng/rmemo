@@ -247,10 +247,14 @@ jobs:
           PKG="$(node -p "require('./package.json').name")"
           V="${{ steps.vars.outputs.version }}"
           TMP_DIR="$(mktemp -d)"
+          INSTALL_DIR="$(mktemp -d)"
+          BIN="$INSTALL_DIR/node_modules/.bin/rmemo"
           smoke() {
-            npx --yes "$PKG@$V" --help >/dev/null
-            npx --yes "$PKG@$V" --root "$TMP_DIR" init >/dev/null
-            npx --yes "$PKG@$V" --root "$TMP_DIR" status --format json > "$TMP_DIR/status.json"
+            rm -rf "$INSTALL_DIR/node_modules" "$INSTALL_DIR/package-lock.json"
+            npm install --prefix "$INSTALL_DIR" --no-audit --no-fund "$PKG@$V" >/dev/null
+            "$BIN" --help >/dev/null
+            "$BIN" --root "$TMP_DIR" init >/dev/null
+            "$BIN" --root "$TMP_DIR" status --format json > "$TMP_DIR/status.json"
           }
           for i in 1 2 3; do
             if smoke; then

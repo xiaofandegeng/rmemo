@@ -228,7 +228,7 @@ Keep these values aligned between local rehearsal and workflow:
 Notes:
 - `release-please` step is retried once in the same workflow run to absorb transient GitHub API failures.
 - If the target npm version already exists, publish step exits safely.
-- After publish success, workflow runs a real registry smoke check via `npx --yes <pkg>@<version> ...` (`--help`, `init`, `status --format json`) with up to 3 retries for registry propagation.
+- After publish success, workflow runs a real registry smoke check by installing `<pkg>@<version>` into a temp prefix and executing `node_modules/.bin/rmemo` (`--help`, `init`, `status --format json`) with up to 3 retries for registry propagation.
 
 ## Post-release convergence verify (recommended)
 

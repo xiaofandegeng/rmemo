@@ -16,7 +16,8 @@ test("release workflow keeps release-ready audit exports compatible with dirty a
 test("release workflow includes post-publish install smoke test from registry package", async () => {
   const workflow = await readReleaseWorkflow();
   assert.match(workflow, /name:\s+Post-publish install smoke test/);
-  assert.match(workflow, /npx --yes "\$PKG@\$V" --help/);
-  assert.match(workflow, /npx --yes "\$PKG@\$V" --root "\$TMP_DIR" init/);
-  assert.match(workflow, /npx --yes "\$PKG@\$V" --root "\$TMP_DIR" status --format json/);
+  assert.match(workflow, /npm install --prefix "\$INSTALL_DIR" --no-audit --no-fund "\$PKG@\$V"/);
+  assert.match(workflow, /"\$BIN" --help/);
+  assert.match(workflow, /"\$BIN" --root "\$TMP_DIR" init/);
+  assert.match(workflow, /"\$BIN" --root "\$TMP_DIR" status --format json/);
 });
