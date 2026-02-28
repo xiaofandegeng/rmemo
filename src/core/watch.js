@@ -8,6 +8,7 @@ import { generateContext } from "./context.js";
 import { syncAiInstructions } from "./sync.js";
 import { getGitSummary, gitOk, revParse } from "./git_summary.js";
 import { embedAuto } from "./embed_auto.js";
+import { runKnowledgeAutoExtract } from "./knowledge_auto.js";
 
 function sleep(ms, signal) {
   return new Promise((resolve) => {
@@ -67,6 +68,11 @@ export async function refreshRepoMemory(root, { preferGit, maxFiles, snipLines, 
   const ctx = await generateContext(root, { snipLines, recentDays });
   await fs.writeFile(contextPath(root), ctx, "utf8");
 
+  const memory = await runKnowledgeAutoExtract(root, {
+    reason: "refresh",
+    sourcePrefix: "watch:auto",
+    recentDays
+  });
   const syncResult = sync ? await syncAiInstructions({ root }) : null;
   const embedResult = embed ? await embedAuto(root, { checkOnly: false }) : null;
 
@@ -81,6 +87,7 @@ export async function refreshRepoMemory(root, { preferGit, maxFiles, snipLines, 
       usingGit: !!manifest?.usingGit,
       repoHints: Array.isArray(manifest?.repoHints) ? manifest.repoHints : []
     },
+    memory,
     sync: syncResult,
     embed: embedResult
   };
@@ -120,6 +127,15 @@ export async function watchRepo(root, opts = {}) {
         durationMs: r.durationMs,
         stats: r.stats,
         sync: r.sync ? { ok: !!r.sync.ok, changed: (r.sync.results || []).filter((x) => x.changed).length } : null,
+        memory: r.memory
+          ? {
+              ok: !!r.memory.ok,
+              skipped: !!r.memory.skipped,
+              reason: r.memory.reason || "",
+              created: Number(r.memory.result?.created || 0),
+              updated: Number(r.memory.result?.updated || 0)
+            }
+          : null,
         embed: r.embed || null
       });
     } catch (err) {

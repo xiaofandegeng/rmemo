@@ -3,6 +3,7 @@ import { resolveRoot } from "../lib/paths.js";
 import { readStdinText } from "../lib/stdin.js";
 import { appendJournalEntry } from "../core/journal.js";
 import { addTodoBlocker, addTodoNext } from "../core/todos.js";
+import { runKnowledgeAutoExtract } from "../core/knowledge_auto.js";
 
 function normalizeNote(s) {
   const t = String(s || "").trim();
@@ -48,8 +49,12 @@ export async function cmdDone({ rest, flags }) {
   const jp = await appendJournal(root, text);
   const tp = await maybeAppendNext(root, next);
   const bp = blocker ? await addTodoBlocker(root, blocker) : null;
+  const memory = await runKnowledgeAutoExtract(root, { reason: "done", sourcePrefix: "cli:auto" });
 
   process.stdout.write(`Wrote journal: ${path.relative(process.cwd(), jp)}\n`);
   if (tp) process.stdout.write(`Updated todos: ${path.relative(process.cwd(), tp)}\n`);
   if (bp && bp !== tp) process.stdout.write(`Updated todos: ${path.relative(process.cwd(), bp)}\n`);
+  if (!memory.ok) {
+    process.stderr.write(`warn: auto memory extract failed: ${memory.error || "unknown"}\n`);
+  }
 }

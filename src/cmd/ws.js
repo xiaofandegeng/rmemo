@@ -58,6 +58,7 @@ import { generatePr } from "../core/pr.js";
 import { syncAiInstructions } from "../core/sync.js";
 import { refreshRepoMemory } from "../core/watch.js";
 import { embedAuto } from "../core/embed_auto.js";
+import { runKnowledgeAutoExtract } from "../core/knowledge_auto.js";
 
 function isNumberLike(s) {
   return /^[0-9]+$/.test(String(s || ""));
@@ -802,6 +803,8 @@ export async function cmdWs({ rest, flags }) {
         return;
       }
       const out = await applyWorkspaceFocusAlertsActionPlan(root, { id: actionId, includeBlockers, noLog, maxTasks });
+      const mem = await runKnowledgeAutoExtract(root, { reason: "ws-alerts-action-apply", sourcePrefix: "cli:auto" });
+      if (!mem.ok) process.stderr.write(`warn: auto memory extract failed: ${mem.error || "unknown"}\n`);
       process.stdout.write(format === "json" ? JSON.stringify(out, null, 2) + "\n" : `Applied action ${out.actionId}: next=${out.applied?.next?.length || 0}, blockers=${out.applied?.blockers?.length || 0}\n`);
       return;
     }
@@ -997,6 +1000,8 @@ export async function cmdWs({ rest, flags }) {
           return;
         }
         const out = await closeWorkspaceFocusAlertsBoard(root, { boardId, reason: closeReason, force, noLog });
+        const mem = await runKnowledgeAutoExtract(root, { reason: "ws-alerts-board-close", sourcePrefix: "cli:auto" });
+        if (!mem.ok) process.stderr.write(`warn: auto memory extract failed: ${mem.error || "unknown"}\n`);
         if (format === "json") process.stdout.write(JSON.stringify(out, null, 2) + "\n");
         else process.stdout.write(`Closed board ${boardId} at ${out.closedAt || "-"}\n`);
         return;
@@ -1091,6 +1096,8 @@ export async function cmdWs({ rest, flags }) {
         const dedupeWindowHours = flags["dedupe-window-hours"] !== undefined ? Number(flags["dedupe-window-hours"]) : undefined;
         const dryRun = !!flags["dry-run"];
         const out = await applyWorkspaceFocusAlertsBoardsPulsePlan(root, { limitBoards, todoHours, doingHours, blockedHours, policy, limitItems, includeWarn, noLog, dedupe, dedupeWindowHours, dryRun });
+        const mem = await runKnowledgeAutoExtract(root, { reason: "ws-alerts-board-pulse-apply", sourcePrefix: "cli:auto" });
+        if (!mem.ok) process.stderr.write(`warn: auto memory extract failed: ${mem.error || "unknown"}\n`);
         if (format === "json") {
           process.stdout.write(JSON.stringify(out, null, 2) + "\n");
         } else {

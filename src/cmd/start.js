@@ -5,6 +5,7 @@ import { manifestPath, indexPath, contextPath } from "../lib/paths.js";
 import { writeJson } from "../lib/io.js";
 import { scanRepo } from "../core/scan.js";
 import { generateContext } from "../core/context.js";
+import { runKnowledgeAutoExtract } from "../core/knowledge_auto.js";
 import { cmdStatus } from "./status.js";
 import { ensureRepoMemory } from "../core/memory.js";
 
@@ -27,6 +28,14 @@ export async function cmdStart({ flags }) {
   const recentDays = Number(flags["recent-days"] || 7);
   const ctx = await generateContext(root, { snipLines, recentDays });
   await fs.writeFile(contextPath(root), ctx, "utf8");
+  const memory = await runKnowledgeAutoExtract(root, {
+    reason: "start",
+    sourcePrefix: "start:auto",
+    recentDays
+  });
+  if (!memory.ok) {
+    process.stderr.write(`warn: auto memory extract failed: ${memory.error || "unknown"}\n`);
+  }
 
   // 3) Print status (md) to stdout (paste-ready)
   process.stdout.write("\n");

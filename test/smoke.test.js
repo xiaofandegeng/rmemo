@@ -428,6 +428,7 @@ test("rmemo start runs scan+context and prints status", async () => {
   assert.ok(await exists(path.join(tmp, ".repo-memory", "rules.md")), true);
   assert.ok(await exists(path.join(tmp, ".repo-memory", "rules.json")), true);
   assert.ok(await exists(path.join(tmp, ".repo-memory", "todos.md")), true);
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "knowledge", "memory.json")), true);
 });
 
 test("rmemo done appends journal and can update todos (args and stdin)", async () => {
@@ -463,6 +464,7 @@ test("rmemo done appends journal and can update todos (args and stdin)", async (
   const todos = await fs.readFile(path.join(tmp, ".repo-memory", "todos.md"), "utf8");
   assert.ok(todos.includes("Tomorrow: do Z"), "todos should include next bullet");
   assert.ok(todos.includes("Waiting for API"), "todos should include blocker bullet");
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "knowledge", "memory.json")));
 
   // stdin mode
   {
@@ -492,6 +494,7 @@ test("rmemo todo add/block/ls updates todos file", async () => {
     const r = await runNode([rmemoBin, "--root", tmp, "todo", "block", "Blocked on D"]);
     assert.equal(r.code, 0, r.err || r.out);
   }
+  assert.ok(await exists(path.join(tmp, ".repo-memory", "knowledge", "memory.json")));
   {
     const r = await runNode([rmemoBin, "--root", tmp, "todo", "ls"]);
     assert.equal(r.code, 0, r.err || r.out);

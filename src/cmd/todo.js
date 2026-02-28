@@ -9,6 +9,7 @@ import {
   removeTodoNextByIndex,
   removeTodoBlockerByIndex
 } from "../core/todos.js";
+import { runKnowledgeAutoExtract } from "../core/knowledge_auto.js";
 import { todosPath } from "../lib/paths.js";
 
 export async function cmdTodo({ rest, flags }) {
@@ -34,6 +35,8 @@ export async function cmdTodo({ rest, flags }) {
     const text = rest.slice(1).join(" ").trim();
     if (!text) throw new Error("Missing text. Usage: rmemo todo add <text>");
     const p = await addTodoNext(root, text);
+    const memory = await runKnowledgeAutoExtract(root, { reason: "todo-add", sourcePrefix: "cli:auto" });
+    if (!memory.ok) process.stderr.write(`warn: auto memory extract failed: ${memory.error || "unknown"}\n`);
     process.stdout.write(`Updated todos: ${path.relative(process.cwd(), p)}\n`);
     return;
   }
@@ -42,6 +45,8 @@ export async function cmdTodo({ rest, flags }) {
     const text = rest.slice(1).join(" ").trim();
     if (!text) throw new Error("Missing text. Usage: rmemo todo block <text>");
     const p = await addTodoBlocker(root, text);
+    const memory = await runKnowledgeAutoExtract(root, { reason: "todo-block", sourcePrefix: "cli:auto" });
+    if (!memory.ok) process.stderr.write(`warn: auto memory extract failed: ${memory.error || "unknown"}\n`);
     process.stdout.write(`Updated todos: ${path.relative(process.cwd(), p)}\n`);
     return;
   }
@@ -69,6 +74,8 @@ export async function cmdTodo({ rest, flags }) {
     const n = rest[1];
     if (!n) throw new Error("Missing index. Usage: rmemo todo done <n>");
     const p = await removeTodoNextByIndex(root, n);
+    const memory = await runKnowledgeAutoExtract(root, { reason: "todo-done", sourcePrefix: "cli:auto" });
+    if (!memory.ok) process.stderr.write(`warn: auto memory extract failed: ${memory.error || "unknown"}\n`);
     process.stdout.write(`Updated todos: ${path.relative(process.cwd(), p)}\n`);
     return;
   }
@@ -77,6 +84,8 @@ export async function cmdTodo({ rest, flags }) {
     const n = rest[1];
     if (!n) throw new Error("Missing index. Usage: rmemo todo unblock <n>");
     const p = await removeTodoBlockerByIndex(root, n);
+    const memory = await runKnowledgeAutoExtract(root, { reason: "todo-unblock", sourcePrefix: "cli:auto" });
+    if (!memory.ok) process.stderr.write(`warn: auto memory extract failed: ${memory.error || "unknown"}\n`);
     process.stdout.write(`Updated todos: ${path.relative(process.cwd(), p)}\n`);
     return;
   }

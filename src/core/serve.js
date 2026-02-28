@@ -39,6 +39,7 @@ import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
 import { refreshRepoMemory, watchRepo } from "./watch.js";
+import { runKnowledgeAutoExtract } from "./knowledge_auto.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
 import {
   applyWorkspaceFocusAlertsActionPlan,
@@ -243,6 +244,7 @@ export function createWatchController(root, { events, watchState, onRefreshOk } 
               durationMs: e.durationMs ?? null,
               stats: e.stats || null,
               sync: e.sync || null,
+              memory: e.memory || null,
               embed: e.embed || null
             };
             if (typeof onRefreshOk === "function") {
@@ -469,6 +471,27 @@ async function searchInText({ file, text, q, maxHits = 50 }) {
 export function createServeHandler(root, opts = {}) {
   const { host, port, token, allowRefresh, allowWrite, allowShutdown, cors, getServer, events, watchState, getWatchCtl, getEmbedJobs } = opts;
   const embedJobs = getEmbedJobs?.() || createEmbedJobsController(root, { events, maxHistory: 50 });
+  const autoExtractMemory = async (reason, { recentDays } = {}) => {
+    const out = await runKnowledgeAutoExtract(root, {
+      reason,
+      sourcePrefix: "serve:auto",
+      recentDays
+    });
+    if (!out.ok) {
+      events?.emit?.({ type: "memory:auto:err", reason, error: out.error || "unknown" });
+      return out;
+    }
+    if (!out.skipped && out.result) {
+      events?.emit?.({
+        type: "memory:auto:ok",
+        reason,
+        created: Number(out.result.created || 0),
+        updated: Number(out.result.updated || 0),
+        totalEntries: Number(out.result.totalEntries || 0)
+      });
+    }
+    return out;
+  };
 
   return async function handler(req, res) {
     const url = new URL(req.url || "/", `http://${host}:${port || 80}`);
@@ -689,6 +712,15 @@ export function createServeHandler(root, opts = {}) {
               durationMs: r.durationMs,
               stats: r.stats,
               sync: r.sync ? { ok: !!r.sync.ok, changed: (r.sync.results || []).filter((x) => x.changed).length } : null,
+              memory: r.memory
+                ? {
+                    ok: !!r.memory.ok,
+                    skipped: !!r.memory.skipped,
+                    reason: r.memory.reason || "",
+                    created: Number(r.memory.result?.created || 0),
+                    updated: Number(r.memory.result?.updated || 0)
+                  }
+                : null,
               embed: r.embed || null
             };
           }
@@ -719,23 +751,27 @@ export function createServeHandler(root, opts = {}) {
         if (url.pathname === "/todos/next") {
           if (!textVal) return badRequest(res, "Missing text");
           await addTodoNext(root, textVal);
+          await autoExtractMemory("todos-next");
           return json(res, 200, { ok: true });
         }
         if (url.pathname === "/todos/blockers") {
           if (!textVal) return badRequest(res, "Missing text");
           await addTodoBlocker(root, textVal);
+          await autoExtractMemory("todos-blockers");
           return json(res, 200, { ok: true });
         }
         if (url.pathname === "/todos/next/done") {
           const idx = body && body.index !== undefined ? body.index : null;
           if (idx === null || idx === undefined) return badRequest(res, "Missing index");
           await removeTodoNextByIndex(root, idx);
+          await autoExtractMemory("todos-next-done");
           return json(res, 200, { ok: true });
         }
         if (url.pathname === "/todos/blockers/unblock") {
           const idx = body && body.index !== undefined ? body.index : null;
           if (idx === null || idx === undefined) return badRequest(res, "Missing index");
           await removeTodoBlockerByIndex(root, idx);
+          await autoExtractMemory("todos-blockers-unblock");
           return json(res, 200, { ok: true });
         }
         return notFound(res);
@@ -749,6 +785,7 @@ export function createServeHandler(root, opts = {}) {
         if (!textVal) return badRequest(res, "Missing text");
         const kind = body && body.kind ? String(body.kind).trim() : "Log";
         const p = await appendJournalEntry(root, { kind, text: textVal });
+        await autoExtractMemory("log");
         return json(res, 200, { ok: true, path: p });
       }
 
@@ -1762,6 +1799,7 @@ export function createServeHandler(root, opts = {}) {
           noLog: !!body.noLog,
           maxTasks: body.maxTasks !== undefined ? Number(body.maxTasks) : 20
         });
+        await autoExtractMemory("ws-alerts-action-apply");
         events?.emit?.({
           type: "ws:alerts:action-applied",
           actionId: out.actionId,
@@ -1895,6 +1933,7 @@ export function createServeHandler(root, opts = {}) {
         const noLog = !!body.noLog;
         if (!boardId) return badRequest(res, "Missing board id");
         const out = await closeWorkspaceFocusAlertsBoard(root, { boardId, reason, force, noLog });
+        await autoExtractMemory("ws-alerts-board-close");
         events?.emit?.({ type: "ws:alerts:board-closed", boardId, forced: force, summary: out.summary || null });
         return json(res, 200, { ok: true, result: out });
       }
@@ -1959,6 +1998,7 @@ export function createServeHandler(root, opts = {}) {
           dedupeWindowHours: body.dedupeWindowHours !== undefined ? Number(body.dedupeWindowHours) : undefined,
           dryRun: body.dryRun === true
         });
+        await autoExtractMemory("ws-alerts-board-pulse-apply");
         events?.emit?.({
           type: "ws:alerts:board-pulse-applied",
           summary: out.taskSummary || null,

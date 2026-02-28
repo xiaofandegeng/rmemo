@@ -59,6 +59,14 @@ export const DEFAULT_CONFIG_JSON = {
   sync: {
     enabled: true,
     targets: ["agents", "copilot", "cursor"]
+  },
+  memory: {
+    autoExtract: {
+      enabled: true,
+      recentDays: 7,
+      limit: 400,
+      sourcePrefix: "auto"
+    }
   }
 };
 

@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import { Readable } from "node:stream";
 import { createEventsBus, createServeHandler, createWatchController } from "../src/core/serve.js";
 import { fileExists, readText } from "../src/lib/io.js";
-import { memDir, todosPath, journalDir } from "../src/lib/paths.js";
+import { journalDir, knowledgeStorePath, memDir, todosPath } from "../src/lib/paths.js";
 
 function makeReq({ method = "GET", url = "/", headers = {}, bodyObj = null, bodyText = null } = {}) {
   let chunks = [];
@@ -193,6 +193,12 @@ test("serve handler: todos + log write endpoints mutate repo memory", async () =
     assert.ok(s.includes("Note"));
     assert.ok(s.includes("Added serve workbench write endpoints."));
   }
+
+  assert.ok(await fileExists(knowledgeStorePath(root)));
+  const mem = JSON.parse(await readText(knowledgeStorePath(root)));
+  assert.equal(mem.schema, 1);
+  assert.ok(Array.isArray(mem.entries));
+  assert.ok(mem.entries.length >= 1);
 });
 
 test("serve handler: /events returns SSE stream (requires token if set)", async () => {
@@ -639,6 +645,7 @@ test("serve handler: POST /refresh triggers refreshRepoMemory (requires allowWri
   assert.ok(await fileExists(path.join(root, ".repo-memory", "context.md")));
   assert.ok(await fileExists(path.join(root, ".repo-memory", "manifest.json")));
   assert.ok(await fileExists(path.join(root, ".repo-memory", "index.json")));
+  assert.ok(await fileExists(knowledgeStorePath(root)));
 
   const w = await run(rw, { method: "GET", url: "/watch?token=t" });
   assert.equal(w.status, 200);

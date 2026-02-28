@@ -8,6 +8,14 @@ import { ensureRepoMemory } from "./memory.js";
 import { getDefaultSyncTargets } from "./sync.js";
 
 const execFileAsync = promisify(execFile);
+const DEFAULT_MEMORY_AUTO_CONFIG = {
+  autoExtract: {
+    enabled: true,
+    recentDays: 7,
+    limit: 400,
+    sourcePrefix: "auto"
+  }
+};
 
 function normalizeNewlines(s) {
   return String(s || "").replace(/\r\n/g, "\n");
@@ -143,6 +151,7 @@ async function ensureConfig(rootAbs, { targets, embed, force }) {
           enabled: true,
           targets: wanted
         },
+        memory: cfg?.memory && typeof cfg.memory === "object" ? cfg.memory : DEFAULT_MEMORY_AUTO_CONFIG,
         embed: embed === null ? cfg?.embed : { ...(cfg?.embed || {}), ...embed }
       };
       await writeJson(p, next);
@@ -153,7 +162,7 @@ async function ensureConfig(rootAbs, { targets, embed, force }) {
     }
   }
 
-  const base = { schema: 1, sync: { enabled: true, targets: wanted } };
+  const base = { schema: 1, sync: { enabled: true, targets: wanted }, memory: DEFAULT_MEMORY_AUTO_CONFIG };
   const next = embed === null ? base : { ...base, embed };
   await writeJson(p, next);
   return { path: p, changed: true };

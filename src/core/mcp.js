@@ -39,6 +39,7 @@ import {
 import { syncAiInstructions } from "./sync.js";
 import { embedAuto, readEmbedConfig } from "./embed_auto.js";
 import { getEmbedStatus } from "./embed_status.js";
+import { runKnowledgeAutoExtract } from "./knowledge_auto.js";
 import { createEmbedJobsController } from "./embed_jobs.js";
 import {
   applyWorkspaceFocusAlertsActionPlan,
@@ -1201,6 +1202,18 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     }
   };
 
+  const autoExtractMemory = async (reason, { recentDays } = {}) => {
+    const out = await runKnowledgeAutoExtract(root, {
+      reason,
+      sourcePrefix: "mcp:auto",
+      recentDays
+    });
+    if (!out.ok) {
+      logger.warn(`auto memory extract failed (${reason}): ${out.error || "unknown"}`);
+    }
+    return out;
+  };
+
   if (name === "rmemo_diagnostics_export") {
     const diag = await exportWorkspaceDiagnostics(root);
     return JSON.stringify({ schema: 1, root, ...diag }, null, 2);
@@ -1687,6 +1700,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     if (!text) throw new Error("Missing text");
     if (kind === "blockers") await addTodoBlocker(root, text);
     else await addTodoNext(root, text);
+    await autoExtractMemory(kind === "blockers" ? "todo-blockers-add" : "todo-next-add");
     const s = await readMaybe(todosPath(root), 2_000_000);
     return s || "";
   }
@@ -1698,6 +1712,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     if (index === undefined || index === null) throw new Error("Missing index");
     if (kind === "blockers") await removeTodoBlockerByIndex(root, index);
     else await removeTodoNextByIndex(root, index);
+    await autoExtractMemory(kind === "blockers" ? "todo-blockers-done" : "todo-next-done");
     const s = await readMaybe(todosPath(root), 2_000_000);
     return s || "";
   }
@@ -1708,6 +1723,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const text = String(args?.text || "").trim();
     if (!text) throw new Error("Missing text");
     const p = await appendJournalEntry(root, { kind, text });
+    await autoExtractMemory("log");
     const s = await readMaybe(p, 2_000_000);
     return JSON.stringify({ ok: true, path: p, excerpt: clampLines(s || "", 120) }, null, 2);
   }
@@ -2100,6 +2116,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       noLog: args?.noLog === true,
       maxTasks: args?.maxTasks !== undefined ? Number(args.maxTasks) : 20
     });
+    await autoExtractMemory("ws-alerts-action-apply");
     return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 
@@ -2136,6 +2153,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       force: args?.force === true,
       noLog: args?.noLog === true
     });
+    await autoExtractMemory("ws-alerts-board-close");
     return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 
@@ -2154,6 +2172,7 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
       dedupeWindowHours: args?.dedupeWindowHours !== undefined ? Number(args.dedupeWindowHours) : 72,
       dryRun: args?.dryRun === true
     });
+    await autoExtractMemory("ws-alerts-board-pulse-apply");
     return JSON.stringify({ ok: true, result: r }, null, 2);
   }
 
