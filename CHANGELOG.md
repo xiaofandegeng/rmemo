@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.6](https://github.com/xiaofandegeng/rmemo/compare/v2.0.5...v2.0.6) (2026-02-28)
+
+
+### 📚 Documentation
+
+* add complete usage guide and demo project ([5c7c123](https://github.com/xiaofandegeng/rmemo/commit/5c7c123e03d21dea9a07fdd3d49368411837e678))
+
 ## [2.0.5](https://github.com/xiaofandegeng/rmemo/compare/v2.0.4...v2.0.5) (2026-02-27)
 
 
