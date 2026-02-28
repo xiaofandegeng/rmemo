@@ -176,3 +176,11 @@ export function resumeIndexPath(root) {
 export function resumeSnapshotPath(root, id) {
   return path.join(resumeSnapshotsDir(root), `${String(id)}.json`);
 }
+
+export function knowledgeDir(root) {
+  return path.join(memDir(root), "knowledge");
+}
+
+export function knowledgeStorePath(root) {
+  return path.join(knowledgeDir(root), "memory.json");
+}

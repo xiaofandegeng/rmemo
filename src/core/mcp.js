@@ -84,6 +84,13 @@ import {
   cancelWorkspaceFocusAlertsActionJob
 } from "./workspaces.js";
 import { formatDiagnosticEvent, exportWorkspaceDiagnostics } from "./diagnostics.js";
+import {
+  extractKnowledgeMemories,
+  formatKnowledgeSearchMarkdown,
+  linkKnowledgeMemories,
+  searchKnowledgeMemories,
+  writeKnowledgeMemory
+} from "./knowledge_memory.js";
 
 const SERVER_NAME = "rmemo";
 const SERVER_VERSION = "0.0.0-dev";
@@ -341,6 +348,22 @@ function toolsList() {
         minScore: { type: "number", default: 0.15, description: "Minimum cosine similarity for semantic search." }
       },
       required: ["q"],
+      additionalProperties: false
+    }),
+    tool("rmemo_memory_search", "Search structured knowledge memory entries and relations.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        q: { type: "string", default: "" },
+        topic: { type: "string", default: "" },
+        module: { type: "string", default: "" },
+        type: { type: "string", enum: ["note", "decision", "todo", "blocker", "change", "risk"] },
+        commit: { type: "string", default: "" },
+        since: { type: "string", default: "" },
+        until: { type: "string", default: "" },
+        limit: { type: "number", default: 20 },
+        format: { type: "string", enum: ["json", "md"], default: "json" }
+      },
       additionalProperties: false
     }),
     tool("rmemo_focus", "Generate a paste-ready focus pack for a question (brief status + relevant hits).", {
@@ -795,6 +818,64 @@ function toolsListWithWrite({ allowWrite } = {}) {
       required: ["text"],
       additionalProperties: false
     }),
+    tool("rmemo_memory_extract", "Extract structured knowledge memories from todos/journal/git and persist to .repo-memory/knowledge/memory.json.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        recentDays: { type: "number", default: 7 },
+        since: { type: "string", default: "" },
+        limit: { type: "number", default: 200 },
+        source: { type: "string", default: "mcp:auto" }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_memory_write", "Create or update one structured knowledge memory entry.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        id: { type: "string" },
+        key: { type: "string" },
+        title: { type: "string" },
+        summary: { type: "string" },
+        type: { type: "string", enum: ["note", "decision", "todo", "blocker", "change", "risk"] },
+        status: { type: "string", enum: ["open", "wip", "done", "blocked"] },
+        source: { type: "string", default: "mcp" },
+        confidence: { type: "number", default: 0.7 },
+        tags: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }]
+        },
+        modules: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }]
+        },
+        relatedCommits: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }]
+        },
+        relatedFiles: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }]
+        },
+        relatedTodos: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }]
+        },
+        relatedJournalFiles: {
+          oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }]
+        }
+      },
+      additionalProperties: false
+    }),
+    tool("rmemo_memory_link", "Create or update one relation between two memory entries.", {
+      type: "object",
+      properties: {
+        root: rootProp,
+        from: { type: "string" },
+        to: { type: "string" },
+        kind: { type: "string", default: "relates" },
+        note: { type: "string", default: "" },
+        weight: { type: "number", default: 1 },
+        source: { type: "string", default: "mcp" }
+      },
+      required: ["from", "to"],
+      additionalProperties: false
+    }),
     tool("rmemo_resume_history_save", "Build and persist one resume digest snapshot to .repo-memory/resume.", {
       type: "object",
       properties: {
@@ -1224,6 +1305,23 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     return JSON.stringify(r, null, 2);
   }
 
+  if (name === "rmemo_memory_search") {
+    const out = await searchKnowledgeMemories(root, {
+      q: String(args?.q || ""),
+      topic: String(args?.topic || ""),
+      module: String(args?.module || ""),
+      type: String(args?.type || ""),
+      commit: String(args?.commit || ""),
+      since: String(args?.since || ""),
+      until: String(args?.until || ""),
+      limit: args?.limit !== undefined ? Number(args.limit) : 20
+    });
+    const format = String(args?.format || "json").toLowerCase();
+    if (format === "md") return formatKnowledgeSearchMarkdown(out);
+    if (format !== "json") throw new Error("format must be md|json");
+    return JSON.stringify(out, null, 2);
+  }
+
   if (name === "rmemo_focus") {
     const q = String(args?.q || "");
     const mode = String(args?.mode || "semantic").toLowerCase();
@@ -1612,6 +1710,52 @@ async function handleToolCall(serverRoot, name, args, logger, { allowWrite, embe
     const p = await appendJournalEntry(root, { kind, text });
     const s = await readMaybe(p, 2_000_000);
     return JSON.stringify({ ok: true, path: p, excerpt: clampLines(s || "", 120) }, null, 2);
+  }
+
+  if (name === "rmemo_memory_extract") {
+    requireWrite();
+    const out = await extractKnowledgeMemories(root, {
+      recentDays: args?.recentDays !== undefined ? Number(args.recentDays) : 7,
+      since: String(args?.since || ""),
+      limit: args?.limit !== undefined ? Number(args.limit) : 200,
+      source: String(args?.source || "mcp:auto")
+    });
+    return JSON.stringify(out, null, 2);
+  }
+
+  if (name === "rmemo_memory_write") {
+    requireWrite();
+    const payload = {
+      id: args?.id !== undefined ? String(args.id) : undefined,
+      key: args?.key !== undefined ? String(args.key) : undefined,
+      title: args?.title !== undefined ? String(args.title) : undefined,
+      summary: args?.summary !== undefined ? String(args.summary) : undefined,
+      type: args?.type !== undefined ? String(args.type) : undefined,
+      status: args?.status !== undefined ? String(args.status) : undefined,
+      source: args?.source !== undefined ? String(args.source) : "mcp",
+      confidence: args?.confidence !== undefined ? Number(args.confidence) : undefined,
+      tags: args?.tags,
+      modules: args?.modules,
+      relatedCommits: args?.relatedCommits,
+      relatedFiles: args?.relatedFiles,
+      relatedTodos: args?.relatedTodos,
+      relatedJournalFiles: args?.relatedJournalFiles
+    };
+    const out = await writeKnowledgeMemory(root, payload);
+    return JSON.stringify(out, null, 2);
+  }
+
+  if (name === "rmemo_memory_link") {
+    requireWrite();
+    const out = await linkKnowledgeMemories(root, {
+      from: String(args?.from || ""),
+      to: String(args?.to || ""),
+      kind: String(args?.kind || "relates"),
+      note: String(args?.note || ""),
+      weight: args?.weight !== undefined ? Number(args.weight) : 1,
+      source: String(args?.source || "mcp")
+    });
+    return JSON.stringify(out, null, 2);
   }
 
   if (name === "rmemo_resume_history_save") {

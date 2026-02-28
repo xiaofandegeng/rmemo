@@ -90,6 +90,7 @@ Usage:
   rmemo mcp                  MCP server over stdio (tools: status/context/handoff/pr/rules/todos/search)
   rmemo embed                Build embeddings index and run semantic search (local-first)
   rmemo focus                Generate a paste-ready "focus pack" for a question (status + relevant hits)
+  rmemo memory               Structured knowledge memory (extract/search/write/link)
   rmemo resume               Generate a next-day resume pack (timeline + todos + latest session/context)
   rmemo resume digest        Generate a concise resume digest (top todos + recent timeline)
   rmemo resume history       Manage resume digest snapshots (list/save/show/compare/prune)
@@ -175,6 +176,28 @@ Options:
   --format <md|json>         For embed status/search: output format
   --min-score <n>            For embed search: minimum cosine similarity (default: 0.15)
   --k <n>                    For embed search: top-k hits (default: 8)
+  --q <text>                 For memory search: query text
+  --topic <tag>              For memory search: filter by tag/topic
+  --module <path>            For memory search: filter by module/path token
+  --type <kind>              For memory search/write: note|decision|todo|blocker|change|risk
+  --commit <sha>             For memory search: filter by related commit prefix
+  --until <iso>              For memory search: upper time bound (ISO timestamp)
+  --title <text>             For memory write: title (required when creating)
+  --summary <text>           For memory write: detailed summary/body
+  --tags <a,b>               For memory write: comma-separated tags
+  --modules <a,b>            For memory write: comma-separated modules
+  --id <memId>               For memory write: update existing entry by id
+  --key <memKey>             For memory write: stable logical key for upsert
+  --from <memId>             For memory link: source memory id
+  --to <memId>               For memory link: target memory id
+  --kind <rel>               For memory link: relation kind (default: relates)
+  --note <text>              For memory link: relation note
+  --weight <n>               For memory link: relation weight (default: 1)
+  --confidence <n>           For memory write: confidence score [0,1]
+  --related-commits <a,b>    For memory write: related commit shas
+  --related-files <a,b>      For memory write: related file paths
+  --related-todos <a,b>      For memory write: related todo snippets
+  --related-journal-files <a,b> For memory write: related journal filenames
   --days <n>                 For timeline: include events in last N days (default: 14)
   --limit <n>                For timeline: max events to output (default: 80)
   --include <list>           For timeline: comma-separated sources (journal,session,todo)

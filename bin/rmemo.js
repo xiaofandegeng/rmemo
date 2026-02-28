@@ -29,6 +29,7 @@ import { cmdDiagnostics } from "../src/cmd/diagnostics.js";
 import { cmdContract } from "../src/cmd/contract.js";
 import { cmdTimeline } from "../src/cmd/timeline.js";
 import { cmdResume } from "../src/cmd/resume.js";
+import { cmdMemory } from "../src/cmd/memory.js";
 import { parseArgs, printHelp } from "../src/lib/args.js";
 import { exitWithError } from "../src/lib/io.js";
 
@@ -126,6 +127,9 @@ try {
       break;
     case "resume":
       await cmdResume({ flags, rest });
+      break;
+    case "memory":
+      await cmdMemory({ flags, rest });
       break;
     case "help":
     case undefined:
