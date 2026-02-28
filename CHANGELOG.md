@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0](https://github.com/xiaofandegeng/rmemo/compare/v2.1.0...v2.2.0) (2026-02-28)
+
+
+### ✨ Features
+
+* **memory:** auto-extract knowledge on refresh and write workflows ([6ead70d](https://github.com/xiaofandegeng/rmemo/commit/6ead70d9c194e57c0398b0e934576ca5d0606882))
+
 ## [2.1.0](https://github.com/xiaofandegeng/rmemo/compare/v2.0.6...v2.1.0) (2026-02-28)
 
 
