@@ -6,6 +6,7 @@ Last updated: 2026-02-27
 
 - [Usage (EN)](./USAGE.md)
 - [使用方式（ZH）](./USAGE.zh-CN.md)
+- [完整使用说明（含示例项目）](./COMPLETE_USAGE_GUIDE.zh-CN.md)
 - [Tasks Snapshot](./TASKS.md)
 
 ## Planning

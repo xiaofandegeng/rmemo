@@ -119,6 +119,7 @@ For full release flow, use:
 ## Documentation
 
 - [Docs Index](./docs/INDEX.md)
+- [Complete Usage Guide (ZH)](./docs/COMPLETE_USAGE_GUIDE.zh-CN.md)
 - [Usage](./docs/USAGE.md)
 - [PR Automation](./docs/PR_AUTOMATION.md)
 - [Contracts](./docs/CONTRACTS.md)
@@ -126,3 +127,4 @@ For full release flow, use:
 - [Release Notes Template](./docs/RELEASE_NOTES_TEMPLATE.md)
 - [Upgrade Guide (v1.0)](./docs/UPGRADING_TO_1_0.md)
 - [Roadmap (ZH)](./docs/LONG_TERM_ROADMAP.zh-CN.md)
+- [Example Project](./examples/rmemo-demo-web-admin/README.zh-CN.md)

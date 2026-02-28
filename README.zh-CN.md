@@ -119,6 +119,7 @@ npm run verify:release-ready
 ## 文档入口
 
 - [文档索引](./docs/INDEX.md)
+- [完整使用说明（含示例项目）](./docs/COMPLETE_USAGE_GUIDE.zh-CN.md)
 - [使用方式（AI 协作）](./docs/USAGE.zh-CN.md)
 - [PR 自动化](./docs/PR_AUTOMATION.zh-CN.md)
 - [接口契约（Contracts）](./docs/CONTRACTS.md)
@@ -126,3 +127,4 @@ npm run verify:release-ready
 - [发布说明模板](./docs/RELEASE_NOTES_TEMPLATE.md)
 - [升级到 v1.0 指南](./docs/UPGRADING_TO_1_0.md)
 - [长期路线（ZH）](./docs/LONG_TERM_ROADMAP.zh-CN.md)
+- [示例项目（Web Admin）](./examples/rmemo-demo-web-admin/README.zh-CN.md)
