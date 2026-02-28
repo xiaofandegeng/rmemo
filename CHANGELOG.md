@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0](https://github.com/xiaofandegeng/rmemo/compare/v2.0.6...v2.1.0) (2026-02-28)
+
+
+### ✨ Features
+
+* **memory:** add structured knowledge memory CLI and MCP tools ([80b72eb](https://github.com/xiaofandegeng/rmemo/commit/80b72ebf1dda0823ef1c82f6235eaac1c35047c0))
+
 ## [2.0.6](https://github.com/xiaofandegeng/rmemo/compare/v2.0.5...v2.0.6) (2026-02-28)
 
 
